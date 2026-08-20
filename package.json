@@ -7,7 +7,7 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vitest run",
+    "test": "vitest run",
     "build:main": "tsc -p tsconfig.main.json",
     "dev:renderer": "vite",
     "start": "npm run build:main && electron ."

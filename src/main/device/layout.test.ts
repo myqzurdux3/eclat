@@ -39,11 +39,25 @@ describe('normalizeLayout', () => {
       [panel(1, 0, 0), panel(2, 200, 0), panel(3, 100, 50)],
       67,
     )
-    expect(layout.aspect).toBeCloseTo(4)
+    // aspect = (width + sideLength) / (height + sideLength) = (200+67)/(50+67) = 267/117
+    expect(layout.aspect).toBeCloseTo(267 / 117)
     // hauteur totale 50 sur une échelle de 200 : la bande occupée fait 0.25,
     // donc centrée entre 0.375 et 0.625
     expect(layout.panels[0]!.ny).toBeCloseTo(0.625)
     expect(layout.panels[2]!.ny).toBeCloseTo(0.375)
+  })
+
+  it('calcule un aspect fini pour une rangée horizontale colinéaire (hauteur nulle)', () => {
+    const layout = normalizeLayout([panel(1, 0, 0), panel(2, 100, 0)], 67)
+    expect(Number.isFinite(layout.aspect)).toBe(true)
+    expect(layout.aspect).toBeCloseTo(167 / 67)
+  })
+
+  it('calcule un aspect fini pour une colonne verticale colinéaire (largeur nulle)', () => {
+    const layout = normalizeLayout([panel(1, 0, 0), panel(2, 0, 100)], 67)
+    expect(Number.isFinite(layout.aspect)).toBe(true)
+    expect(layout.aspect).toBeGreaterThan(0)
+    expect(layout.aspect).toBeCloseTo(67 / 167)
   })
 
   it('écarte le panneau contrôleur (panelId 0) présent sur Lines et Elements', () => {

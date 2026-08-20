@@ -9,6 +9,13 @@ const CONTROLLER_PANEL_ID = 0
  *
  * Le device exprime ses coordonnées en millimètres avec un axe Y orienté vers
  * le haut ; l'axe est inversé ici pour correspondre aux conventions écran.
+ *
+ * `width`/`height` mesurent l'enveloppe des *centres* des panneaux : une
+ * rangée horizontale a donc une hauteur nulle alors que le mur physique n'en
+ * a pas. `aspect` ajoute `sideLength` aux deux axes pour approximer
+ * l'étendue réelle occupée par les panneaux (leur propre taille) ; le
+ * résultat est toujours fini et strictement positif, y compris pour les
+ * dispositions colinéaires (ligne ou colonne).
  */
 export function normalizeLayout(raw: RawPanel[], sideLength: number): PanelLayout {
   const usable = raw.filter((p) => p.panelId !== CONTROLLER_PANEL_ID)
@@ -27,10 +34,11 @@ export function normalizeLayout(raw: RawPanel[], sideLength: number): PanelLayou
   const width = maxX - minX
   const height = maxY - minY
   const scale = Math.max(width, height)
+  const aspect = (width + sideLength) / (height + sideLength)
 
   if (scale === 0) {
     const panels: NormalizedPanel[] = usable.map((p) => ({ ...p, nx: 0.5, ny: 0.5 }))
-    return { sideLength, aspect: 1, panels }
+    return { sideLength, aspect, panels }
   }
 
   const offsetX = (1 - width / scale) / 2
@@ -42,11 +50,9 @@ export function normalizeLayout(raw: RawPanel[], sideLength: number): PanelLayou
     ny: 1 - ((p.y - minY) / scale + offsetY),
   }))
 
-  const aspect = height === 0 ? Number.POSITIVE_INFINITY : width / height
-
   return {
     sideLength,
-    aspect: Number.isFinite(aspect) && aspect > 0 ? aspect : 1,
+    aspect,
     panels,
   }
 }
