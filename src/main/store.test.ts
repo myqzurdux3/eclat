@@ -1,4 +1,4 @@
-import { mkdtemp, stat, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -48,6 +48,23 @@ describe('ConfigStore', () => {
     await store.save({ devices: {}, activeDeviceId: null })
 
     const stats = await stat(file)
+    expect(stats.mode & 0o777).toBe(0o600)
+  })
+
+  it('remet en 0600 un fichier existant avec des permissions relâchées', async () => {
+    const store = new ConfigStore(file)
+
+    // Créer le fichier avec permissions lâches
+    await store.save({ devices: {}, activeDeviceId: null })
+    await chmod(file, 0o644)
+
+    let stats = await stat(file)
+    expect(stats.mode & 0o777).toBe(0o644)
+
+    // Réécrire : la permission doit revenir à 0o600
+    await store.save({ devices: { [device.id]: device }, activeDeviceId: device.id })
+
+    stats = await stat(file)
     expect(stats.mode & 0o777).toBe(0o600)
   })
 
