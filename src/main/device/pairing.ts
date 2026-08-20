@@ -26,6 +26,7 @@ export async function pairDevice(options: PairOptions): Promise<string> {
   const intervalMs = options.intervalMs ?? 2000
   const sleep = options.sleep ?? defaultSleep
   const url = `http://${options.ip}:${port}/api/v1/new`
+  let lastStatus = 0
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     if (options.signal?.aborted) {
@@ -33,11 +34,16 @@ export async function pairDevice(options: PairOptions): Promise<string> {
     }
 
     try {
+      const signals = [AbortSignal.timeout(4000)]
+      if (options.signal) signals.push(options.signal)
+      const signal = AbortSignal.any(signals)
+
       const response = await fetch(url, {
         method: 'POST',
-        signal: AbortSignal.timeout(4000),
+        signal,
       })
 
+      lastStatus = response.status
       if (response.ok) {
         const body = (await response.json()) as { auth_token?: string }
         if (typeof body.auth_token === 'string' && body.auth_token.length > 0) {
@@ -57,6 +63,6 @@ export async function pairDevice(options: PairOptions): Promise<string> {
 
   throw new NanoleafError(
     'Appairage échoué : maintiens le bouton power 5-7 s jusqu au clignotement, puis réessaie',
-    403,
+    lastStatus,
   )
 }

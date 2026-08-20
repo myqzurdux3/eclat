@@ -1,3 +1,4 @@
+import { createServer } from 'node:http'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FakeNanoleaf } from '../../test-support/fake-nanoleaf'
 import { NanoleafError } from './errors'
@@ -68,5 +69,37 @@ describe('pairDevice', () => {
         signal: controller.signal,
       }),
     ).rejects.toThrow(/annul/i)
+  })
+
+  it('rapporte status 0 si le device est injoignable', async () => {
+    // Créer un serveur, récupérer son port, puis le fermer
+    // pour obtenir un port libre où rien n'écoute.
+    const tempServer = createServer()
+    await new Promise<void>((resolve) => tempServer.listen(0, '127.0.0.1', resolve))
+    const closedPort = (tempServer.address() as any).port
+    await new Promise<void>((resolve) => tempServer.close(resolve))
+
+    try {
+      await pairDevice({
+        ip: '127.0.0.1',
+        port: closedPort,
+        attempts: 2,
+        sleep: noSleep,
+      })
+      expect.fail('Should have thrown NanoleafError')
+    } catch (error) {
+      expect(error).toBeInstanceOf(NanoleafError)
+      expect((error as NanoleafError).status).toBe(0)
+    }
+  })
+
+  it('rapporte le status HTTP si le device a refusé', async () => {
+    try {
+      await pairDevice({ ip: '127.0.0.1', port: device.port, attempts: 2, sleep: noSleep })
+      expect.fail('Should have thrown NanoleafError')
+    } catch (error) {
+      expect(error).toBeInstanceOf(NanoleafError)
+      expect((error as NanoleafError).status).toBe(403)
+    }
   })
 })
