@@ -7,7 +7,7 @@
 [![CI](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml/badge.svg)](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-6aa9ff.svg)](LICENSE)
 ![Platform: Linux](https://img.shields.io/badge/platform-Linux-33e0b0.svg)
-![Tests](https://img.shields.io/badge/tests-278%20passing-e0347a.svg)
+![Tests](https://img.shields.io/badge/tests-304%20passing-e0347a.svg)
 
 [Français](README.fr.md) · [Getting started](#getting-started) · [How it works](#architecture) · [What the hardware taught us](#notes-from-the-hardware)
 
@@ -45,6 +45,8 @@ detail it ran into is written down in [Notes from the hardware](#notes-from-the-
 | **Control** | power, brightness, hue/saturation wheel, and click-to-paint on any single panel |
 | **Scenes** | built from the palettes actually stored on the device, not from invented colours |
 | **Screen sync** | Wayland portal capture, analysed in a Worker; spatial, dominant and palette mapping |
+| **Several walls** | pair as many devices as you like, switch between them, and sync them all from one capture |
+| **A living wall** | the mock-up follows the device: exact while Éclat drives the panels, animated from the scene's own palette otherwise |
 | **Languages** | French and English |
 
 <table>
@@ -98,7 +100,7 @@ isolation to work around a temporary system setting.
 ## Development
 
 ```bash
-npm test                # 278 unit tests — no hardware, network, GPU or DOM
+npm test                # 304 unit tests — no hardware, network, GPU or DOM
 npm run build           # main process + renderer
 npm run dev:renderer    # Vite dev server, then, in another terminal:
 VITE_DEV_SERVER_URL=http://localhost:5173 npm start
@@ -177,8 +179,14 @@ Things no documentation mentions, found by measuring:
   panel *centres*; the polygons stick out by a full circumradius — 20 % on a
   real Shapes wall. Framing has to be computed from actual vertices.
 - **Panel colours cannot be read back.** The device exposes no per-panel
-  colour, so the wall you see in Éclat is a faithful mock-up of the device
-  state, not a reading of its LEDs.
+  colour, and its effect animations are closed plugins. So when a device scene
+  is running, the wall in Éclat is animated *from the scene's palette* — a
+  plausible motion, not a mirror, and the interface says so. While Éclat is
+  the one driving the panels, what you see is exact.
+- **The device does report what changed**, though. A Server-Sent Events stream
+  on `/events` announces power, brightness, colour and effect changes — even
+  those made from the mobile app or the physical button. Éclat follows it, so
+  its display never goes stale.
 - **A `MediaStreamTrack` is not transferable** in this build of Chromium.
   The `MediaStreamTrackProcessor` is built on the main thread and its
   `ReadableStream` is what crosses into the Worker.

@@ -4,6 +4,7 @@ import { MANUAL_HOLD_MS, SourceArbiter } from './device/arbiter'
 import { NanoleafClient } from './device/client'
 import { NanoleafError } from './device/errors'
 import { discoverDevices, type MdnsFactory } from './device/discovery'
+import { subscribeToEvents, type DeviceEvent, type EventSubscription } from './device/events'
 import { pairDevice } from './device/pairing'
 import { PanelStream } from './device/stream'
 import type { ConfigStore, StoredDevice } from './store'
@@ -14,12 +15,15 @@ export interface DeviceServiceOptions {
   discoverTimeoutMs?: number
   sleep?: (ms: number) => Promise<void>
   pairAttempts?: number
-  arbiter?: SourceArbiter
+  /** Fabrique d'arbitre, un par device : deux murs s'arbitrent séparément. */
+  arbiterFactory?: () => SourceArbiter
   /** Injecté par les tests pour maîtriser l'échéance de relâche. */
   timers?: {
     setTimeout: (handler: () => void, ms: number) => unknown
     clearTimeout: (handle: unknown) => void
   }
+  /** Reçoit ce que le device signale de lui-même. */
+  onDeviceEvent?: (event: DeviceEvent) => void
   /** Injecté par les tests pour viser un récepteur UDP local. */
   streamFactory?: (options: { client: NanoleafClient; ip: string }) => PanelStream
 }
@@ -37,14 +41,30 @@ export class DeviceService {
   private readonly panelIds = new Map<string, number[]>()
   /** Dernière couleur posée sur chaque panneau, par device. */
   private readonly painted = new Map<string, Map<number, Color>>()
-  private readonly arbiter: SourceArbiter
+  private readonly arbiters = new Map<string, SourceArbiter>()
+  private readonly abonnements = new Map<string, EventSubscription>()
   /** Échéances de relâche du mode externe, par device. */
   private readonly releases = new Map<string, unknown>()
 
   private readonly timers: NonNullable<DeviceServiceOptions['timers']>
 
+  /**
+   * Arbitre d'un device, créé à la demande.
+   *
+   * Un arbitre partagé ferait qu'un sync écran sur un mur interdirait la
+   * peinture sur un autre : les priorités de la spec valent par device, pas
+   * pour l'application entière.
+   */
+  private arbiter(deviceId: string): SourceArbiter {
+    let arbitre = this.arbiters.get(deviceId)
+    if (arbitre === undefined) {
+      arbitre = this.options.arbiterFactory?.() ?? new SourceArbiter()
+      this.arbiters.set(deviceId, arbitre)
+    }
+    return arbitre
+  }
+
   constructor(private readonly options: DeviceServiceOptions) {
-    this.arbiter = options.arbiter ?? new SourceArbiter()
     this.timers = options.timers ?? {
       setTimeout: (handler, ms) => setTimeout(handler, ms),
       clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
@@ -68,6 +88,29 @@ export class DeviceService {
     }
 
     return this.listDevices()
+  }
+
+  /**
+   * S'abonne au flux d'un device appairé, une seule fois.
+   *
+   * Sans lui, une commande venue de l'app mobile ou du bouton physique
+   * passerait inaperçue et l'interface afficherait un état périmé.
+   */
+  private async suivre(deviceId: string): Promise<void> {
+    if (this.options.onDeviceEvent === undefined) return
+    if (this.abonnements.has(deviceId)) return
+
+    const stored = await this.stored(deviceId)
+    this.abonnements.set(
+      deviceId,
+      subscribeToEvents({
+        ip: stored.ip,
+        port: stored.port,
+        token: stored.token,
+        deviceId,
+        onEvent: (event) => this.options.onDeviceEvent?.(event),
+      }),
+    )
   }
 
   async listDevices(): Promise<RendererDevice[]> {
@@ -114,6 +157,7 @@ export class DeviceService {
       token,
     }
     await this.options.store.upsertDevice(stored)
+    void this.suivre(deviceId).catch(() => undefined)
 
     return {
       id: stored.id,
@@ -186,13 +230,13 @@ export class DeviceService {
     }
 
     await stream.arm()
-    this.arbiter.activate(source)
+    this.arbiter(deviceId).activate(source)
   }
 
   /** Retire la source ; ne désarme que si plus personne n'écrit. */
   async stopStream(deviceId: string, source: SourceId): Promise<void> {
-    this.arbiter.deactivate(source)
-    if (this.arbiter.current() !== null) return
+    this.arbiter(deviceId).deactivate(source)
+    if (this.arbiter(deviceId).current() !== null) return
 
     await this.relacher(deviceId, { restore: true })
   }
@@ -209,8 +253,9 @@ export class DeviceService {
     colors: Color[],
     transitionTime?: number,
   ): Promise<boolean> {
-    if (source === 'manual') this.arbiter.touchManual()
-    if (!this.arbiter.accepts(source)) return false
+    const arbitre = this.arbiter(deviceId)
+    if (source === 'manual') arbitre.touchManual()
+    if (!arbitre.accepts(source)) return false
 
     const stream = this.streams.get(deviceId)
     const panelIds = this.panelIds.get(deviceId)
@@ -292,12 +337,23 @@ export class DeviceService {
     this.streams.delete(deviceId)
     this.panelIds.delete(deviceId)
     this.painted.delete(deviceId)
-    this.arbiter.reset()
+    this.arbiter(deviceId).reset()
     await stream.stop(options)
   }
 
   /** Rend son effet à chaque device. Appelé à la fermeture et sur signal. */
+  /** Ouvre le suivi d'événements de chaque device déjà appairé. */
+  async watchPairedDevices(): Promise<void> {
+    const config = await this.options.store.load()
+    for (const stored of Object.values(config.devices)) {
+      await this.suivre(stored.id).catch(() => undefined)
+    }
+  }
+
   async shutdown(): Promise<void> {
+    for (const abonnement of this.abonnements.values()) abonnement.close()
+    this.abonnements.clear()
+
     for (const handle of this.releases.values()) this.timers.clearTimeout(handle)
     this.releases.clear()
 
@@ -305,7 +361,7 @@ export class DeviceService {
     this.streams.clear()
     this.panelIds.clear()
     this.painted.clear()
-    this.arbiter.reset()
+    this.arbiters.clear()
     await Promise.all(streams.map((stream) => stream.stop()))
   }
 

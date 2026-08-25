@@ -93,7 +93,9 @@ app.whenReady().then(async () => {
             return
           }
           if (event.data.type !== 'colors') return
-          vues.push(event.data.colors)
+          const parDevice = event.data.colors[device.id]
+          if (parDevice === undefined) return
+          vues.push(parDevice)
           if (vues.length >= 25) {
             clearTimeout(minuterie)
             w.postMessage({ type: 'stop' })
@@ -115,7 +117,7 @@ app.whenReady().then(async () => {
           {
             type: 'start',
             readable,
-            layout,
+            targets: [{ deviceId: device.id, layout }],
             settings: { mode: 'spatial', radius: 0.1, saturation: 1, blackFloor: 0, attack: 1, release: 1, hz: 25 },
           },
           [readable],

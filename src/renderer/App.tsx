@@ -77,7 +77,14 @@ function lireOnglet(): Onglet {
 function Shell({ bridge }: { bridge: NanoleafApi }) {
   const t = useT()
   const session = useNanoleaf(bridge)
-  const sync = useScreenSync(session.layout, session.pushColors)
+  // Un sync alimente tous les murs appairés à la fois : une seule capture,
+  // un pipeline par géométrie.
+  const cibles = useMemo(
+    () => [...session.layouts].map(([deviceId, layout]) => ({ deviceId, layout })),
+    [session.layouts],
+  )
+
+  const sync = useScreenSync(cibles, session.pushColors)
   const [screen, setScreen] = useState<Onglet>(lireOnglet)
 
   const choisirOnglet = (value: Onglet): void => {
@@ -90,7 +97,9 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
   }
 
   // Pendant un sync, le mur affiche ce qui part vraiment vers les panneaux.
-  const couleursMur = sync.colors ?? session.colors
+  const couleursMur =
+    (session.device === undefined ? undefined : sync.colors?.get(session.device.id)) ??
+    session.colors
 
   /** Le fond dérive vers la moyenne des couleurs posées sur le mur. */
   const derive = useMemo(() => {

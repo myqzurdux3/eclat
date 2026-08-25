@@ -31,6 +31,8 @@ export const en: Dictionary = {
   'control.orientation': 'Wall orientation',
   'control.orientation.help':
     'The device does not report how the wall is mounted, and nothing says a wall has to hang square.',
+  'control.motion.approximate':
+    'The wall is animated from the scene\u2019s colours. The device does not publish its LED state: this is an approximation, not a mirror.',
   'control.paint.help': 'Click a panel on the wall to paint it with the chosen colour.',
   'control.wallUnavailable': 'Wall rendering unavailable',
 

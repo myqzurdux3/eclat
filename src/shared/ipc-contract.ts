@@ -1,5 +1,12 @@
 import type { Color, DeviceState, EffectPalette, PanelLayout, SourceId } from './types'
 
+/** Ce qu'un device signale de lui-même, sans qu'on le lui demande. */
+export interface DeviceEventMessage {
+  deviceId: string
+  kind: 'on' | 'brightness' | 'hue' | 'sat' | 'ct' | 'colourMode' | 'effect' | 'layout'
+  value: string | number | boolean
+}
+
 /** Vue d'un device exposée au renderer. Ne contient jamais le token. */
 export interface RendererDevice {
   id: string
@@ -32,6 +39,8 @@ export interface NanoleafApi {
   ): Promise<boolean>
   paintPanel(deviceId: string, panelId: number, color: Color): Promise<boolean>
   setColor(deviceId: string, hue: number, sat: number): Promise<void>
+  /** S'abonne aux changements signalés par les devices. Rend le désabonnement. */
+  onDeviceEvent(listener: (event: DeviceEventMessage) => void): () => void
   minimizeWindow(): Promise<void>
   closeWindow(): Promise<void>
 }
@@ -52,6 +61,7 @@ export const IPC_CHANNELS = {
   frame: 'stream:frame',
   paintPanel: 'devices:paintPanel',
   setColor: 'devices:setColor',
+  deviceEvent: 'devices:event',
   windowMinimize: 'window:minimize',
   windowClose: 'window:close',
 } as const

@@ -484,3 +484,18 @@ input[type='range']:active::-webkit-slider-thumb {
      compensation, le texte penche à gauche dans un bloc centré. */
   text-indent: 0.06em;
 }
+
+/* Sélecteur de mur : les noms de device sont de longueur libre, donc pas de
+   colonnes égales — chaque bouton prend la largeur de son nom. */
+.murs {
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  justify-content: start;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.murs button {
+  padding: 6px 12px;
+  white-space: nowrap;
+}

@@ -66,7 +66,13 @@ app.whenReady().then(() => {
   service = new DeviceService({
     store: new ConfigStore(defaultConfigPath(), legacyConfigPath()),
     mdnsFactory: createMdnsFactory(),
+    onDeviceEvent: (event) => {
+      for (const fenetre of BrowserWindow.getAllWindows()) {
+        fenetre.webContents.send(IPC_CHANNELS.deviceEvent, event)
+      }
+    },
   })
+  void service.watchPairedDevices().catch(() => undefined)
   registerIpc(ipcMain, service)
 
   ipcMain.handle(IPC_CHANNELS.windowMinimize, (event) => {

@@ -20,7 +20,8 @@ export interface DemarrerMessage {
    * transferable type ». Les flux, eux, le sont depuis longtemps.
    */
   readable: ReadableStream<VideoFrame>
-  layout: PanelLayout
+  /** Un mur par device : chacun a sa géométrie, donc son propre pipeline. */
+  targets: Array<{ deviceId: string; layout: PanelLayout }>
   settings: SyncSettings
 }
 
@@ -30,7 +31,7 @@ export type VersWorker =
   | { type: 'stop' }
 
 export type DepuisWorker =
-  | { type: 'colors'; colors: Color[] }
+  | { type: 'colors'; colors: Record<string, Color[]> }
   | { type: 'preview'; width: number; height: number; data: ArrayBuffer }
   | { type: 'error'; message: string }
   | { type: 'ended' }
@@ -38,7 +39,7 @@ export type DepuisWorker =
 const canvas = new OffscreenCanvas(LARGEUR, HAUTEUR)
 const context = canvas.getContext('2d', { willReadFrequently: true })
 
-let pipeline: SyncPipeline | null = null
+const pipelines = new Map<string, SyncPipeline>()
 let reglages: SyncSettings | null = null
 let arret = false
 
@@ -75,8 +76,12 @@ async function boucle(readable: ReadableStream<VideoFrame>): Promise<void> {
       context.drawImage(frame as unknown as CanvasImageSource, 0, 0, LARGEUR, HAUTEUR)
       const image = context.getImageData(0, 0, LARGEUR, HAUTEUR)
 
-      const colors = pipeline?.process(image) ?? []
-      if (colors.length > 0) envoyer({ type: 'colors', colors })
+      const colors: Record<string, Color[]> = {}
+      for (const [deviceId, pipeline] of pipelines) {
+        const couleurs = pipeline.process(image)
+        if (couleurs.length > 0) colors[deviceId] = couleurs
+      }
+      if (Object.keys(colors).length > 0) envoyer({ type: 'colors', colors })
 
       compteur += 1
       if (compteur % PERIODE_APERCU === 0) {
@@ -101,7 +106,10 @@ self.onmessage = (event: MessageEvent<VersWorker>) => {
 
   if (message.type === 'start') {
     reglages = clampSettings(message.settings)
-    pipeline = new SyncPipeline(message.layout, reglages)
+    pipelines.clear()
+    for (const cible of message.targets) {
+      pipelines.set(cible.deviceId, new SyncPipeline(cible.layout, reglages))
+    }
     arret = false
     boucle(message.readable).catch((cause: unknown) => {
       envoyer({
@@ -114,12 +122,12 @@ self.onmessage = (event: MessageEvent<VersWorker>) => {
 
   if (message.type === 'settings') {
     reglages = clampSettings(message.settings)
-    pipeline?.update(reglages)
+    for (const pipeline of pipelines.values()) pipeline.update(reglages)
     return
   }
 
   if (message.type === 'stop') {
     arret = true
-    pipeline?.reset()
+    for (const pipeline of pipelines.values()) pipeline.reset()
   }
 }

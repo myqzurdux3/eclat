@@ -7,7 +7,7 @@
 [![CI](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml/badge.svg)](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml)
 [![Licence : MIT](https://img.shields.io/badge/licence-MIT-6aa9ff.svg)](LICENSE)
 ![Plateforme : Linux](https://img.shields.io/badge/plateforme-Linux-33e0b0.svg)
-![Tests](https://img.shields.io/badge/tests-278%20passants-e0347a.svg)
+![Tests](https://img.shields.io/badge/tests-304%20passants-e0347a.svg)
 
 [English](README.md) · [Démarrer](#démarrer) · [Architecture](#architecture) · [Ce que le matériel apprend](#ce-que-le-matériel-apprend)
 
@@ -63,6 +63,10 @@ sans compte cloud, sans SDK propriétaire, sans télémétrie.
 - **Synchronisation écran** : capture par le portail Wayland, analyse dans un
   Worker dédié, trois modes de mapping (spatial, dominante, palette), détection
   de letterbox, moyenne en lumière linéaire et lissage temporel asymétrique.
+- **Plusieurs murs** : appaire autant de devices que tu veux, bascule de l'un
+  à l'autre, et alimente-les tous depuis une seule capture.
+- **Un mur vivant** : la maquette suit le device — exacte quand Éclat pilote
+  les panneaux, animée d'après la palette de la scène sinon.
 - Interface **française et anglaise**.
 
 ## Prérequis
@@ -106,7 +110,7 @@ l'isolation du renderer pour contourner un réglage système temporaire.
 ## Développement
 
 ```bash
-npm test                # 278 tests unitaires, sans matériel ni réseau
+npm test                # 304 tests unitaires, sans matériel ni réseau
 npm run build           # processus main + renderer
 npm run dev:renderer    # serveur Vite, puis :
 VITE_DEV_SERVER_URL=http://localhost:5173 npm start
@@ -177,8 +181,15 @@ Des choses que la documentation ne dit pas, trouvées à la mesure :
   débordent du carré unité de tout un rayon circonscrit — 20 % sur un vrai mur
   Shapes. Le cadrage doit partir des sommets réels.
 - **Les couleurs des panneaux ne se lisent pas.** Le device n'expose aucune
-  couleur panneau par panneau : le mur affiché est une maquette fidèle de son
-  état, pas une lecture de ses LED.
+  couleur panneau par panneau, et les animations de ses effets sont des
+  greffons fermés. Quand une scène du device tourne, le mur affiché est donc
+  animé *d'après la palette de la scène* — un mouvement plausible, pas un
+  reflet, et l'interface le dit. Quand c'est Éclat qui pilote, l'affichage est
+  exact.
+- **En revanche le device signale ce qui change.** Un flux Server-Sent Events
+  sur `/events` annonce l'allumage, la luminosité, la couleur et l'effet — y
+  compris quand la commande vient de l'app mobile ou du bouton. Éclat le suit,
+  son affichage ne se périme donc jamais.
 
 ## Feuille de route
 

@@ -7,6 +7,11 @@ import {
 import type { DepuisWorker, VersWorker } from './worker/capture.worker'
 import type { Color, PanelLayout } from '../shared/types'
 
+export interface SyncTarget {
+  deviceId: string
+  layout: PanelLayout
+}
+
 const CLE_REGLAGES = 'nanoleaf.sync'
 
 /**
@@ -44,7 +49,8 @@ export interface ScreenSync {
   actif: boolean
   demarrage: boolean
   settings: SyncSettings
-  colors: Map<number, Color> | null
+  /** Dernières couleurs envoyées, par device. */
+  colors: Map<string, Map<number, Color>> | null
   apercu: Apercu | null
   error: string | null
   setSettings: (partial: Partial<SyncSettings>) => void
@@ -70,20 +76,20 @@ function lireReglages(): SyncSettings {
  * bascule. Arrêter le sync coupe donc l'analyse, pas la capture.
  */
 export function useScreenSync(
-  layout: PanelLayout | null,
-  onColors: (colors: Color[]) => void,
+  targets: SyncTarget[],
+  onColors: (byDevice: Record<string, Color[]>) => void,
 ): ScreenSync {
   const [actif, setActif] = useState(false)
   const [demarrage, setDemarrage] = useState(false)
   const [settings, setSettingsState] = useState<SyncSettings>(lireReglages)
-  const [colors, setColors] = useState<Map<number, Color> | null>(null)
+  const [colors, setColors] = useState<Map<string, Map<number, Color>> | null>(null)
   const [apercu, setApercu] = useState<Apercu | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const workerRef = useRef<Worker | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
-  const layoutRef = useRef(layout)
-  layoutRef.current = layout
+  const targetsRef = useRef(targets)
+  targetsRef.current = targets
   const onColorsRef = useRef(onColors)
   onColorsRef.current = onColors
 
@@ -98,15 +104,15 @@ export function useScreenSync(
   }, [])
 
   const start = useCallback(() => {
-    const geometrie = layoutRef.current
-    if (geometrie === null || streamRef.current !== null) {
-      if (streamRef.current !== null && geometrie !== null) {
+    const cibles = targetsRef.current
+    if (cibles.length === 0 || streamRef.current !== null) {
+      if (streamRef.current !== null && cibles.length > 0) {
         // La capture est déjà ouverte : on relance seulement l'analyse.
         const piste = streamRef.current.getVideoTracks()[0]
         if (piste !== undefined) {
           try {
             const readable = ouvrirFlux(piste)
-            poster({ type: 'start', readable, layout: geometrie, settings }, [readable])
+            poster({ type: 'start', readable, targets: cibles, settings }, [readable])
             setActif(true)
           } catch (cause) {
             setError(cause instanceof Error ? cause.message : String(cause))
@@ -134,7 +140,7 @@ export function useScreenSync(
         })
 
         const readable = ouvrirFlux(piste)
-        poster({ type: 'start', readable, layout: geometrie, settings }, [readable])
+        poster({ type: 'start', readable, targets: cibles, settings }, [readable])
         setActif(true)
       })
       .catch((cause: unknown) => {
@@ -169,13 +175,16 @@ export function useScreenSync(
 
       if (message.type === 'colors') {
         onColorsRef.current(message.colors)
-        const geometrie = layoutRef.current
-        if (geometrie === null) return
         setColors(
           new Map(
-            geometrie.panels.map((panel, index) => [
-              panel.panelId,
-              message.colors[index] ?? { r: 0, g: 0, b: 0 },
+            targetsRef.current.map((cible) => [
+              cible.deviceId,
+              new Map(
+                cible.layout.panels.map((panel, index) => [
+                  panel.panelId,
+                  message.colors[cible.deviceId]?.[index] ?? { r: 0, g: 0, b: 0 },
+                ]),
+              ),
             ]),
           ),
         )

@@ -33,7 +33,7 @@ function Accueil({ session }: { session: NanoleafSession }) {
             <p className="aide" style={{ maxWidth: 320 }}>
               {t('control.found.body')}
             </p>
-            <button className="bouton" disabled={session.busy} onClick={session.pair}>
+            <button className="bouton" disabled={session.busy} onClick={() => session.pair()}>
               {t('control.pair')}
             </button>
           </>
@@ -62,6 +62,15 @@ export function ControlScreen({
     state !== null && state.colorMode === 'effect' && state.effect !== SOLIDE
   const pinceau = hsbToRgb(state?.hue ?? 0, state?.sat ?? 100, 100)
 
+  // Le mur n'est animé que lorsqu'une scène du device tourne et qu'aucune
+  // source de l'application n'écrit dessus : dans ce dernier cas les
+  // couleurs affichées sont exactes, il n'y a rien à approcher.
+  const palette = session.palettes.find((entry) => entry.name === state?.effect)?.colors
+  const motion =
+    sousScene && palette !== undefined && palette.length > 0 && !session.live
+      ? { palette, brightness: state?.brightness ?? 100 }
+      : null
+
   return (
     <section className="controle">
       {layout === null ? (
@@ -70,11 +79,27 @@ export function ControlScreen({
         <WallCanvas
           layout={layout}
           colors={colors}
+          motion={motion}
           onPaint={(panelId) => session.paint(panelId, pinceau)}
         />
       )}
 
       <aside className="verre panneau-lateral">
+        {session.devices.length > 1 && (
+          <div className="segments murs">
+            {session.devices.map((entry) => (
+              <button
+                key={entry.id}
+                aria-pressed={entry.id === device.id}
+                onClick={() => session.selectDevice(entry.id)}
+                title={entry.paired ? entry.name : `${entry.name} — ${t('control.pair')}`}
+              >
+                {entry.paired ? entry.name : `• ${entry.name}`}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="titre-device">
           <strong>{device.name}</strong>
           <span>
@@ -123,6 +148,7 @@ export function ControlScreen({
             onPick={({ hue, sat }) => session.setColor(Math.round(hue), Math.round(sat))}
           />
           {sousScene && <p className="aide">{t('control.colour.underScene')}</p>}
+          {motion !== null && <p className="aide">{t('control.motion.approximate')}</p>}
         </div>
 
         <div className="groupe">

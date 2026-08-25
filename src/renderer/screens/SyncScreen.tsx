@@ -79,16 +79,17 @@ export function SyncScreen({
     <section className="controle">
       <div className="scene apercu-cadre">
         <Apercu sync={sync} />
-        {sync.colors !== null && (
-          <div className="bande-couleurs">
-            {[...sync.colors.values()].map((color, index) => (
-              <span
-                key={index}
-                style={{ background: `rgb(${color.r}, ${color.g}, ${color.b})` }}
-              />
-            ))}
-          </div>
-        )}
+        {sync.colors !== null &&
+          [...sync.colors].map(([deviceId, couleurs]) => (
+            <div className="bande-couleurs" key={deviceId} title={deviceId}>
+              {[...couleurs.values()].map((color, index) => (
+                <span
+                  key={index}
+                  style={{ background: `rgb(${color.r}, ${color.g}, ${color.b})` }}
+                />
+              ))}
+            </div>
+          ))}
       </div>
 
       <aside className="verre panneau-lateral">

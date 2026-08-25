@@ -472,3 +472,111 @@ describe('DeviceService — relâche du mode externe', () => {
     expect(await service.sendFrame('Shapes Salon', 'screen', [{ r: 1, g: 1, b: 1 }])).toBe(false)
   })
 })
+
+describe('DeviceService — plusieurs devices', () => {
+  let second: FakeNanoleaf
+  let receiver: FakeStreamReceiver
+
+  beforeEach(async () => {
+    second = new FakeNanoleaf({ token: 'tok2' })
+    await second.start()
+    second.pairingMode = true
+
+    receiver = new FakeStreamReceiver()
+    await receiver.start()
+
+    const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-multi-'))
+    service = new DeviceService({
+      store: new ConfigStore(join(dir, 'config.json')),
+      mdnsFactory: fakeFactory([
+        {
+          name: 'Salon',
+          host: 'salon.local',
+          addresses: ['127.0.0.1'],
+          port: device.port,
+          txt: { md: 'NL42' },
+        },
+        {
+          name: 'Bureau',
+          host: 'bureau.local',
+          addresses: ['127.0.0.1'],
+          port: second.port,
+          txt: { md: 'NL42' },
+        },
+      ]),
+      discoverTimeoutMs: 0,
+      sleep: () => Promise.resolve(),
+      pairAttempts: 2,
+      streamFactory: ({ client }) =>
+        new PanelStream({
+          client,
+          ip: '127.0.0.1',
+          port: receiver.port,
+          scheduler: { setInterval: () => 1, clearInterval: () => {} },
+        }),
+    })
+
+    device.pairingMode = true
+    await service.discover()
+
+    return async () => {
+      await service.shutdown()
+      await receiver.stop()
+      await second.stop()
+    }
+  })
+
+  it('découvre les deux', async () => {
+    expect((await service.listDevices()).map((d) => d.id).sort()).toEqual(['Bureau', 'Salon'])
+  })
+
+  it('appaire les deux et retient les deux tokens', async () => {
+    await service.pair('Salon')
+    await service.pair('Bureau')
+
+    const listes = await service.listDevices()
+
+    expect(listes.filter((d) => d.paired)).toHaveLength(2)
+  })
+
+  it('arbitre chaque device séparément', async () => {
+    await service.pair('Salon')
+    await service.pair('Bureau')
+    await service.startStream('Salon', 'screen')
+    await service.startStream('Bureau', 'screen')
+
+    // Peindre sur le Salon prend la main là-bas, sans museler le Bureau.
+    await service.paintPanel('Salon', 1, { r: 255, g: 0, b: 0 })
+
+    expect(await service.sendFrame('Salon', 'screen', [{ r: 1, g: 1, b: 1 }])).toBe(false)
+    expect(await service.sendFrame('Bureau', 'screen', [{ r: 1, g: 1, b: 1 }])).toBe(true)
+  })
+
+  it('arrête un device sans toucher à l autre', async () => {
+    await service.pair('Salon')
+    await service.pair('Bureau')
+    device.state.effect = 'Forest'
+    second.state.effect = 'Jungle'
+    await service.startStream('Salon', 'screen')
+    await service.startStream('Bureau', 'screen')
+
+    await service.stopStream('Salon', 'screen')
+
+    expect(device.state.effect).toBe('Forest')
+    expect(second.state.effect).toBe(EXT_CONTROL_EFFECT)
+  })
+
+  it('rend son effet à chaque device à l extinction', async () => {
+    await service.pair('Salon')
+    await service.pair('Bureau')
+    device.state.effect = 'Forest'
+    second.state.effect = 'Jungle'
+    await service.startStream('Salon', 'screen')
+    await service.startStream('Bureau', 'screen')
+
+    await service.shutdown()
+
+    expect(device.state.effect).toBe('Forest')
+    expect(second.state.effect).toBe('Jungle')
+  })
+})

@@ -1,5 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { IPC_CHANNELS, type NanoleafApi } from '../shared/ipc-contract'
+import {
+  IPC_CHANNELS,
+  type DeviceEventMessage,
+  type NanoleafApi,
+} from '../shared/ipc-contract'
 
 const api: NanoleafApi = {
   discover: () => ipcRenderer.invoke(IPC_CHANNELS.discover),
@@ -19,6 +23,11 @@ const api: NanoleafApi = {
   paintPanel: (deviceId, panelId, color) =>
     ipcRenderer.invoke(IPC_CHANNELS.paintPanel, deviceId, panelId, color),
   setColor: (deviceId, hue, sat) => ipcRenderer.invoke(IPC_CHANNELS.setColor, deviceId, hue, sat),
+  onDeviceEvent: (listener) => {
+    const relais = (_event: unknown, message: DeviceEventMessage): void => listener(message)
+    ipcRenderer.on(IPC_CHANNELS.deviceEvent, relais)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.deviceEvent, relais)
+  },
   minimizeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.windowMinimize),
   closeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.windowClose),
 }

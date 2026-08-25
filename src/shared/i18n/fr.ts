@@ -35,6 +35,8 @@ export const fr = {
   'control.orientation': 'Orientation du mur',
   'control.orientation.help':
     "Le device ne dit pas comment le mur est accroché, et rien n'oblige un mur à être posé d'équerre.",
+  'control.motion.approximate':
+    "Le mur est animé d'après les couleurs de la scène. Le device ne publie pas l'état de ses LED : c'est une approximation, pas un reflet.",
   'control.paint.help': 'Clique un panneau du mur pour le peindre de la couleur choisie.',
   'control.wallUnavailable': 'Rendu du mur indisponible',
 
