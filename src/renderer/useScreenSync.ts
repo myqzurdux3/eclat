@@ -9,6 +9,31 @@ import type { Color, PanelLayout } from '../shared/types'
 
 const CLE_REGLAGES = 'nanoleaf.sync'
 
+/**
+ * `MediaStreamTrackProcessor` n'est pas dans la lib DOM de TypeScript : c'est
+ * une API Chromium (WebCodecs). On déclare le strict nécessaire.
+ */
+declare class MediaStreamTrackProcessor<T> {
+  constructor(init: { track: MediaStreamTrack })
+  readonly readable: ReadableStream<T>
+}
+
+/**
+ * Ouvre le flux de frames d'une piste vidéo.
+ *
+ * Le processeur est construit ici, sur le thread principal, et c'est son
+ * `ReadableStream` qui part au Worker : une `MediaStreamTrack` n'est pas
+ * transférable dans cette version de Chromium, alors qu'un flux l'est.
+ */
+function ouvrirFlux(piste: MediaStreamTrack): ReadableStream<VideoFrame> {
+  if (typeof MediaStreamTrackProcessor === 'undefined') {
+    throw new Error(
+      "MediaStreamTrackProcessor est indisponible : cette version de Chromium ne peut pas lire la capture image par image.",
+    )
+  }
+  return new MediaStreamTrackProcessor<VideoFrame>({ track: piste }).readable
+}
+
 export interface Apercu {
   width: number
   height: number
@@ -76,13 +101,16 @@ export function useScreenSync(
     const geometrie = layoutRef.current
     if (geometrie === null || streamRef.current !== null) {
       if (streamRef.current !== null && geometrie !== null) {
-        // Le flux existe déjà : on relance seulement l'analyse.
+        // La capture est déjà ouverte : on relance seulement l'analyse.
         const piste = streamRef.current.getVideoTracks()[0]
         if (piste !== undefined) {
-          poster({ type: 'start', track: piste, layout: geometrie, settings }, [
-            piste as unknown as Transferable,
-          ])
-          setActif(true)
+          try {
+            const readable = ouvrirFlux(piste)
+            poster({ type: 'start', readable, layout: geometrie, settings }, [readable])
+            setActif(true)
+          } catch (cause) {
+            setError(cause instanceof Error ? cause.message : String(cause))
+          }
         }
       }
       return
@@ -105,9 +133,8 @@ export function useScreenSync(
           setColors(null)
         })
 
-        poster({ type: 'start', track: piste, layout: geometrie, settings }, [
-          piste as unknown as Transferable,
-        ])
+        const readable = ouvrirFlux(piste)
+        poster({ type: 'start', readable, layout: geometrie, settings }, [readable])
         setActif(true)
       })
       .catch((cause: unknown) => {

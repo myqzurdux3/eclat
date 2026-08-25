@@ -3,15 +3,6 @@ import { SyncPipeline } from '../../shared/sync/pipeline'
 import { clampSettings, type SyncSettings } from '../../shared/sync/settings'
 import type { Color, PanelLayout } from '../../shared/types'
 
-/**
- * `MediaStreamTrackProcessor` n'est pas dans la lib DOM de TypeScript : c'est
- * une API Chromium (WebCodecs). On déclare le strict nécessaire.
- */
-declare class MediaStreamTrackProcessor<T> {
-  constructor(init: { track: MediaStreamTrack })
-  readonly readable: ReadableStream<T>
-}
-
 /** Taille d'analyse imposée par la spec : 2304 pixels, redimensionnés par le GPU. */
 const LARGEUR = 64
 const HAUTEUR = 36
@@ -20,7 +11,15 @@ const PERIODE_APERCU = 4
 
 export interface DemarrerMessage {
   type: 'start'
-  track: MediaStreamTrack
+  /**
+   * Flux de `VideoFrame`, produit sur le thread principal par
+   * `MediaStreamTrackProcessor` et transféré ici.
+   *
+   * La piste elle-même n'est pas transférable dans cette version de
+   * Chromium — `postMessage` refusait « Value at index 0 does not have a
+   * transferable type ». Les flux, eux, le sont depuis longtemps.
+   */
+  readable: ReadableStream<VideoFrame>
   layout: PanelLayout
   settings: SyncSettings
 }
@@ -50,14 +49,13 @@ let arret = false
  * par le GPU, et l'analyse ne porte que sur 2304 pixels. La frame est
  * refermée aussitôt — en garder plusieurs ouvertes bloque le décodeur.
  */
-async function boucle(track: MediaStreamTrack): Promise<void> {
+async function boucle(readable: ReadableStream<VideoFrame>): Promise<void> {
   if (context === null) {
     envoyer({ type: 'error', message: 'Contexte 2D indisponible dans le Worker' })
     return
   }
 
-  const processor = new MediaStreamTrackProcessor<VideoFrame>({ track })
-  const reader = processor.readable.getReader()
+  const reader = readable.getReader()
 
   let compteur = 0
   let dernierEnvoi = 0
@@ -105,7 +103,7 @@ self.onmessage = (event: MessageEvent<VersWorker>) => {
     reglages = clampSettings(message.settings)
     pipeline = new SyncPipeline(message.layout, reglages)
     arret = false
-    boucle(message.track).catch((cause: unknown) => {
+    boucle(message.readable).catch((cause: unknown) => {
       envoyer({
         type: 'error',
         message: cause instanceof Error ? cause.message : String(cause),
