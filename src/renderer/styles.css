@@ -1,9 +1,14 @@
 :root {
-  --fond: #0a0a0c;
-  --texte: #f2f2f5;
-  --discret: #9a9aa6;
-  --verre: rgba(255, 255, 255, 0.06);
-  --bord: rgba(255, 255, 255, 0.1);
+  --fond: #08080b;
+  --texte: #f4f4f7;
+  --discret: #8b8b98;
+  --faible: #5c5c68;
+  --verre: rgba(255, 255, 255, 0.045);
+  --verre-fort: rgba(255, 255, 255, 0.09);
+  --bord: rgba(255, 255, 255, 0.08);
+  --bord-vif: rgba(255, 255, 255, 0.18);
+  --alerte: #ff7a7a;
+  --rayon: 18px;
   color-scheme: dark;
 }
 
@@ -15,8 +20,16 @@ body {
   margin: 0;
   background: var(--fond);
   color: var(--texte);
-  font-family: system-ui, sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
 }
 
 /* Dégradé lent dérivant vers la couleur dominante.
@@ -27,7 +40,7 @@ body {
   position: fixed;
   inset: -30%;
   z-index: 0;
-  filter: blur(90px);
+  filter: blur(110px);
   pointer-events: none;
   opacity: 0;
   transition: opacity 1.6s linear;
@@ -35,34 +48,37 @@ body {
 }
 
 .derive[data-visible='true'] {
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 .coquille {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-rows: 38px 1fr;
+  grid-template-rows: 44px 1fr;
   height: 100vh;
 }
+
+/* ─── Barre de titre ─────────────────────────────────────────────── */
 
 .barre {
   -webkit-app-region: drag;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 8px;
+  padding: 0 14px;
 }
 
-.barre button,
-.onglets button {
+.barre button {
   -webkit-app-region: no-drag;
 }
 
 .onglets {
   display: flex;
-  gap: 4px;
-  margin-left: 12px;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--verre);
+  border: 1px solid var(--bord);
 }
 
 .onglets button {
@@ -70,78 +86,325 @@ body {
   border: 0;
   color: var(--discret);
   font-size: 13px;
-  padding: 4px 10px;
+  font-weight: 500;
+  padding: 5px 16px;
   border-radius: 999px;
   cursor: pointer;
+  transition: color 140ms ease, background 140ms ease;
+}
+
+.onglets button:hover {
+  color: var(--texte);
 }
 
 .onglets button[aria-selected='true'] {
-  background: var(--verre);
+  background: var(--verre-fort);
   color: var(--texte);
 }
 
 .commandes-fenetre {
   margin-left: auto;
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 .commandes-fenetre button {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
   border-radius: 50%;
   border: 1px solid var(--bord);
   background: var(--verre);
   color: var(--discret);
   cursor: pointer;
-  line-height: 1;
-  font-size: 12px;
+  font-size: 13px;
+  transition: background 140ms ease, color 140ms ease;
 }
+
+.commandes-fenetre button:hover {
+  background: var(--verre-fort);
+  color: var(--texte);
+}
+
+/* ─── Surfaces ───────────────────────────────────────────────────── */
 
 .verre {
   background: var(--verre);
   border: 1px solid var(--bord);
-  backdrop-filter: blur(18px);
-  border-radius: 16px;
-  padding: 20px;
+  backdrop-filter: blur(24px);
+  border-radius: var(--rayon);
 }
 
 .controle {
   display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 20px;
-  padding: 0 20px 20px;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  padding: 0 16px 16px;
   min-height: 0;
+}
+
+/* Le mur occupe toute la scène ; le halo peut déborder sans être coupé. */
+.scene {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--rayon);
+  border: 1px solid var(--bord);
+  background:
+    radial-gradient(120% 120% at 50% 0%, rgba(255, 255, 255, 0.05), transparent 60%),
+    rgba(255, 255, 255, 0.015);
 }
 
 .mur {
   display: block;
   width: 100%;
   height: 100%;
+  cursor: crosshair;
 }
+
+.panneau-lateral {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  padding: 20px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+/* La barre native est opaque et blanche sur ce fond : on la reprend. */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+  background-clip: padding-box;
+}
+
+/* ─── Typographie ────────────────────────────────────────────────── */
+
+.titre-device {
+  display: grid;
+  gap: 2px;
+}
+
+.titre-device strong {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.titre-device span {
+  font-size: 12px;
+  color: var(--faible);
+}
+
+.etiquette {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faible);
+}
+
+.etiquette b {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--texte);
+  font-variant-numeric: tabular-nums;
+}
+
+.aide {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--faible);
+}
+
+.erreur {
+  margin: 0;
+  font-size: 12px;
+  color: var(--alerte);
+}
+
+/* ─── Contrôles ──────────────────────────────────────────────────── */
+
+.bouton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--bord-vif);
+  background: var(--verre-fort);
+  font-size: 14px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.bouton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.bouton:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.bouton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.bouton[data-actif='true'] {
+  background: var(--texte);
+  border-color: var(--texte);
+  color: #101014;
+}
+
+.groupe {
+  display: grid;
+  gap: 9px;
+}
+
+.segments {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--verre);
+  border: 1px solid var(--bord);
+}
+
+.segments button {
+  padding: 7px 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--discret);
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.segments button:hover {
+  color: var(--texte);
+}
+
+.segments button[aria-pressed='true'] {
+  background: var(--verre-fort);
+  color: var(--texte);
+}
+
+/* Curseur : piste et pastille dessinées à la main, la version native est
+   inutilisable sur un fond sombre. */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.12));
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--texte);
+  border: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+  transition: transform 120ms ease;
+}
+
+input[type='range']:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+
+.roue {
+  position: relative;
+  margin: 2px auto 0;
+  touch-action: none;
+}
+
+.roue canvas {
+  display: block;
+  border-radius: 50%;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+}
+
+.curseur-roue {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+/* ─── Scènes ─────────────────────────────────────────────────────── */
 
 .grille-scenes {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
   gap: 14px;
-  padding: 0 20px 20px;
+  padding: 0 16px 16px;
   overflow-y: auto;
   align-content: start;
 }
 
 .vignette {
+  position: relative;
   border: 1px solid var(--bord);
   border-radius: 14px;
   padding: 0;
   cursor: pointer;
   overflow: hidden;
-  color: var(--texte);
   background: transparent;
-  transition: transform 160ms ease;
+  transition: transform 160ms ease, border-color 160ms ease;
 }
 
 .vignette:hover {
-  transform: scale(1.03);
+  transform: translateY(-2px);
+  border-color: var(--bord-vif);
 }
 
 .vignette[aria-current='true'] {
@@ -150,7 +413,13 @@ body {
 
 .vignette span {
   display: block;
-  padding: 8px 10px;
+  padding: 9px 12px;
   font-size: 13px;
+  font-weight: 500;
   text-align: left;
+}
+
+.etat-vide {
+  padding: 0 16px;
+  color: var(--discret);
 }

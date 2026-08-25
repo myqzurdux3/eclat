@@ -1,23 +1,41 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { NanoleafApi, RendererDevice } from '../shared/ipc-contract'
+import { createCoalescer } from '../shared/coalesce'
+import { rotateLayout } from '../shared/geometry'
+import { wallColors } from '../shared/wall-colors'
 import type { Color, DeviceState, EffectPalette, PanelLayout } from '../shared/types'
+
+const CLE_ROTATION = 'nanoleaf.rotation'
 
 export interface NanoleafSession {
   device: RendererDevice | undefined
   state: DeviceState | null
+  /** Déjà pivotée selon le réglage de l'utilisateur. */
   layout: PanelLayout | null
   palettes: EffectPalette[]
   colors: Map<number, Color>
+  rotation: number
   busy: boolean
   error: string | null
   discover: () => void
   pair: () => void
   refresh: () => void
+  setRotation: (quarterTurns: number) => void
   setOn: (on: boolean) => void
   setBrightness: (value: number) => void
   setColor: (hue: number, sat: number) => void
   paint: (panelId: number, color: Color) => void
   selectEffect: (name: string) => void
+}
+
+/** Le device ne dit pas comment le mur est accroché : l'utilisateur décide. */
+function lireRotation(): number {
+  try {
+    const brut = Number(localStorage.getItem(CLE_ROTATION))
+    return Number.isInteger(brut) ? ((brut % 4) + 4) % 4 : 0
+  } catch {
+    return 0
+  }
 }
 
 /**
@@ -27,13 +45,26 @@ export interface NanoleafSession {
 export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
   const [devices, setDevices] = useState<RendererDevice[]>([])
   const [state, setState] = useState<DeviceState | null>(null)
-  const [layout, setLayout] = useState<PanelLayout | null>(null)
+  const [brut, setBrut] = useState<PanelLayout | null>(null)
   const [palettes, setPalettes] = useState<EffectPalette[]>([])
-  const [colors, setColors] = useState<Map<number, Color>>(new Map())
+  const [painted, setPainted] = useState<Map<number, Color>>(new Map())
+  const [rotation, setRotationState] = useState(lireRotation)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const device = devices.find((entry) => entry.paired) ?? devices[0]
+  const deviceId = device?.id
+
+  const layout = useMemo(
+    () => (brut === null ? null : rotateLayout(brut, rotation)),
+    [brut, rotation],
+  )
+
+  /** Maquette du mur : la peinture si elle existe, l'état du device sinon. */
+  const colors = useMemo(
+    () => wallColors(layout?.panels ?? [], state, palettes, painted),
+    [layout, state, palettes, painted],
+  )
 
   const run = useCallback((fn: () => Promise<void>): void => {
     setBusy(true)
@@ -43,11 +74,37 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
       .finally(() => setBusy(false))
   }, [])
 
+  const signaler = useCallback((cause: unknown): void => {
+    setError(cause instanceof Error ? cause.message : String(cause))
+  }, [])
+
+  /**
+   * Les réglages continus passent par un fusionneur : une seule écriture en
+   * vol, la dernière valeur gagne. Sans lui, un glissement de curseur empile
+   * des dizaines de requêtes REST de 60 à 340 ms chacune, et l'interface
+   * décroche.
+   */
+  const pousserLuminosite = useMemo(
+    () =>
+      createCoalescer<{ id: string; value: number }>(({ id, value }) =>
+        bridge.setBrightness(id, value).catch(signaler),
+      ),
+    [bridge, signaler],
+  )
+
+  const pousserCouleur = useMemo(
+    () =>
+      createCoalescer<{ id: string; hue: number; sat: number }>(({ id, hue, sat }) =>
+        bridge.setColor(id, hue, sat).catch(signaler),
+      ),
+    [bridge, signaler],
+  )
+
   const load = useCallback(
     (id: string): void => {
       run(async () => {
         setState(await bridge.getState(id))
-        setLayout(await bridge.getLayout(id))
+        setBrut(await bridge.getLayout(id))
         setPalettes(await bridge.getEffectPalettes(id))
       })
     },
@@ -68,48 +125,64 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
     layout,
     palettes,
     colors,
+    rotation,
     busy,
     error,
+
     discover: () => run(async () => setDevices(await bridge.discover())),
+
     pair: () =>
       run(async () => {
-        if (device === undefined) return
-        await bridge.pair(device.id)
+        if (deviceId === undefined) return
+        await bridge.pair(deviceId)
         setDevices(await bridge.listDevices())
       }),
+
     refresh: () => {
-      if (device !== undefined) load(device.id)
+      if (deviceId !== undefined) load(deviceId)
     },
+
+    setRotation: (quarterTurns) => {
+      const turns = ((quarterTurns % 4) + 4) % 4
+      setRotationState(turns)
+      try {
+        localStorage.setItem(CLE_ROTATION, String(turns))
+      } catch {
+        // Stockage indisponible : le réglage vaut pour cette session.
+      }
+    },
+
     setOn: (on) =>
       run(async () => {
-        if (device === undefined) return
-        await bridge.setOn(device.id, on)
-        setState(await bridge.getState(device.id))
+        if (deviceId === undefined) return
+        await bridge.setOn(deviceId, on)
+        setState(await bridge.getState(deviceId))
       }),
-    setBrightness: (value) =>
-      run(async () => {
-        if (device === undefined) return
-        await bridge.setBrightness(device.id, value)
-        setState((previous) => (previous === null ? previous : { ...previous, brightness: value }))
-      }),
-    setColor: (hue, sat) =>
-      run(async () => {
-        if (device === undefined) return
-        await bridge.setColor(device.id, hue, sat)
-        setState((previous) => (previous === null ? previous : { ...previous, hue, sat }))
-      }),
-    paint: (panelId, color) =>
-      run(async () => {
-        if (device === undefined) return
-        await bridge.paintPanel(device.id, panelId, color)
-        setColors((previous) => new Map(previous).set(panelId, color))
-      }),
+
+    // Affichage immédiat, écriture fusionnée : le curseur reste fluide même
+    // si le device met 300 ms à répondre.
+    setBrightness: (value) => {
+      setState((previous) => (previous === null ? previous : { ...previous, brightness: value }))
+      if (deviceId !== undefined) pousserLuminosite({ id: deviceId, value })
+    },
+
+    setColor: (hue, sat) => {
+      setState((previous) => (previous === null ? previous : { ...previous, hue, sat }))
+      if (deviceId !== undefined) pousserCouleur({ id: deviceId, hue, sat })
+    },
+
+    paint: (panelId, color) => {
+      setPainted((previous) => new Map(previous).set(panelId, color))
+      if (deviceId === undefined) return
+      void bridge.paintPanel(deviceId, panelId, color).catch(signaler)
+    },
+
     selectEffect: (name) =>
       run(async () => {
-        if (device === undefined) return
-        await bridge.selectEffect(device.id, name)
-        setColors(new Map())
-        setState(await bridge.getState(device.id))
+        if (deviceId === undefined) return
+        await bridge.selectEffect(deviceId, name)
+        setPainted(new Map())
+        setState(await bridge.getState(deviceId))
       }),
   }
 }

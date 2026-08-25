@@ -1,10 +1,13 @@
 import { buildHaloMesh, buildPanelMesh, MAX_PANELS, type WallMesh } from './mesh'
+import { fitTransform, wallBounds, type ViewTransform } from '../../shared/view'
 import type { Color, PanelLayout } from '../../shared/types'
 
 export interface WallRenderer {
   draw(colors: Map<number, Color>): void
   resize(): void
   dispose(): void
+  /** Cadrage courant, pour retrouver le panneau sous un clic. */
+  transform(): ViewTransform
 }
 
 const VERTEX_SHADER = `#version 300 es
@@ -12,6 +15,7 @@ in vec2 aPosition;
 in float aPanelIndex;
 in vec2 aOffset;
 uniform vec2 uScale;
+uniform vec2 uCentre;
 uniform vec3 uColors[${MAX_PANELS}];
 out vec3 vColor;
 out vec2 vOffset;
@@ -19,9 +23,10 @@ out vec2 vOffset;
 void main() {
   vColor = uColors[int(aPanelIndex)];
   vOffset = aOffset;
-  // [0,1] vers le repère de clip, en conservant le rapport d'aspect.
-  vec2 centered = (aPosition - 0.5) * 2.0 * uScale;
-  gl_Position = vec4(centered.x, -centered.y, 0.0, 1.0);
+  // Espace du mur vers le repère de clip : on centre, on met à l'échelle,
+  // et on inverse Y qui pointe vers le bas côté écran.
+  vec2 placed = (aPosition - uCentre) * uScale;
+  gl_Position = vec4(placed.x, -placed.y, 0.0, 1.0);
 }`
 
 const PANEL_FRAGMENT_SHADER = `#version 300 es
@@ -133,13 +138,11 @@ export function createWallRenderer(
     })
   }
 
-  /** Marges pour que le mur tienne dans le canvas quel que soit son ratio. */
-  const scaleFor = (): [number, number] => {
-    const canvasAspect = canvas.width / canvas.height
-    return canvasAspect > layout.aspect
-      ? [layout.aspect / canvasAspect, 1]
-      : [1, canvasAspect / layout.aspect]
-  }
+  const bounds = wallBounds(layout)
+
+  /** Cadrage courant : dépend de la taille du canvas, donc recalculé. */
+  const currentTransform = (): ViewTransform =>
+    fitTransform(bounds, canvas.height === 0 ? 1 : canvas.width / canvas.height)
 
   const drawMesh = (
     program: WebGLProgram,
@@ -149,11 +152,13 @@ export function createWallRenderer(
     offset: WebGLBuffer,
   ): void => {
     if (mesh.vertexCount === 0) return
+    const view = currentTransform()
     gl.useProgram(program)
     bindAttribute(gl, program, 'aPosition', position, 2)
     bindAttribute(gl, program, 'aPanelIndex', index, 1)
     bindAttribute(gl, program, 'aOffset', offset, 2)
-    gl.uniform2fv(gl.getUniformLocation(program, 'uScale'), scaleFor())
+    gl.uniform2fv(gl.getUniformLocation(program, 'uScale'), view.scale)
+    gl.uniform2fv(gl.getUniformLocation(program, 'uCentre'), view.centre)
     gl.uniform3fv(gl.getUniformLocation(program, 'uColors'), flat)
     gl.drawArrays(gl.TRIANGLES, 0, mesh.vertexCount)
   }
@@ -182,6 +187,8 @@ export function createWallRenderer(
       canvas.width = Math.round(canvas.clientWidth * ratio)
       canvas.height = Math.round(canvas.clientHeight * ratio)
     },
+
+    transform: currentTransform,
 
     dispose() {
       for (const buffer of Object.values(buffers)) gl.deleteBuffer(buffer)

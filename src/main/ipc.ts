@@ -239,9 +239,7 @@ export class DeviceService {
   }
 
   async setColor(deviceId: string, hue: number, sat: number): Promise<void> {
-    const client = await this.client(deviceId)
-    await client.setHue(hue)
-    await client.setSat(sat)
+    await (await this.client(deviceId)).setHueSat(hue, sat)
   }
 
   /** Rend son effet à chaque device. Appelé à la fermeture et sur signal. */

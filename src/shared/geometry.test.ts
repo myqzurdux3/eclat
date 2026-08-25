@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { circumradius, panelAt, panelPolygon, pointInPolygon } from './geometry'
+import { circumradius, panelAt, panelPolygon, pointInPolygon, rotateLayout } from './geometry'
 import { normalizeLayout } from '../main/device/layout'
 import type { NormalizedPanel } from './types'
 
@@ -120,5 +120,61 @@ describe('panelAt', () => {
 
   it('ne désigne rien dans le vide', () => {
     expect(panelAt(layout, { x: 0.5, y: 0.02 })).toBeNull()
+  })
+})
+
+describe('rotateLayout', () => {
+  const layout = normalizeLayout(
+    [
+      { panelId: 1, x: 0, y: 0, o: 0, shapeType: 8 },
+      { panelId: 2, x: 0, y: 300, o: 0, shapeType: 8 },
+    ],
+    100,
+  )
+
+  it('ne touche à rien pour zéro quart de tour', () => {
+    expect(rotateLayout(layout, 0)).toEqual(layout)
+  })
+
+  it('amène le haut à droite pour un quart de tour', () => {
+    const haut = layout.panels.reduce((a, b) => (a.ny < b.ny ? a : b))
+    const tourne = rotateLayout(layout, 1)
+    const droite = tourne.panels.reduce((a, b) => (a.nx > b.nx ? a : b))
+
+    expect(droite.panelId).toBe(haut.panelId)
+  })
+
+  it('échange le rapport d aspect pour un quart de tour', () => {
+    expect(rotateLayout(layout, 1).aspect).toBeCloseTo(1 / layout.aspect, 6)
+  })
+
+  it('garde le rapport d aspect pour un demi-tour', () => {
+    expect(rotateLayout(layout, 2).aspect).toBeCloseTo(layout.aspect, 6)
+  })
+
+  it('fait revenir quatre quarts de tour au point de départ', () => {
+    const retour = rotateLayout(layout, 4)
+
+    retour.panels.forEach((panel, index) => {
+      expect(panel.nx).toBeCloseTo(layout.panels[index]!.nx, 6)
+      expect(panel.ny).toBeCloseTo(layout.panels[index]!.ny, 6)
+    })
+  })
+
+  it('tourne aussi les polygones, pas seulement les centres', () => {
+    const avant = panelPolygon(layout.panels[0]!, layout.nSideLength)
+    const tourne = rotateLayout(layout, 1)
+    const apres = panelPolygon(tourne.panels[0]!, tourne.nSideLength)
+
+    // Un sommet pointé vers le haut se retrouve pointé vers la droite.
+    expect(avant[0]!.y).toBeLessThan(layout.panels[0]!.ny)
+    expect(apres[0]!.x).toBeGreaterThan(tourne.panels[0]!.nx)
+  })
+
+  it('accepte un nombre négatif de quarts de tour', () => {
+    expect(rotateLayout(layout, -1).panels[0]!.nx).toBeCloseTo(
+      rotateLayout(layout, 3).panels[0]!.nx,
+      6,
+    )
   })
 })

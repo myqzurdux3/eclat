@@ -35,19 +35,26 @@ export function ColorWheel({ hue, sat, size, onPick }: ColorWheelProps) {
         image.data[at] = r
         image.data[at + 1] = g
         image.data[at + 2] = b
-        image.data[at + 3] = 255
+        // Bord adouci sur le dernier pixel, sinon le disque crénèle.
+        const bordure = radius - Math.hypot(x - radius + 0.5, y - radius + 0.5)
+        image.data[at + 3] = Math.round(255 * Math.min(1, Math.max(0, bordure)))
       }
     }
     context.putImageData(image, 0, 0)
   }, [size, radius])
 
+  /**
+   * Le pointeur est capturé au premier appui : le glissement continue même
+   * si le curseur sort du disque, comme sur tout sélecteur de couleur.
+   */
   const pick = (event: React.PointerEvent<HTMLDivElement>): void => {
     const bounds = event.currentTarget.getBoundingClientRect()
-    const position = wheelToHsv(
-      event.clientX - bounds.left - radius,
-      event.clientY - bounds.top - radius,
-      radius,
-    )
+    const dx = event.clientX - bounds.left - radius
+    const dy = event.clientY - bounds.top - radius
+    const distance = Math.hypot(dx, dy)
+    // Hors du disque, on projette sur le bord plutôt que d'ignorer le geste.
+    const facteur = distance > radius ? radius / distance : 1
+    const position = wheelToHsv(dx * facteur, dy * facteur, radius)
     if (position !== null) onPick(position)
   }
 
@@ -55,27 +62,23 @@ export function ColorWheel({ hue, sat, size, onPick }: ColorWheelProps) {
 
   return (
     <div
-      style={{ position: 'relative', width: size, height: size, touchAction: 'none' }}
-      onPointerDown={pick}
-      onPointerMove={(event) => {
-        if (event.buttons === 1) pick(event)
+      className="roue"
+      style={{ width: size, height: size }}
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId)
+        pick(event)
       }}
+      onPointerMove={(event) => {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) pick(event)
+      }}
+      onPointerUp={(event) => event.currentTarget.releasePointerCapture(event.pointerId)}
     >
-      <canvas ref={canvasRef} width={size} height={size} style={{ borderRadius: '50%' }} />
+      <canvas ref={canvasRef} width={size} height={size} />
       <div
+        className="curseur-roue"
         style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          width: 14,
-          height: 14,
-          marginLeft: -7,
-          marginTop: -7,
-          borderRadius: '50%',
-          border: '2px solid #fff',
-          boxShadow: '0 0 6px rgba(0,0,0,0.6)',
-          pointerEvents: 'none',
           transform: `translate(${radius + cursor.dx}px, ${radius + cursor.dy}px)`,
+          background: `rgb(${hsbToRgb(hue, sat, 100).r}, ${hsbToRgb(hue, sat, 100).g}, ${hsbToRgb(hue, sat, 100).b})`,
         }}
       />
     </div>

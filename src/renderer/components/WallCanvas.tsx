@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createWallRenderer, type WallRenderer } from '../gl/wall'
 import { panelAt } from '../../shared/geometry'
+import { unproject } from '../../shared/view'
 import type { Color, PanelLayout } from '../../shared/types'
 
 interface WallCanvasProps {
@@ -56,33 +57,34 @@ export function WallCanvas({ layout, colors, onPaint }: WallCanvasProps) {
     rendererRef.current?.draw(colors)
   }, [colors])
 
-  /**
-   * Le canvas dessine le mur centré avec les mêmes marges que le shader :
-   * l'inverse de cette mise à l'échelle ramène le clic en espace normalisé.
-   */
+  /** Le cadrage du shader fait foi : on l'inverse pour situer le clic. */
   const handleClick = (event: React.MouseEvent<HTMLCanvasElement>): void => {
-    const bounds = event.currentTarget.getBoundingClientRect()
-    const canvasAspect = bounds.width / bounds.height
-    const [scaleX, scaleY] =
-      canvasAspect > layout.aspect
-        ? [layout.aspect / canvasAspect, 1]
-        : [1, canvasAspect / layout.aspect]
+    const renderer = rendererRef.current
+    if (renderer === null) return
 
-    const panel = panelAt(layout, {
-      x: ((event.clientX - bounds.left) / bounds.width - 0.5) / scaleX + 0.5,
-      y: ((event.clientY - bounds.top) / bounds.height - 0.5) / scaleY + 0.5,
-    })
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const point = unproject(
+      renderer.transform(),
+      (event.clientX - bounds.left) / bounds.width,
+      (event.clientY - bounds.top) / bounds.height,
+    )
+
+    const panel = panelAt(layout, point)
     if (panel !== null) onPaint(panel.panelId)
   }
 
   if (panne !== null) {
     return (
-      <div className="verre" style={{ display: 'grid', alignContent: 'center', gap: 8 }}>
+      <div className="scene" style={{ display: 'grid', alignContent: 'center', padding: 24 }}>
         <strong>Rendu du mur indisponible</strong>
-        <p style={{ margin: 0, color: 'var(--discret)', fontSize: 13 }}>{panne}</p>
+        <p className="aide">{panne}</p>
       </div>
     )
   }
 
-  return <canvas ref={canvasRef} className="mur" onClick={handleClick} />
+  return (
+    <div className="scene">
+      <canvas ref={canvasRef} className="mur" onClick={handleClick} />
+    </div>
+  )
 }

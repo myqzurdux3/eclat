@@ -97,6 +97,18 @@ export class NanoleafClient {
     await this.request('PUT', '/state', { sat: { value: clamp(Math.round(value), 0, 100) } })
   }
 
+  /**
+   * Teinte et saturation en une seule écriture. Le device accepte les deux
+   * champs dans le même `PUT /state`, ce qui évite d'enchaîner deux
+   * allers-retours de 60 à 340 ms pendant qu'un curseur glisse.
+   */
+  async setHueSat(hue: number, sat: number): Promise<void> {
+    await this.request('PUT', '/state', {
+      hue: { value: clamp(Math.round(hue), 0, 360) },
+      sat: { value: clamp(Math.round(sat), 0, 100) },
+    })
+  }
+
   async setColorTemp(value: number): Promise<void> {
     await this.request('PUT', '/state', { ct: { value: clamp(Math.round(value), 1200, 6500) } })
   }

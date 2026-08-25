@@ -82,3 +82,35 @@ export function panelAt(layout: PanelLayout, point: Point): NormalizedPanel | nu
   }
   return null
 }
+
+/**
+ * Fait tourner le mur par quarts de tour horaires, à l'écran.
+ *
+ * Le device ne dit pas dans quel sens les panneaux sont accrochés : seul
+ * l'utilisateur le sait. Tourner la layout plutôt que le rendu garde le
+ * maillage, la désignation au clic et le mapping spatial d'accord entre eux,
+ * puisque tous repartent des mêmes `nx`, `ny` et `o`.
+ *
+ * `o` est mesuré dans le repère du device, dont l'axe Y est inversé au
+ * rendu : un quart de tour horaire à l'écran retranche donc 90 à `o`.
+ */
+export function rotateLayout(layout: PanelLayout, quarterTurns: number): PanelLayout {
+  const turns = ((quarterTurns % 4) + 4) % 4
+  if (turns === 0) return layout
+
+  const panels = layout.panels.map((panel) => {
+    let { nx, ny } = panel
+    for (let turn = 0; turn < turns; turn += 1) {
+      const tourne = { nx: 1 - ny, ny: nx }
+      nx = tourne.nx
+      ny = tourne.ny
+    }
+    return { ...panel, nx, ny, o: panel.o - 90 * turns }
+  })
+
+  return {
+    ...layout,
+    aspect: turns % 2 === 0 ? layout.aspect : 1 / layout.aspect,
+    panels,
+  }
+}
