@@ -34,10 +34,39 @@ function MissingBridge() {
   )
 }
 
+type Onglet = 'controle' | 'scenes' | 'sync'
+
+const ONGLETS: Array<{ value: Onglet; libelle: string }> = [
+  { value: 'controle', libelle: 'Contrôle' },
+  { value: 'scenes', libelle: 'Scènes' },
+  { value: 'sync', libelle: 'Sync' },
+]
+
+const CLE_ONGLET = 'nanoleaf.onglet'
+
+/** L'application rouvre sur l'onglet quitté. */
+function lireOnglet(): Onglet {
+  try {
+    const brut = localStorage.getItem(CLE_ONGLET)
+    return ONGLETS.some((onglet) => onglet.value === brut) ? (brut as Onglet) : 'controle'
+  } catch {
+    return 'controle'
+  }
+}
+
 function Shell({ bridge }: { bridge: NanoleafApi }) {
   const session = useNanoleaf(bridge)
   const sync = useScreenSync(session.layout, session.pushColors)
-  const [screen, setScreen] = useState<'controle' | 'scenes' | 'sync'>('controle')
+  const [screen, setScreen] = useState<Onglet>(lireOnglet)
+
+  const choisirOnglet = (value: Onglet): void => {
+    setScreen(value)
+    try {
+      localStorage.setItem(CLE_ONGLET, value)
+    } catch {
+      // Stockage indisponible : le choix vaut pour cette session.
+    }
+  }
 
   // Pendant un sync, le mur affiche ce qui part vraiment vers les panneaux.
   const couleursMur = sync.colors ?? session.colors
@@ -83,15 +112,15 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
       <div className="coquille">
         <header className="barre">
           <nav className="onglets">
-            <button aria-selected={screen === 'controle'} onClick={() => setScreen('controle')}>
-              Contrôle
-            </button>
-            <button aria-selected={screen === 'scenes'} onClick={() => setScreen('scenes')}>
-              Scènes
-            </button>
-            <button aria-selected={screen === 'sync'} onClick={() => setScreen('sync')}>
-              Sync
-            </button>
+            {ONGLETS.map(({ value, libelle }) => (
+              <button
+                key={value}
+                aria-selected={screen === value}
+                onClick={() => choisirOnglet(value)}
+              >
+                {libelle}
+              </button>
+            ))}
           </nav>
           <div className="commandes-fenetre">
             <button title="Réduire" onClick={() => void bridge.minimizeWindow()}>

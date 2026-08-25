@@ -22,6 +22,8 @@ const { createMdnsFactory } = require('../dist/main/main/device/mdns')
 const SORTIE = process.env.CAPTURE_OUT
 const ATTENTE = Number(process.env.CAPTURE_WAIT ?? 6000)
 const ONGLET = process.env.CAPTURE_TAB ?? 'controle'
+// Quarts de tour, tels que stockés par l'application.
+const ROTATION = process.env.CAPTURE_ROTATION
 
 app.whenReady().then(async () => {
   const service = new DeviceService({
@@ -44,24 +46,26 @@ app.whenReady().then(async () => {
     },
   })
 
-  await window.loadFile(join(__dirname, '../dist/renderer/index.html'))
-  await new Promise((resolve) => setTimeout(resolve, ATTENTE))
+  window.webContents.on('console-message', (event) => {
+    console.log('[renderer]', event.level, event.message)
+  })
+  window.webContents.on('render-process-gone', (_e, details) => {
+    console.log('[renderer mort]', JSON.stringify(details))
+  })
 
-  const ROTATION = process.env.CAPTURE_ROTATION
+  // L'onglet est choisi avant le premier rendu : Chromium cesse de repeindre
+  // une fenêtre occultée, et `capturePage` rendrait sinon une frame périmée.
+  await window.loadFile(join(__dirname, '../dist/renderer/index.html'))
+  await window.webContents.executeJavaScript(
+    `localStorage.setItem('nanoleaf.onglet', ${JSON.stringify(ONGLET)})`,
+  )
   if (ROTATION !== undefined) {
     await window.webContents.executeJavaScript(
-      `[...document.querySelectorAll('.segments button')].find(b => b.textContent === '${ROTATION}').click()`,
+      `localStorage.setItem('nanoleaf.rotation', ${JSON.stringify(ROTATION)})`,
     )
-    await new Promise((resolve) => setTimeout(resolve, 900))
   }
-
-  const LIBELLES = { scenes: 'Scènes', sync: 'Sync', controle: 'Contrôle' }
-  if (LIBELLES[ONGLET] !== undefined && ONGLET !== 'controle') {
-    await window.webContents.executeJavaScript(
-      `[...document.querySelectorAll('.onglets button')].find(b => b.textContent.trim() === ${JSON.stringify(LIBELLES[ONGLET])}).click()`,
-    )
-    await new Promise((resolve) => setTimeout(resolve, 1200))
-  }
+  window.reload()
+  await new Promise((resolve) => setTimeout(resolve, ATTENTE))
 
   const image = await window.webContents.capturePage()
   writeFileSync(SORTIE, image.toPNG())
