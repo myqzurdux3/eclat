@@ -55,9 +55,10 @@ app.whenReady().then(async () => {
     await new Promise((resolve) => setTimeout(resolve, 900))
   }
 
-  if (ONGLET === 'scenes') {
+  const LIBELLES = { scenes: 'Scènes', sync: 'Sync', controle: 'Contrôle' }
+  if (LIBELLES[ONGLET] !== undefined && ONGLET !== 'controle') {
     await window.webContents.executeJavaScript(
-      `[...document.querySelectorAll('.onglets button')].find(b => b.textContent.includes('Sc')).click()`,
+      `[...document.querySelectorAll('.onglets button')].find(b => b.textContent.trim() === ${JSON.stringify(LIBELLES[ONGLET])}).click()`,
     )
     await new Promise((resolve) => setTimeout(resolve, 1200))
   }

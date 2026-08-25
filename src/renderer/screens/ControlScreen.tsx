@@ -2,6 +2,7 @@ import { ColorWheel } from '../components/ColorWheel'
 import { WallCanvas } from '../components/WallCanvas'
 import { hsbToRgb } from '../../shared/color'
 import type { NanoleafSession } from '../useNanoleaf'
+import type { Color } from '../../shared/types'
 
 const ROTATIONS = [
   { turns: 0, libelle: '0°' },
@@ -45,7 +46,13 @@ function Accueil({ session }: { session: NanoleafSession }) {
   )
 }
 
-export function ControlScreen({ session }: { session: NanoleafSession }) {
+export function ControlScreen({
+  session,
+  colors,
+}: {
+  session: NanoleafSession
+  colors: Map<number, Color>
+}) {
   const { device, state, layout } = session
 
   if (device === undefined || !device.paired) return <Accueil session={session} />
@@ -59,7 +66,7 @@ export function ControlScreen({ session }: { session: NanoleafSession }) {
       ) : (
         <WallCanvas
           layout={layout}
-          colors={session.colors}
+          colors={colors}
           onPaint={(panelId) => session.paint(panelId, pinceau)}
         />
       )}

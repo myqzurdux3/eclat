@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import type { NanoleafApi } from '../shared/ipc-contract'
 import { ControlScreen } from './screens/ControlScreen'
 import { ScenesScreen } from './screens/ScenesScreen'
+import { SyncScreen } from './screens/SyncScreen'
+import { useScreenSync } from './useScreenSync'
 import { useNanoleaf } from './useNanoleaf'
 
 declare global {
@@ -34,11 +36,15 @@ function MissingBridge() {
 
 function Shell({ bridge }: { bridge: NanoleafApi }) {
   const session = useNanoleaf(bridge)
-  const [screen, setScreen] = useState<'controle' | 'scenes'>('controle')
+  const sync = useScreenSync(session.layout, session.pushColors)
+  const [screen, setScreen] = useState<'controle' | 'scenes' | 'sync'>('controle')
+
+  // Pendant un sync, le mur affiche ce qui part vraiment vers les panneaux.
+  const couleursMur = sync.colors ?? session.colors
 
   /** Le fond dérive vers la moyenne des couleurs posées sur le mur. */
   const derive = useMemo(() => {
-    const posees = [...session.colors.values()]
+    const posees = [...couleursMur.values()]
     if (posees.length === 0) return 'radial-gradient(circle at 30% 30%, #16161c, #0a0a0c)'
     const somme = posees.reduce(
       (total, color) => ({ r: total.r + color.r, g: total.g + color.g, b: total.b + color.b }),
@@ -47,7 +53,7 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
     const n = posees.length
     const teinte = `rgb(${Math.round(somme.r / n)}, ${Math.round(somme.g / n)}, ${Math.round(somme.b / n)})`
     return `radial-gradient(circle at 30% 30%, ${teinte}, #0a0a0c)`
-  }, [session.colors])
+  }, [couleursMur])
 
   // Fondu croisé : le calque sortant garde son fond, seule l'opacité bouge.
   const [calques, setCalques] = useState<[string, string]>([derive, derive])
@@ -83,6 +89,9 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
             <button aria-selected={screen === 'scenes'} onClick={() => setScreen('scenes')}>
               Scènes
             </button>
+            <button aria-selected={screen === 'sync'} onClick={() => setScreen('sync')}>
+              Sync
+            </button>
           </nav>
           <div className="commandes-fenetre">
             <button title="Réduire" onClick={() => void bridge.minimizeWindow()}>
@@ -94,11 +103,9 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
           </div>
         </header>
 
-        {screen === 'controle' ? (
-          <ControlScreen session={session} />
-        ) : (
-          <ScenesScreen session={session} />
-        )}
+        {screen === 'controle' && <ControlScreen session={session} colors={couleursMur} />}
+        {screen === 'scenes' && <ScenesScreen session={session} />}
+        {screen === 'sync' && <SyncScreen session={session} sync={sync} />}
       </div>
     </>
   )

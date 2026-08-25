@@ -26,6 +26,11 @@ export interface NanoleafSession {
   setColor: (hue: number, sat: number) => void
   paint: (panelId: number, color: Color) => void
   selectEffect: (name: string) => void
+  /** Arme le mode externe pour la source écran. */
+  armScreen: () => Promise<void>
+  disarmScreen: () => Promise<void>
+  /** Diffuse une frame produite par le sync écran. */
+  pushColors: (colors: Color[]) => void
 }
 
 /** Le device ne dit pas comment le mur est accroché : l'utilisateur décide. */
@@ -175,6 +180,24 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
       setPainted((previous) => new Map(previous).set(panelId, color))
       if (deviceId === undefined) return
       void bridge.paintPanel(deviceId, panelId, color).catch(signaler)
+    },
+
+    armScreen: async () => {
+      if (deviceId === undefined) return
+      await bridge.startStream(deviceId, 'screen')
+    },
+
+    disarmScreen: async () => {
+      if (deviceId === undefined) return
+      await bridge.stopStream(deviceId, 'screen')
+      setState(await bridge.getState(deviceId))
+    },
+
+    // Le retour n'est pas attendu : la frame suivante corrige de toute
+    // façon, et attendre ferait traîner la boucle d'analyse.
+    pushColors: (colors) => {
+      if (deviceId === undefined) return
+      void bridge.sendFrame(deviceId, 'screen', colors).catch(signaler)
     },
 
     selectEffect: (name) =>

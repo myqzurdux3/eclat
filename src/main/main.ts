@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, desktopCapturer, ipcMain, session } from 'electron'
 import { join } from 'node:path'
 import { createMdnsFactory } from './device/mdns'
 import { DeviceService, registerIpc } from './ipc'
@@ -6,6 +6,29 @@ import { ConfigStore, defaultConfigPath } from './store'
 import { IPC_CHANNELS } from '../shared/ipc-contract'
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
+
+/**
+ * Ouvre la capture d'écran au renderer.
+ *
+ * Sous Wayland, Chromium délègue la sélection au portail
+ * xdg-desktop-portal : c'est le sélecteur GNOME qui s'ouvre, et
+ * `desktopCapturer.getSources()` ne renvoie pas la liste réelle des
+ * fenêtres. Le repli ci-dessous ne sert donc qu'aux sessions X11.
+ */
+function autoriserCaptureEcran(): void {
+  session.defaultSession.setDisplayMediaRequestHandler(
+    (_request, callback) => {
+      void desktopCapturer
+        .getSources({ types: ['screen', 'window'] })
+        .then((sources) => {
+          const premiere = sources[0]
+          callback(premiere === undefined ? {} : { video: premiere })
+        })
+        .catch(() => callback({}))
+    },
+    { useSystemPicker: true },
+  )
+}
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -51,6 +74,7 @@ app.whenReady().then(() => {
     BrowserWindow.fromWebContents(event.sender)?.close()
   })
 
+  autoriserCaptureEcran()
   createWindow()
 
   app.on('activate', () => {
