@@ -26,8 +26,15 @@ function createWindow(): void {
   }
 }
 
+let service: DeviceService | undefined
+let quitting = false
+
+async function shutdown(): Promise<void> {
+  await service?.shutdown()
+}
+
 app.whenReady().then(() => {
-  const service = new DeviceService({
+  service = new DeviceService({
     store: new ConfigStore(defaultConfigPath()),
     mdnsFactory: createMdnsFactory(),
   })
@@ -39,6 +46,21 @@ app.whenReady().then(() => {
   })
 })
 
+// Sans cette restauration, les panneaux resteraient figés sur la dernière
+// trame diffusée.
+app.on('before-quit', (event) => {
+  if (quitting) return
+  event.preventDefault()
+  quitting = true
+  void shutdown().finally(() => app.quit())
+})
+
 app.on('window-all-closed', () => {
   app.quit()
 })
+
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(signal, () => {
+    void shutdown().finally(() => process.exit(0))
+  })
+}

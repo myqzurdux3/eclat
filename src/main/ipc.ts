@@ -1,9 +1,11 @@
-import type { DeviceState, PanelLayout } from '../shared/types'
+import type { Color, DeviceState, PanelLayout, SourceId } from '../shared/types'
 import { IPC_CHANNELS, type RendererDevice } from '../shared/ipc-contract'
+import { SourceArbiter } from './device/arbiter'
 import { NanoleafClient } from './device/client'
 import { NanoleafError } from './device/errors'
 import { discoverDevices, type MdnsFactory } from './device/discovery'
 import { pairDevice } from './device/pairing'
+import { PanelStream } from './device/stream'
 import type { ConfigStore, StoredDevice } from './store'
 
 export interface DeviceServiceOptions {
@@ -12,6 +14,9 @@ export interface DeviceServiceOptions {
   discoverTimeoutMs?: number
   sleep?: (ms: number) => Promise<void>
   pairAttempts?: number
+  arbiter?: SourceArbiter
+  /** Injecté par les tests pour viser un récepteur UDP local. */
+  streamFactory?: (options: { client: NanoleafClient; ip: string }) => PanelStream
 }
 
 /**
@@ -22,7 +27,14 @@ export class DeviceService {
   /** Devices vus en mDNS mais pas encore appairés, indexés par id. */
   private readonly seen = new Map<string, { name: string; ip: string; port: number; model?: string; firmware?: string }>()
 
-  constructor(private readonly options: DeviceServiceOptions) {}
+  private readonly streams = new Map<string, PanelStream>()
+  /** `panelId` dans l'ordre du layout, mémorisé à l'armement. */
+  private readonly panelIds = new Map<string, number[]>()
+  private readonly arbiter: SourceArbiter
+
+  constructor(private readonly options: DeviceServiceOptions) {
+    this.arbiter = options.arbiter ?? new SourceArbiter()
+  }
 
   async discover(): Promise<RendererDevice[]> {
     const found = await discoverDevices(this.options.mdnsFactory, {
@@ -123,13 +135,93 @@ export class DeviceService {
     await (await this.client(deviceId)).selectEffect(name)
   }
 
-  /** Construit un client authentifié ; le token reste dans le processus main. */
-  private async client(deviceId: string): Promise<NanoleafClient> {
+  /** Arme le mode externe et déclare la source auprès de l'arbitre. */
+  async startStream(deviceId: string, source: SourceId): Promise<void> {
+    const stored = await this.stored(deviceId)
+    const client = new NanoleafClient({
+      ip: stored.ip,
+      token: stored.token,
+      port: stored.port,
+    })
+
+    let stream = this.streams.get(deviceId)
+    if (stream === undefined) {
+      stream =
+        this.options.streamFactory?.({ client, ip: stored.ip }) ??
+        new PanelStream({ client, ip: stored.ip })
+      this.streams.set(deviceId, stream)
+    }
+
+    if (!this.panelIds.has(deviceId)) {
+      const layout = await client.getLayout()
+      this.panelIds.set(
+        deviceId,
+        layout.panels.map((panel) => panel.panelId),
+      )
+    }
+
+    await stream.arm()
+    this.arbiter.activate(source)
+  }
+
+  /** Retire la source ; ne désarme que si plus personne n'écrit. */
+  async stopStream(deviceId: string, source: SourceId): Promise<void> {
+    this.arbiter.deactivate(source)
+    if (this.arbiter.current() !== null) return
+
+    const stream = this.streams.get(deviceId)
+    if (stream === undefined) return
+    this.streams.delete(deviceId)
+    this.panelIds.delete(deviceId)
+    await stream.stop()
+  }
+
+  /**
+   * Diffuse une frame produite par le renderer. Les couleurs sont réparties
+   * sur les panneaux dans l'ordre du layout ; une liste plus courte est
+   * cyclée. Renvoie `false` si la source n'a pas la main ou si la cadence
+   * maximale est déjà atteinte.
+   */
+  async sendFrame(
+    deviceId: string,
+    source: SourceId,
+    colors: Color[],
+    transitionTime?: number,
+  ): Promise<boolean> {
+    if (source === 'manual') this.arbiter.touchManual()
+    if (!this.arbiter.accepts(source)) return false
+
+    const stream = this.streams.get(deviceId)
+    const panelIds = this.panelIds.get(deviceId)
+    if (stream === undefined || panelIds === undefined || colors.length === 0) return false
+
+    return stream.send(
+      panelIds.map((panelId, index) => ({ panelId, color: colors[index % colors.length]! })),
+      transitionTime,
+    )
+  }
+
+  /** Rend son effet à chaque device. Appelé à la fermeture et sur signal. */
+  async shutdown(): Promise<void> {
+    const streams = [...this.streams.values()]
+    this.streams.clear()
+    this.panelIds.clear()
+    this.arbiter.reset()
+    await Promise.all(streams.map((stream) => stream.stop()))
+  }
+
+  private async stored(deviceId: string): Promise<StoredDevice> {
     const config = await this.options.store.load()
     const stored = config.devices[deviceId]
     if (stored === undefined) {
       throw new NanoleafError(`Device non appairé : ${deviceId}`, 401)
     }
+    return stored
+  }
+
+  /** Construit un client authentifié ; le token reste dans le processus main. */
+  private async client(deviceId: string): Promise<NanoleafClient> {
+    const stored = await this.stored(deviceId)
     return new NanoleafClient({ ip: stored.ip, token: stored.token, port: stored.port })
   }
 }
@@ -157,5 +249,16 @@ export function registerIpc(ipcMain: IpcMainLike, service: DeviceService): void 
   ipcMain.handle(IPC_CHANNELS.getEffects, (_event, id: string) => service.getEffects(id))
   ipcMain.handle(IPC_CHANNELS.selectEffect, (_event, id: string, name: string) =>
     service.selectEffect(id, name),
+  )
+  ipcMain.handle(IPC_CHANNELS.startStream, (_event, id: string, source: SourceId) =>
+    service.startStream(id, source),
+  )
+  ipcMain.handle(IPC_CHANNELS.stopStream, (_event, id: string, source: SourceId) =>
+    service.stopStream(id, source),
+  )
+  ipcMain.handle(
+    IPC_CHANNELS.frame,
+    (_event, id: string, source: SourceId, colors: Color[], transitionTime?: number) =>
+      service.sendFrame(id, source, colors, transitionTime),
   )
 }

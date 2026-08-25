@@ -11,6 +11,10 @@ const api: NanoleafApi = {
   getLayout: (deviceId) => ipcRenderer.invoke(IPC_CHANNELS.getLayout, deviceId),
   getEffects: (deviceId) => ipcRenderer.invoke(IPC_CHANNELS.getEffects, deviceId),
   selectEffect: (deviceId, name) => ipcRenderer.invoke(IPC_CHANNELS.selectEffect, deviceId, name),
+  startStream: (deviceId, source) => ipcRenderer.invoke(IPC_CHANNELS.startStream, deviceId, source),
+  stopStream: (deviceId, source) => ipcRenderer.invoke(IPC_CHANNELS.stopStream, deviceId, source),
+  sendFrame: (deviceId, source, colors, transitionTime) =>
+    ipcRenderer.invoke(IPC_CHANNELS.frame, deviceId, source, colors, transitionTime),
 }
 
 contextBridge.exposeInMainWorld('nanoleaf', api)

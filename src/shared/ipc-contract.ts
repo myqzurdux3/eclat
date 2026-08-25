@@ -1,4 +1,4 @@
-import type { DeviceState, PanelLayout } from './types'
+import type { Color, DeviceState, PanelLayout, SourceId } from './types'
 
 /** Vue d'un device exposée au renderer. Ne contient jamais le token. */
 export interface RendererDevice {
@@ -21,6 +21,14 @@ export interface NanoleafApi {
   getLayout(deviceId: string): Promise<PanelLayout>
   getEffects(deviceId: string): Promise<string[]>
   selectEffect(deviceId: string, name: string): Promise<void>
+  startStream(deviceId: string, source: SourceId): Promise<void>
+  stopStream(deviceId: string, source: SourceId): Promise<void>
+  sendFrame(
+    deviceId: string,
+    source: SourceId,
+    colors: Color[],
+    transitionTime?: number,
+  ): Promise<boolean>
 }
 
 export const IPC_CHANNELS = {
@@ -33,4 +41,7 @@ export const IPC_CHANNELS = {
   getLayout: 'devices:layout',
   getEffects: 'effects:list',
   selectEffect: 'effects:select',
+  startStream: 'stream:start',
+  stopStream: 'stream:stop',
+  frame: 'stream:frame',
 } as const
