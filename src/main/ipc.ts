@@ -198,6 +198,9 @@ export class DeviceService {
 
   async setOn(deviceId: string, on: boolean): Promise<void> {
     await (await this.client(deviceId)).setOn(on)
+    // A stream in flight restores the power it found at arming: tell it the
+    // user has moved that baseline, or its release undoes this command.
+    this.streams.get(deviceId)?.notePower(on)
   }
 
   async setBrightness(deviceId: string, value: number): Promise<void> {
@@ -299,6 +302,13 @@ export class DeviceService {
    */
   async paintPanel(deviceId: string, panelId: number, color: Color): Promise<boolean> {
     if (!this.streams.has(deviceId)) {
+      // A click on a panel asks for light, and external control lights
+      // nothing on an off wall. Switching the power on here — before the
+      // stream saves its snapshot — also keeps the release from putting the
+      // wall back into the dark three seconds later.
+      const client = await this.client(deviceId)
+      if (!(await client.getState()).on) await client.setOn(true)
+
       await this.startStream(deviceId, 'manual')
     }
 

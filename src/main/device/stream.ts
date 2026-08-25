@@ -94,6 +94,18 @@ export class PanelStream {
   }
 
   /**
+   * Records a power change made behind the stream's back.
+   *
+   * What gets put back on release is the snapshot taken at arming. An
+   * explicit power command from the user replaces it: without this, a release
+   * firing three seconds after a `Turn off` would light the wall back up
+   * because the snapshot still says the wall was on.
+   */
+  notePower(on: boolean): void {
+    if (this.saved !== null) this.saved = { ...this.saved, on }
+  }
+
+  /**
    * Sends a frame. Returns `false` when the mode is not armed or the maximum
    * rate is already reached — the caller has nothing to make up for.
    */

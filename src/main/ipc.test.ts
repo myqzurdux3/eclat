@@ -424,6 +424,31 @@ describe('DeviceService — releasing external control', () => {
     await new Promise((resolve) => setTimeout(resolve, 30))
   }
 
+  /**
+   * A click on a panel is a request for light. On an off wall external
+   * control lights nothing at all, so the click has to switch the power on
+   * before it can mean anything.
+   */
+  it('switches an off wall on before painting it', async () => {
+    device.state.on = false
+
+    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
+
+    expect(device.state.on).toBe(true)
+  })
+
+  /** And the release must not undo it: the wall stays lit afterwards. */
+  it('leaves the wall on once the painting expires', async () => {
+    device.state.on = false
+    device.state.effect = 'Forest'
+
+    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
+    await fire()
+
+    expect(device.state.on).toBe(true)
+    expect(device.state.effect).toBe('Forest')
+  })
+
   it('gives the device its effect back when the painting expires', async () => {
     device.state.effect = 'Forest'
     await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
@@ -432,6 +457,23 @@ describe('DeviceService — releasing external control', () => {
     await fire()
 
     expect(device.state.effect).toBe('Forest')
+  })
+
+  /**
+   * The stream saves the power state it found and puts it back on release.
+   * Cutting the power in between makes that saved value a lie: three seconds
+   * later the restore would light the wall the user just switched off.
+   */
+  it('does not light the wall back up when the power was cut mid-stroke', async () => {
+    device.state.effect = 'Forest'
+    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
+
+    await service.setOn('Shapes Lounge', false)
+    expect(device.state.on).toBe(false)
+
+    await fire()
+
+    expect(device.state.on).toBe(false)
   })
 
   it('postpones the release on every new stroke', async () => {

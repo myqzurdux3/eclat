@@ -311,10 +311,14 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
       if (deviceId !== undefined) pushColour({ id: deviceId, hue, sat })
     },
 
+    // Painting an off wall switches it on in the main process. Reflecting
+    // that here at once keeps the mock-up from drawing a dark wall for the
+    // time it takes the device to announce its own change.
     paint: (panelId, color) => {
       setPainted((previous) => new Map(previous).set(panelId, color))
       if (deviceId === undefined) return
       setLive(true)
+      setState((previous) => (previous === null ? previous : { ...previous, on: true }))
       void bridge.paintPanel(deviceId, panelId, color).catch(report)
     },
 

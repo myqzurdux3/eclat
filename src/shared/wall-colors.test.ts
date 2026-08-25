@@ -40,7 +40,7 @@ describe('wallColors', () => {
     expect([...wallColors(layout.panels, state(), palettes, nothing).keys()]).toEqual([1, 2, 3])
   })
 
-  it('manual painting wins over everything else', () => {
+  it('manual painting wins over the effect and the solid colour', () => {
     const painted = new Map([[2, { r: 1, g: 2, b: 3 }]])
 
     expect(wallColors(layout.panels, state(), palettes, painted).get(2)).toEqual({
@@ -115,10 +115,25 @@ describe('wallColors', () => {
     expect(colors.get(1)).not.toEqual({ r: 0, g: 0, b: 0 })
   })
 
-  it('keeps painting visible even with the device off', () => {
+  /**
+   * Power beats painting. The device cuts its LEDs whatever external control
+   * last sent it, so a painted panel drawn lit over an off wall is the
+   * mock-up contradicting the room.
+   */
+  it('switches painted panels off along with the device', () => {
     const painted = new Map([[1, { r: 255, g: 255, b: 255 }]])
 
     expect(wallColors(layout.panels, state({ on: false }), palettes, painted).get(1)).toEqual({
+      r: 0,
+      g: 0,
+      b: 0,
+    })
+  })
+
+  it('paints again as soon as the device comes back on', () => {
+    const painted = new Map([[1, { r: 255, g: 255, b: 255 }]])
+
+    expect(wallColors(layout.panels, state({ on: true }), palettes, painted).get(1)).toEqual({
       r: 255,
       g: 255,
       b: 255,

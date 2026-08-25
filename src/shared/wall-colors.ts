@@ -35,6 +35,14 @@ export function wallColors(
   const factor = state === null ? 1 : Math.max(0, Math.min(100, state.brightness)) / 100
 
   panels.forEach((panel, index) => {
+    // Power comes first, painting included. The device cuts its LEDs whatever
+    // external control last sent it, so a painted panel drawn lit over an off
+    // wall would be the mock-up contradicting the room.
+    if (state !== null && !state.on) {
+      colors.set(panel.panelId, OFF)
+      return
+    }
+
     // A painted panel was painted on purpose: it keeps its full colour.
     const paintedColour = painted.get(panel.panelId)
     if (paintedColour !== undefined) {
@@ -44,11 +52,6 @@ export function wallColors(
 
     if (state === null) {
       colors.set(panel.panelId, NEUTRAL)
-      return
-    }
-
-    if (!state.on) {
-      colors.set(panel.panelId, OFF)
       return
     }
 
