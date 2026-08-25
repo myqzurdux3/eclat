@@ -1,5 +1,5 @@
 {
-  "name": "nanoleaf-linux",
+  "name": "eclat",
   "version": "0.1.0",
   "description": "Control and screen-sync application for Nanoleaf light panels on Linux",
   "main": "dist/main/main/main.js",
@@ -45,10 +45,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/myqzurdux3/nanoleaf.git"
+    "url": "git+https://github.com/myqzurdux3/eclat.git"
   },
   "bugs": {
-    "url": "https://github.com/myqzurdux3/nanoleaf/issues"
+    "url": "https://github.com/myqzurdux3/eclat/issues"
   },
-  "homepage": "https://github.com/myqzurdux3/nanoleaf#readme"
+  "homepage": "https://github.com/myqzurdux3/eclat#readme",
+  "productName": "Éclat"
 }

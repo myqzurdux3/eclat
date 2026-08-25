@@ -52,10 +52,17 @@ export function wallColors(
       return
     }
 
+    if (palette !== undefined && palette.length > 0) {
+      colors.set(panel.panelId, attenuer(palette[index % palette.length]!, facteur))
+      return
+    }
+
+    // En mode effet, `hue` et `sat` sont périmées : le device cesse de les
+    // mettre à jour dès qu'une scène tourne, et elles restent souvent à
+    // 0/0 — soit du blanc franc. Afficher ce blanc ferait croire à un mur
+    // allumé en blanc alors qu'on ignore simplement ce qu'il montre.
     const base =
-      palette !== undefined && palette.length > 0
-        ? palette[index % palette.length]!
-        : hsbToRgb(state.hue, state.sat, 100)
+      state.colorMode === 'effect' ? NEUTRE : hsbToRgb(state.hue, state.sat, 100)
 
     colors.set(panel.panelId, attenuer(base, facteur))
   })

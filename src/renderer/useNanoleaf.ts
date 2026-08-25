@@ -7,6 +7,9 @@ import type { Color, DeviceState, EffectPalette, PanelLayout } from '../shared/t
 
 const CLE_ROTATION = 'nanoleaf.rotation'
 
+/** Nom d'effet rapporté par le device quand il éclaire en couleur unie. */
+export const SOLIDE = '*Solid*'
+
 /** Rotation du mur, en degrés horaires à l'écran. */
 const ROTATION_MAX = 360
 
@@ -178,8 +181,15 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
       if (deviceId !== undefined) pousserLuminosite({ id: deviceId, value })
     },
 
+    // Régler une couleur sort le device de son effet : il bascule en mode
+    // `hs` et rapporte `*Solid*`. Le refléter tout de suite évite que la
+    // maquette continue d'afficher la palette d'une scène déjà remplacée.
     setColor: (hue, sat) => {
-      setState((previous) => (previous === null ? previous : { ...previous, hue, sat }))
+      setState((previous) =>
+        previous === null
+          ? previous
+          : { ...previous, hue, sat, colorMode: 'hs', effect: SOLIDE },
+      )
       if (deviceId !== undefined) pousserCouleur({ id: deviceId, hue, sat })
     },
 

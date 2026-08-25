@@ -16,7 +16,7 @@ const { join } = require('node:path')
 const { writeFileSync } = require('node:fs')
 
 const { DeviceService, registerIpc } = require('../dist/main/main/ipc')
-const { ConfigStore, defaultConfigPath } = require('../dist/main/main/store')
+const { ConfigStore, defaultConfigPath, legacyConfigPath } = require('../dist/main/main/store')
 const { createMdnsFactory } = require('../dist/main/main/device/mdns')
 
 const SORTIE = process.env.CAPTURE_OUT
@@ -27,7 +27,7 @@ const ROTATION = process.env.CAPTURE_ROTATION
 
 app.whenReady().then(async () => {
   const service = new DeviceService({
-    store: new ConfigStore(defaultConfigPath()),
+    store: new ConfigStore(defaultConfigPath(), legacyConfigPath()),
     mdnsFactory: createMdnsFactory(),
   })
   registerIpc(ipcMain, service)

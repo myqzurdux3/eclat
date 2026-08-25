@@ -2,7 +2,7 @@ import { app, BrowserWindow, desktopCapturer, ipcMain, session } from 'electron'
 import { join } from 'node:path'
 import { createMdnsFactory } from './device/mdns'
 import { DeviceService, registerIpc } from './ipc'
-import { ConfigStore, defaultConfigPath } from './store'
+import { ConfigStore, defaultConfigPath, legacyConfigPath } from './store'
 import { IPC_CHANNELS } from '../shared/ipc-contract'
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
@@ -32,6 +32,8 @@ function autoriserCaptureEcran(): void {
 
 function createWindow(): void {
   const window = new BrowserWindow({
+    title: 'Éclat',
+    icon: join(__dirname, '../../assets/logo.png'),
     width: 1100,
     height: 720,
     minWidth: 880,
@@ -62,7 +64,7 @@ async function shutdown(): Promise<void> {
 
 app.whenReady().then(() => {
   service = new DeviceService({
-    store: new ConfigStore(defaultConfigPath()),
+    store: new ConfigStore(defaultConfigPath(), legacyConfigPath()),
     mdnsFactory: createMdnsFactory(),
   })
   registerIpc(ipcMain, service)

@@ -1,7 +1,7 @@
 import { ColorWheel } from '../components/ColorWheel'
 import { WallCanvas } from '../components/WallCanvas'
 import { hsbToRgb } from '../../shared/color'
-import type { NanoleafSession } from '../useNanoleaf'
+import { SOLIDE, type NanoleafSession } from '../useNanoleaf'
 import type { Color } from '../../shared/types'
 import { useT } from '../i18n'
 import { translateError } from '../../shared/i18n/errors'
@@ -56,6 +56,10 @@ export function ControlScreen({
 
   if (device === undefined || !device.paired) return <Accueil session={session} />
 
+  // Sous une scène, le device cesse de tenir `hue` et `sat` à jour : les
+  // afficher laisserait croire que le mur éclaire en blanc.
+  const sousScene =
+    state !== null && state.colorMode === 'effect' && state.effect !== SOLIDE
   const pinceau = hsbToRgb(state?.hue ?? 0, state?.sat ?? 100, 100)
 
   return (
@@ -107,7 +111,9 @@ export function ControlScreen({
           <div className="etiquette">
             {t('control.colour')}
             <b>
-              {Math.round(state?.hue ?? 0)}° · {Math.round(state?.sat ?? 0)} %
+              {sousScene
+                ? state!.effect
+                : `${Math.round(state?.hue ?? 0)}° · ${Math.round(state?.sat ?? 0)} %`}
             </b>
           </div>
           <ColorWheel
@@ -116,6 +122,7 @@ export function ControlScreen({
             size={200}
             onPick={({ hue, sat }) => session.setColor(Math.round(hue), Math.round(sat))}
           />
+          {sousScene && <p className="aide">{t('control.colour.underScene')}</p>}
         </div>
 
         <div className="groupe">

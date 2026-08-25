@@ -13,7 +13,7 @@ export const fr = {
   'app.window.close': 'Fermer',
   'app.language': 'Langue',
 
-  'bridge.missing.title': 'Nanoleaf — pont IPC absent',
+  'bridge.missing.title': 'Éclat — pont IPC absent',
   'bridge.missing.body':
     "Cette page est servie par Vite, qui ne fournit que l'interface. Le dialogue avec les panneaux passe par le processus main d'Electron : le token d'authentification ne doit jamais atteindre le navigateur.",
 
@@ -30,6 +30,8 @@ export const fr = {
   'control.turnOff': 'Éteindre',
   'control.brightness': 'Luminosité',
   'control.colour': 'Couleur',
+  'control.colour.underScene':
+    "Une scène est en cours : le device ne rapporte plus de teinte. Choisir une couleur la remplacera.",
   'control.orientation': 'Orientation du mur',
   'control.orientation.help':
     "Le device ne dit pas comment le mur est accroché, et rien n'oblige un mur à être posé d'équerre.",

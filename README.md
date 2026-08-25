@@ -1,106 +1,134 @@
-# Nanoleaf for Linux
+<div align="center">
 
-Control and screen-sync application for Nanoleaf light panels, built for Linux
-desktops. Discovers panels over mDNS, pairs with them, renders the wall in
-WebGL2 at its real geometry, and drives the panels in real time from what is on
-your screen.
+<img src="assets/wordmark.png" alt="Éclat" width="420">
 
-*[Version française](README.fr.md)*
+**Drive your Nanoleaf panels from Linux — and let your screen spill onto the wall.**
+
+[![CI](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml/badge.svg)](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-6aa9ff.svg)](LICENSE)
+![Platform: Linux](https://img.shields.io/badge/platform-Linux-33e0b0.svg)
+![Tests](https://img.shields.io/badge/tests-278%20passing-e0347a.svg)
+
+[Français](README.fr.md) · [Getting started](#getting-started) · [How it works](#architecture) · [What the hardware taught us](#notes-from-the-hardware)
+
+</div>
+
+---
+
+<img src="docs/images/controle.png" alt="The control screen: the wall rendered in WebGL2 next to a colour wheel" width="100%">
+
+## What it is
+
+Éclat talks to Nanoleaf light panels directly over their local HTTP API — no
+cloud account, no vendor SDK, no telemetry. It finds them over mDNS, pairs with
+them, draws your wall in WebGL2 at its real geometry, and can drive every panel
+in real time from whatever is on your screen.
 
 > **Status: working, not finished.** Discovery, pairing, control, scenes and
 > screen sync all run against real hardware. Audio sync and packaging are not
-> written yet. See [Roadmap](#roadmap).
+> written yet — see the [roadmap](#roadmap).
 
-## Why
+## Why it exists
 
 The Nanoleaf mobile app is the only officially supported way to drive these
-panels, and the existing third-party desktop tools I tried did not work on a
-current Wayland/GNOME desktop. Everything here talks to the panels directly
-over their documented local HTTP API — no cloud account, no vendor SDK, no
-telemetry.
+panels, and the third-party desktop tools I tried did not work on a current
+Wayland/GNOME desktop. So this one is built for that desktop, and every awkward
+detail it ran into is written down in [Notes from the hardware](#notes-from-the-hardware).
 
 ## Features
 
-- **Discovery** over mDNS (`_nanoleafapi._tcp`), implemented directly on
-  `node:dgram` — see [mDNS on Linux](#mdns-on-linux) for why.
-- **Pairing** with the panel's local API; the auth token is stored in
-  `~/.config/nanoleaf-app/config.json` with `0600` permissions and never
-  leaves the Electron main process.
-- **Wall rendering** in WebGL2 without a rendering library: panels are drawn at
-  their real position, shape and rotation, each with a diffuse halo.
-- **Control**: power, brightness, a hue/saturation wheel, and click-to-paint on
-  any individual panel.
-- **Scenes** built from the palettes actually stored on the device, not from
-  invented colours.
-- **Screen sync**: capture through the Wayland portal, analysed in a dedicated
-  Worker, with three mapping modes (spatial, dominant, palette), letterbox
-  detection, linear-light averaging and asymmetric temporal smoothing.
-- **French and English** interface.
+|  |  |
+|---|---|
+| **Discovery** | mDNS (`_nanoleafapi._tcp`), implemented directly on `node:dgram` — [and here is why](#notes-from-the-hardware) |
+| **Pairing** | token stored `0600` in `~/.config/eclat/config.json`, never leaving the Electron main process |
+| **Wall** | WebGL2 without a rendering library: real position, shape, rotation, and a diffuse halo per panel |
+| **Control** | power, brightness, hue/saturation wheel, and click-to-paint on any single panel |
+| **Scenes** | built from the palettes actually stored on the device, not from invented colours |
+| **Screen sync** | Wayland portal capture, analysed in a Worker; spatial, dominant and palette mapping |
+| **Languages** | French and English |
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/scenes.png" alt="Scene grid, each tile drawn from the effect's real palette"></td>
+<td width="50%"><img src="docs/images/sync.png" alt="Screen sync settings"></td>
+</tr>
+<tr>
+<td align="center"><em>Scenes, coloured by the device's own palettes</em></td>
+<td align="center"><em>Screen sync, with the pipeline exposed</em></td>
+</tr>
+</table>
 
 ## Requirements
 
-- Linux with Node.js 22+ (developed on Node 26, Ubuntu 26.04, Wayland/GNOME).
+- Linux with Node.js 22+ — developed on Node 26, Ubuntu 26.04, Wayland/GNOME.
 - A Nanoleaf device on the same network. Developed and verified against
   **Nanoleaf Shapes (NL42)**, firmware 12.x. Canvas, Elements and Lines share
-  the same API and are handled in the geometry table, but are untested.
-- The panels are **2.4 GHz only** — make sure your access point broadcasts a
+  the same API and are present in the shape table, but are untested.
+- The panels are **2.4 GHz only** — check that your access point broadcasts a
   2.4 GHz SSID.
 
 ## Getting started
 
 ```bash
-git clone https://github.com/myqzurdux3/nanoleaf.git
-cd nanoleaf
+git clone https://github.com/myqzurdux3/eclat.git
+cd eclat
 npm install
 npm start
 ```
 
-On first launch the app looks for panels on the local network. Hold the panel's
+On first launch Éclat looks for panels on the local network. Hold the panel's
 power button for 5–7 seconds until the LED blinks, then press **Pair**.
 
-### Electron sandbox on Ubuntu
+<details>
+<summary><strong>Electron aborts on the SUID sandbox (Ubuntu)</strong></summary>
 
 Ubuntu restricts unprivileged user namespaces, so Chromium falls back to its
-SUID sandbox helper, which npm does not install as root. If Electron aborts
-with *"The SUID sandbox helper binary was found, but is not configured
-correctly"*, run once per `npm install`:
+SUID sandbox helper — which npm cannot install as root. Run once per
+`npm install`:
 
 ```bash
 sudo chown root:root node_modules/electron/dist/chrome-sandbox
 sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
 ```
 
-Do not pass `--no-sandbox` instead: it permanently disables the renderer's
+Do not pass `--no-sandbox` instead: that permanently disables the renderer's
 isolation to work around a temporary system setting.
+</details>
 
 ## Development
 
 ```bash
-npm test                # 273 unit tests, no hardware or network needed
+npm test                # 278 unit tests — no hardware, network, GPU or DOM
 npm run build           # main process + renderer
-npm run dev:renderer    # Vite dev server, then:
+npm run dev:renderer    # Vite dev server, then, in another terminal:
 VITE_DEV_SERVER_URL=http://localhost:5173 npm start
 ```
 
-Opening `http://localhost:5173` directly in a browser shows a notice rather
-than the app: the Vite server only serves the interface, and everything that
-talks to the panels lives in the Electron main process.
+Opening `http://localhost:5173` in a browser shows a notice rather than the
+app: Vite only serves the interface, and everything that talks to the panels
+lives in the Electron main process.
 
-### Testing philosophy
+### How this is tested
 
 No test needs hardware, a network, a GPU or a DOM. The device is doubled by
-`FakeNanoleaf` (REST) and `FakeStreamReceiver` (UDP), so the full path from
+`FakeNanoleaf` (REST) and `FakeStreamReceiver` (UDP), so the whole path from
 pairing to streaming is covered in CI. Everything that can be a pure function —
-colour space conversion, panel geometry, the whole sync pipeline — is one, and
-is tested on hand-built fixtures.
+colour conversion, panel geometry, the entire sync pipeline — is one, and is
+tested against hand-built fixtures.
 
-Two helper tools cover what unit tests cannot:
+Three tools cover what unit tests cannot reach:
 
 ```bash
 npm run build
-CAPTURE_OUT=/tmp/ui.png npx electron tools/capture-ui.cjs   # screenshot the window
-npx electron tools/probe-worker-transfer.cjs                # capture → Worker → colours
+CAPTURE_OUT=/tmp/ui.png npx electron tools/capture-ui.cjs    # screenshot the window
+npx electron tools/probe-worker-transfer.cjs                 # capture → Worker → colours
+npx electron tools/render-svg.cjs assets/logo.svg out.png 512
 ```
+
+The second one deserves a word: the Wayland portal needs a human click, so the
+capture path cannot be driven end to end. `canvas.captureStream()` produces a
+video track without any permission prompt, which makes everything downstream of
+the portal testable without anyone present.
 
 ## Architecture
 
@@ -114,7 +142,7 @@ main (Node)                          renderer (React)
 └── store.ts             0600 config   shared/  pure functions, no I/O
 ```
 
-Three rules shape the whole thing:
+Three rules hold the whole thing together:
 
 1. **The renderer opens no socket.** It produces colours and hands them over
    IPC. The auth token never reaches it.
@@ -124,50 +152,67 @@ Three rules shape the whole thing:
    effect.
 3. **Pixel work lives in a Worker.** The UI thread never touches a frame.
 
+The screen sync pipeline runs in a fixed order, and the order is not
+interchangeable: letterbox detection, averaging in linear light, mapping,
+correction, then asymmetric temporal smoothing.
+
 ## Notes from the hardware
 
-Things the documentation does not tell you, found by measurement:
+Things no documentation mentions, found by measuring:
 
-- **mDNS on Linux.** `bonjour-service` finds nothing on a typical desktop:
-  `avahi-daemon` already holds port 5353 and the kernel delivers the multicast
-  answer to only one of the bound processes. The queries here set the QU bit to
-  get a unicast answer on an ephemeral port instead. One socket is opened per
-  IPv4 interface, because an active VPN owns the default route without reaching
-  the LAN.
+- **mDNS does not just work on Linux.** `bonjour-service` finds nothing on a
+  typical desktop: `avahi-daemon` already holds port 5353, and the kernel hands
+  the multicast answer to only one of the bound processes. Éclat sets the QU
+  bit to get a unicast answer on an ephemeral port instead, and opens one
+  socket per IPv4 interface — an active VPN owns the default route without
+  reaching the LAN.
 - **REST latency is 60–340 ms.** A slider emits around sixty events per second,
-  so writes must be coalesced: one request in flight, latest value wins.
-  Measured 60 slider values → 3 requests.
-- **External control is revocable.** Any other command — the mobile app, the
-  physical button — takes it back, so an active sync re-arms every 10 seconds.
-  The flip side: a stream that is never released makes the device unable to
-  display any effect at all.
-- **`normalizeLayout` normalises panel centres**, so polygons stick out of the
-  unit square by a full circumradius — 20 % on a real Shapes wall. Framing must
-  be computed from actual vertices.
-- **Panel colours are not readable.** The device exposes no per-panel colour,
-  so the wall shown in the app is a faithful mock-up of the device state, not a
-  reading of its LEDs.
+  so writes have to be coalesced: one request in flight, latest value wins.
+  Measured: 60 slider values became 3 requests, final value exact.
+- **External control is revocable, and that cuts both ways.** Any other command
+  takes it back, so an active sync re-arms every 10 seconds — but a stream that
+  is never released leaves the device unable to display any effect at all,
+  silently overwriting every scene you pick.
+- **Panel geometry overflows its own normalisation.** The layout API gives
+  panel *centres*; the polygons stick out by a full circumradius — 20 % on a
+  real Shapes wall. Framing has to be computed from actual vertices.
+- **Panel colours cannot be read back.** The device exposes no per-panel
+  colour, so the wall you see in Éclat is a faithful mock-up of the device
+  state, not a reading of its LEDs.
+- **A `MediaStreamTrack` is not transferable** in this build of Chromium.
+  The `MediaStreamTrackProcessor` is built on the main thread and its
+  `ReadableStream` is what crosses into the Worker.
 
 ## Roadmap
 
 | Milestone | State |
 |---|---|
-| 1 — Device layer: discovery, pairing, REST, layout | done |
-| 2 — Streaming: extControl v2, frame encoding, arbiter | done |
-| 3 — Control UI: WebGL2 wall, colour wheel, scenes | done |
-| 4 — Screen sync: portal capture, Worker, colour pipeline | done |
-| 5 — Audio sync: PipeWire monitor capture, analysis | not started |
-| 6 — Packaging with electron-builder | not started |
+| 1 — Device layer: discovery, pairing, REST, layout | ✅ |
+| 2 — Streaming: extControl v2, frame encoding, arbiter | ✅ |
+| 3 — Control UI: WebGL2 wall, colour wheel, scenes | ✅ |
+| 4 — Screen sync: portal capture, Worker, colour pipeline | ✅ |
+| 5 — Audio sync: PipeWire monitor capture, analysis | — |
+| 6 — Packaging with electron-builder | — |
 
-## Project documentation
+## Contributing
 
-Design and implementation notes live in `docs/superpowers/`. They are written
-in French, as are the code comments.
+Issues and pull requests are welcome. Design notes and implementation plans
+live in `docs/superpowers/`; they are written in French, as are the code
+comments.
+
+Before opening a pull request:
+
+```bash
+npm test
+npx tsc -p tsconfig.main.json --noEmit
+npx tsc -p tsconfig.json --noEmit
+npm run build
+```
 
 ## Licence
 
 MIT — see [LICENSE](LICENSE).
 
-Not affiliated with, endorsed by, or supported by Nanoleaf. "Nanoleaf" is a
-trademark of its owner and is used here only to say what this software talks
-to.
+Éclat is not affiliated with, endorsed by, or supported by Nanoleaf.
+"Nanoleaf" is a trademark of its owner, used here only to say what this
+software talks to.

@@ -82,12 +82,28 @@ describe('wallColors', () => {
     expect(colors.get(1)).toEqual({ r: 0, g: 0, b: 0 })
   })
 
-  it('retombe sur la teinte quand la palette de l effet est inconnue', () => {
-    const courant = state({ colorMode: 'effect', effect: 'Inconnu', hue: 240, sat: 100 })
+  it('reste neutre quand la palette de l effet est inconnue', () => {
+    // En mode effet, teinte et saturation sont périmées : le device ne les
+    // met plus à jour. Les lire donnerait du blanc franc, ce qui ferait
+    // croire à un mur allumé en blanc alors qu'on ne sait simplement pas.
+    const courant = state({ colorMode: 'effect', effect: 'Inconnu', hue: 0, sat: 0 })
+    const couleur = wallColors(layout.panels, courant, palettes, rien).get(1)!
+
+    const canaux = [couleur.r, couleur.g, couleur.b]
+
+    expect(couleur).not.toEqual({ r: 255, g: 255, b: 255 })
+    expect(Math.max(...canaux)).toBeLessThan(120)
+    // Sourd, donc à peine coloré : rien n'est affirmé sur la teinte réelle.
+    expect(Math.max(...canaux) - Math.min(...canaux)).toBeLessThan(24)
+  })
+
+  it('rend du blanc en mode couleur unie désaturée', () => {
+    // Là, en revanche, le device dit bien qu'il éclaire en blanc.
+    const courant = state({ colorMode: 'hs', hue: 0, sat: 0 })
 
     expect(wallColors(layout.panels, courant, palettes, rien).get(1)).toEqual({
-      r: 0,
-      g: 0,
+      r: 255,
+      g: 255,
       b: 255,
     })
   })

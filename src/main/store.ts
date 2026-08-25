@@ -17,10 +17,21 @@ export interface AppConfig {
 
 const EMPTY_CONFIG: AppConfig = { devices: {}, activeDeviceId: null }
 
+const baseXdg = (): string => process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config')
+
 /** Chemin du fichier de configuration, conforme à la spec XDG. */
 export function defaultConfigPath(): string {
-  const base = process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config')
-  return join(base, 'nanoleaf-app', 'config.json')
+  return join(baseXdg(), 'eclat', 'config.json')
+}
+
+/**
+ * Emplacement d'avant le nom du projet.
+ *
+ * Lu en dernier recours pour ne pas perdre l'appairage de quelqu'un qui
+ * utilisait déjà l'application ; la première écriture le remplace.
+ */
+export function legacyConfigPath(): string {
+  return join(baseXdg(), 'nanoleaf-app', 'config.json')
 }
 
 /**
@@ -28,15 +39,14 @@ export function defaultConfigPath(): string {
  * fichier est écrit en 0600 et ne doit jamais transiter vers le renderer.
  */
 export class ConfigStore {
-  constructor(private readonly filePath: string) {}
+  constructor(
+    private readonly filePath: string,
+    private readonly legacyPath?: string,
+  ) {}
 
   async load(): Promise<AppConfig> {
-    let raw: string
-    try {
-      raw = await readFile(this.filePath, 'utf8')
-    } catch {
-      return structuredClone(EMPTY_CONFIG)
-    }
+    const raw = await this.lire()
+    if (raw === null) return structuredClone(EMPTY_CONFIG)
 
     try {
       const parsed = JSON.parse(raw) as Partial<AppConfig>
@@ -47,6 +57,19 @@ export class ConfigStore {
     } catch {
       return structuredClone(EMPTY_CONFIG)
     }
+  }
+
+  /** Le fichier courant, sinon celui de l'ancien emplacement. */
+  private async lire(): Promise<string | null> {
+    for (const chemin of [this.filePath, this.legacyPath]) {
+      if (chemin === undefined) continue
+      try {
+        return await readFile(chemin, 'utf8')
+      } catch {
+        // Fichier absent : on essaie l'emplacement suivant.
+      }
+    }
+    return null
   }
 
   async save(config: AppConfig): Promise<void> {

@@ -300,6 +300,8 @@ button {
 }
 
 .segments button {
+  display: grid;
+  place-items: center;
   padding: 7px 0;
   border: 0;
   border-radius: 9px;
@@ -472,7 +474,13 @@ input[type='range']:active::-webkit-slider-thumb {
 }
 
 .langues button {
-  padding: 4px 9px;
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  padding: 4px 8px;
   font-size: 11px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+  /* `letter-spacing` ajoute sa chasse après la dernière lettre aussi : sans
+     compensation, le texte penche à gauche dans un bloc centré. */
+  text-indent: 0.06em;
 }

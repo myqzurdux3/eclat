@@ -11,7 +11,7 @@ const { join } = require('node:path')
 const { readdirSync } = require('node:fs')
 
 const { DeviceService, registerIpc } = require('../dist/main/main/ipc')
-const { ConfigStore, defaultConfigPath } = require('../dist/main/main/store')
+const { ConfigStore, defaultConfigPath, legacyConfigPath } = require('../dist/main/main/store')
 const { createMdnsFactory } = require('../dist/main/main/device/mdns')
 
 const RACINE = join(__dirname, '../dist/renderer')
@@ -27,7 +27,7 @@ app.whenReady().then(async () => {
   const worker = trouverWorker()
 
   const service = new DeviceService({
-    store: new ConfigStore(defaultConfigPath()),
+    store: new ConfigStore(defaultConfigPath(), legacyConfigPath()),
     mdnsFactory: createMdnsFactory(),
   })
   registerIpc(ipcMain, service)

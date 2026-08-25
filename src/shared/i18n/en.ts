@@ -9,7 +9,7 @@ export const en: Dictionary = {
   'app.window.close': 'Close',
   'app.language': 'Language',
 
-  'bridge.missing.title': 'Nanoleaf — IPC bridge missing',
+  'bridge.missing.title': 'Éclat — IPC bridge missing',
   'bridge.missing.body':
     'This page is served by Vite, which only provides the interface. Talking to the panels goes through the Electron main process: the authentication token must never reach the browser.',
 
@@ -26,6 +26,8 @@ export const en: Dictionary = {
   'control.turnOff': 'Turn off',
   'control.brightness': 'Brightness',
   'control.colour': 'Colour',
+  'control.colour.underScene':
+    'A scene is running: the device no longer reports a hue. Picking a colour will replace it.',
   'control.orientation': 'Wall orientation',
   'control.orientation.help':
     'The device does not report how the wall is mounted, and nothing says a wall has to hang square.',

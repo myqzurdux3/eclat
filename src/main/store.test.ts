@@ -1,4 +1,4 @@
-import { chmod, mkdtemp, stat, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -99,6 +99,51 @@ describe('ConfigStore', () => {
   it('defaultConfigPath respecte XDG_CONFIG_HOME', () => {
     process.env.XDG_CONFIG_HOME = '/tmp/xdg-test'
 
-    expect(defaultConfigPath()).toBe('/tmp/xdg-test/nanoleaf-app/config.json')
+    expect(defaultConfigPath()).toBe('/tmp/xdg-test/eclat/config.json')
+  })
+})
+
+describe('ConfigStore — ancien emplacement', () => {
+  it('lit l ancien fichier quand le nouveau n existe pas', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-legacy-'))
+    const ancien = join(dir, 'ancien.json')
+    const nouveau = join(dir, 'nouveau.json')
+    await new ConfigStore(ancien).upsertDevice(device)
+
+    const config = await new ConfigStore(nouveau, ancien).load()
+
+    expect(config.devices[device.id]?.token).toBe(device.token)
+  })
+
+  it('préfère le nouveau fichier quand les deux existent', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-legacy-'))
+    const ancien = join(dir, 'ancien.json')
+    const nouveau = join(dir, 'nouveau.json')
+    await new ConfigStore(ancien).upsertDevice({ ...device, token: 'ancien' })
+    await new ConfigStore(nouveau).upsertDevice({ ...device, token: 'nouveau' })
+
+    const config = await new ConfigStore(nouveau, ancien).load()
+
+    expect(config.devices[device.id]?.token).toBe('nouveau')
+  })
+
+  it('écrit toujours au nouvel emplacement', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-legacy-'))
+    const ancien = join(dir, 'ancien.json')
+    const nouveau = join(dir, 'nouveau.json')
+    await new ConfigStore(ancien).upsertDevice(device)
+
+    const store = new ConfigStore(nouveau, ancien)
+    await store.upsertDevice({ ...device, token: 'repris' })
+
+    expect(JSON.parse(await readFile(nouveau, 'utf8')).devices[device.id].token).toBe('repris')
+  })
+
+  it('rend une configuration vide quand aucun des deux n existe', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-legacy-'))
+
+    const config = await new ConfigStore(join(dir, 'a.json'), join(dir, 'b.json')).load()
+
+    expect(config).toEqual({ devices: {}, activeDeviceId: null })
   })
 })

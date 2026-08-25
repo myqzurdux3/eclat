@@ -1,11 +1,28 @@
-# Nanoleaf pour Linux
+<div align="center">
 
-Application de contrôle et de synchronisation pour panneaux lumineux Nanoleaf,
-faite pour les bureaux Linux. Elle découvre les panneaux en mDNS, s'appaire
-avec eux, rend le mur en WebGL2 à sa géométrie réelle, et pilote les panneaux
-en temps réel depuis ce qui s'affiche à l'écran.
+<img src="assets/wordmark.png" alt="Éclat" width="420">
 
-*[English version](README.md)*
+**Pilote tes panneaux Nanoleaf depuis Linux — et laisse ton écran déborder sur le mur.**
+
+[![CI](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml/badge.svg)](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml)
+[![Licence : MIT](https://img.shields.io/badge/licence-MIT-6aa9ff.svg)](LICENSE)
+![Plateforme : Linux](https://img.shields.io/badge/plateforme-Linux-33e0b0.svg)
+![Tests](https://img.shields.io/badge/tests-278%20passants-e0347a.svg)
+
+[English](README.md) · [Démarrer](#démarrer) · [Architecture](#architecture) · [Ce que le matériel apprend](#ce-que-le-matériel-apprend)
+
+</div>
+
+---
+
+<img src="docs/images/controle.png" alt="L'écran de contrôle : le mur rendu en WebGL2 à côté d'une roue chromatique" width="100%">
+
+## Ce que c'est
+
+Éclat parle aux panneaux Nanoleaf directement par leur API HTTP locale — sans
+compte cloud, sans SDK propriétaire, sans télémétrie. Il les découvre en mDNS,
+s'appaire avec eux, dessine ton mur en WebGL2 à sa géométrie réelle, et pilote
+chaque panneau en temps réel depuis ce qui s'affiche à l'écran.
 
 > **État : fonctionnel, pas terminé.** Découverte, appairage, contrôle, scènes
 > et synchronisation écran tournent contre le vrai matériel. La synchronisation
@@ -19,12 +36,23 @@ essayés ne fonctionnaient pas sur un poste Wayland/GNOME à jour. Tout ce qui
 suit parle aux panneaux directement, par leur API HTTP locale documentée —
 sans compte cloud, sans SDK propriétaire, sans télémétrie.
 
+<table>
+<tr>
+<td width="50%"><img src="docs/images/scenes.png" alt="Grille de scènes, chaque vignette tirée de la palette réelle de l'effet"></td>
+<td width="50%"><img src="docs/images/sync.png" alt="Réglages de la synchronisation écran"></td>
+</tr>
+<tr>
+<td align="center"><em>Les scènes, aux couleurs des palettes du device</em></td>
+<td align="center"><em>La synchronisation écran, pipeline à découvert</em></td>
+</tr>
+</table>
+
 ## Ce que ça fait
 
 - **Découverte** en mDNS (`_nanoleafapi._tcp`), écrite directement sur
   `node:dgram` — voir [le mDNS sous Linux](#ce-que-le-matériel-apprend).
 - **Appairage** par l'API locale du panneau ; le token est rangé dans
-  `~/.config/nanoleaf-app/config.json` en `0600` et ne quitte jamais le
+  `~/.config/eclat/config.json` en `0600` et ne quitte jamais le
   processus main d'Electron.
 - **Rendu du mur** en WebGL2 sans bibliothèque de rendu : chaque panneau est
   dessiné à sa position, sa forme et sa rotation réelles, halo compris.
@@ -50,8 +78,8 @@ sans compte cloud, sans SDK propriétaire, sans télémétrie.
 ## Démarrer
 
 ```bash
-git clone https://github.com/myqzurdux3/nanoleaf.git
-cd nanoleaf
+git clone https://github.com/myqzurdux3/eclat.git
+cd eclat
 npm install
 npm start
 ```
@@ -78,7 +106,7 @@ l'isolation du renderer pour contourner un réglage système temporaire.
 ## Développement
 
 ```bash
-npm test                # 273 tests unitaires, sans matériel ni réseau
+npm test                # 278 tests unitaires, sans matériel ni réseau
 npm run build           # processus main + renderer
 npm run dev:renderer    # serveur Vite, puis :
 VITE_DEV_SERVER_URL=http://localhost:5173 npm start
@@ -168,10 +196,25 @@ Des choses que la documentation ne dit pas, trouvées à la mesure :
 Les notes de conception et les plans d'implémentation sont dans
 `docs/superpowers/`. Ils sont en français, comme les commentaires du code.
 
+## Contribuer
+
+Les tickets et les pull requests sont les bienvenus. Les notes de conception et
+les plans d'implémentation sont dans `docs/superpowers/`, en français comme les
+commentaires du code.
+
+Avant d'ouvrir une pull request :
+
+```bash
+npm test
+npx tsc -p tsconfig.main.json --noEmit
+npx tsc -p tsconfig.json --noEmit
+npm run build
+```
+
 ## Licence
 
 MIT — voir [LICENSE](LICENSE).
 
-Sans lien avec Nanoleaf, ni approuvé ni soutenu par eux. « Nanoleaf » est une
-marque de son propriétaire, employée ici uniquement pour dire à quoi ce
-logiciel parle.
+Éclat n'a aucun lien avec Nanoleaf, et n'est ni approuvé ni soutenu par eux.
+« Nanoleaf » est une marque de son propriétaire, employée ici uniquement pour
+dire à quoi ce logiciel parle.
