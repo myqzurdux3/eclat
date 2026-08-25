@@ -51,3 +51,10 @@ export interface Color {
  * source (app mobile, bouton physique) a repris la main.
  */
 export const EXT_CONTROL_EFFECT = '*ExtControl*'
+
+/**
+ * Sources capables d'écrire sur les panneaux, par priorité décroissante.
+ * Déclaré ici parce que le contrat IPC s'en sert : le renderer n'importe
+ * jamais depuis le processus main.
+ */
+export type SourceId = 'manual' | 'screen' | 'audio'
