@@ -362,3 +362,113 @@ describe('DeviceService — peinture manuelle', () => {
     expect(device.state.sat).toBe(80)
   })
 })
+
+describe('DeviceService — relâche du mode externe', () => {
+  let receiver: FakeStreamReceiver
+  /** Minuteries manuelles : la relâche se déclenche à la demande. */
+  let echeances: Array<() => void>
+
+  beforeEach(async () => {
+    receiver = new FakeStreamReceiver()
+    await receiver.start()
+    echeances = []
+
+    const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-release-'))
+    service = new DeviceService({
+      store: new ConfigStore(join(dir, 'config.json')),
+      mdnsFactory: fakeFactory([
+        {
+          name: 'Shapes Salon',
+          host: 'shapes.local',
+          addresses: ['127.0.0.1'],
+          port: device.port,
+          txt: { md: 'NL42', srcvers: '4.6.2' },
+        },
+      ]),
+      discoverTimeoutMs: 0,
+      sleep: () => Promise.resolve(),
+      pairAttempts: 2,
+      timers: {
+        setTimeout: (fn) => {
+          echeances.push(fn)
+          return echeances.length
+        },
+        clearTimeout: (handle) => {
+          const index = (handle as number) - 1
+          if (index >= 0) echeances[index] = () => undefined
+        },
+      },
+      streamFactory: ({ client }) =>
+        new PanelStream({
+          client,
+          ip: '127.0.0.1',
+          port: receiver.port,
+          scheduler: { setInterval: () => 1, clearInterval: () => {} },
+        }),
+    })
+
+    device.pairingMode = true
+    await service.discover()
+    await service.pair('Shapes Salon')
+
+    return async () => {
+      await service.shutdown()
+      await receiver.stop()
+    }
+  })
+
+  /** Déclenche toutes les relâches en attente et laisse les promesses filer. */
+  async function echoir(): Promise<void> {
+    const enCours = echeances.splice(0)
+    for (const fn of enCours) fn()
+    await new Promise((resolve) => setTimeout(resolve, 30))
+  }
+
+  it('rend son effet au device quand la peinture expire', async () => {
+    device.state.effect = 'Forest'
+    await service.paintPanel('Shapes Salon', 1, { r: 255, g: 0, b: 0 })
+    expect(device.state.effect).toBe(EXT_CONTROL_EFFECT)
+
+    await echoir()
+
+    expect(device.state.effect).toBe('Forest')
+  })
+
+  it('prolonge la relâche à chaque nouvelle peinture', async () => {
+    await service.paintPanel('Shapes Salon', 1, { r: 255, g: 0, b: 0 })
+    await new Promise((resolve) => setTimeout(resolve, 40))
+    await service.paintPanel('Shapes Salon', 2, { r: 0, g: 255, b: 0 })
+
+    // La première échéance a été annulée : seule la seconde relâche.
+    expect(echeances.filter((fn) => fn.toString() !== '() => undefined')).toHaveLength(1)
+  })
+
+  it('ne relâche pas tant qu un sync écran tourne', async () => {
+    device.state.effect = 'Forest'
+    await service.startStream('Shapes Salon', 'screen')
+    await service.paintPanel('Shapes Salon', 1, { r: 255, g: 0, b: 0 })
+
+    await echoir()
+
+    expect(device.state.effect).toBe(EXT_CONTROL_EFFECT)
+  })
+
+  it('rend la main au device quand on choisit une scène', async () => {
+    await service.paintPanel('Shapes Salon', 1, { r: 255, g: 0, b: 0 })
+    expect(device.extControlVersion).toBe('v2')
+
+    await service.selectEffect('Shapes Salon', 'Northern Lights')
+
+    expect(device.state.effect).toBe('Northern Lights')
+    expect(device.extControlVersion).toBeNull()
+  })
+
+  it('coupe aussi un sync écran quand on choisit une scène', async () => {
+    await service.startStream('Shapes Salon', 'screen')
+
+    await service.selectEffect('Shapes Salon', 'Forest')
+
+    expect(device.state.effect).toBe('Forest')
+    expect(await service.sendFrame('Shapes Salon', 'screen', [{ r: 1, g: 1, b: 1 }])).toBe(false)
+  })
+})

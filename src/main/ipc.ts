@@ -1,6 +1,6 @@
 import type { Color, DeviceState, EffectPalette, PanelLayout, SourceId } from '../shared/types'
 import { IPC_CHANNELS, type RendererDevice } from '../shared/ipc-contract'
-import { SourceArbiter } from './device/arbiter'
+import { MANUAL_HOLD_MS, SourceArbiter } from './device/arbiter'
 import { NanoleafClient } from './device/client'
 import { NanoleafError } from './device/errors'
 import { discoverDevices, type MdnsFactory } from './device/discovery'
@@ -15,6 +15,11 @@ export interface DeviceServiceOptions {
   sleep?: (ms: number) => Promise<void>
   pairAttempts?: number
   arbiter?: SourceArbiter
+  /** Injecté par les tests pour maîtriser l'échéance de relâche. */
+  timers?: {
+    setTimeout: (handler: () => void, ms: number) => unknown
+    clearTimeout: (handle: unknown) => void
+  }
   /** Injecté par les tests pour viser un récepteur UDP local. */
   streamFactory?: (options: { client: NanoleafClient; ip: string }) => PanelStream
 }
@@ -33,9 +38,17 @@ export class DeviceService {
   /** Dernière couleur posée sur chaque panneau, par device. */
   private readonly painted = new Map<string, Map<number, Color>>()
   private readonly arbiter: SourceArbiter
+  /** Échéances de relâche du mode externe, par device. */
+  private readonly releases = new Map<string, unknown>()
+
+  private readonly timers: NonNullable<DeviceServiceOptions['timers']>
 
   constructor(private readonly options: DeviceServiceOptions) {
     this.arbiter = options.arbiter ?? new SourceArbiter()
+    this.timers = options.timers ?? {
+      setTimeout: (handler, ms) => setTimeout(handler, ms),
+      clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+    }
   }
 
   async discover(): Promise<RendererDevice[]> {
@@ -137,7 +150,13 @@ export class DeviceService {
     return (await this.client(deviceId)).getEffectPalettes()
   }
 
+  /**
+   * Choisir une scène rend explicitement la main au device : tout stream en
+   * cours est coupé d'abord, sinon la sonde de réarmement remettrait le mode
+   * externe dans les dix secondes et l'effet ne tiendrait pas.
+   */
   async selectEffect(deviceId: string, name: string): Promise<void> {
+    await this.relacher(deviceId, { restore: false })
     await (await this.client(deviceId)).selectEffect(name)
   }
 
@@ -175,12 +194,7 @@ export class DeviceService {
     this.arbiter.deactivate(source)
     if (this.arbiter.current() !== null) return
 
-    const stream = this.streams.get(deviceId)
-    if (stream === undefined) return
-    this.streams.delete(deviceId)
-    this.panelIds.delete(deviceId)
-    this.painted.delete(deviceId)
-    await stream.stop()
+    await this.relacher(deviceId, { restore: true })
   }
 
   /**
@@ -230,6 +244,7 @@ export class DeviceService {
       this.painted.set(deviceId, painted)
     }
     painted.set(panelId, color)
+    this.programmerRelache(deviceId)
 
     return this.sendFrame(
       deviceId,
@@ -242,8 +257,50 @@ export class DeviceService {
     await (await this.client(deviceId)).setHueSat(hue, sat)
   }
 
+  /**
+   * Programme la fin de l'override manuel.
+   *
+   * La spec donne trois secondes à une peinture, puis relâche : sans cette
+   * échéance le mode externe resterait armé indéfiniment, sa sonde
+   * réarmerait toutes les dix secondes, et le device ne pourrait plus jamais
+   * afficher un effet — les scènes sélectionnées seraient écrasées.
+   */
+  private programmerRelache(deviceId: string): void {
+    const enCours = this.releases.get(deviceId)
+    if (enCours !== undefined) this.timers.clearTimeout(enCours)
+
+    this.releases.set(
+      deviceId,
+      this.timers.setTimeout(() => {
+        this.releases.delete(deviceId)
+        void this.stopStream(deviceId, 'manual')
+      }, MANUAL_HOLD_MS),
+    )
+  }
+
+  /** Coupe le stream d'un device, avec ou sans restauration de son effet. */
+  private async relacher(deviceId: string, options: { restore: boolean }): Promise<void> {
+    const enCours = this.releases.get(deviceId)
+    if (enCours !== undefined) {
+      this.timers.clearTimeout(enCours)
+      this.releases.delete(deviceId)
+    }
+
+    const stream = this.streams.get(deviceId)
+    if (stream === undefined) return
+
+    this.streams.delete(deviceId)
+    this.panelIds.delete(deviceId)
+    this.painted.delete(deviceId)
+    this.arbiter.reset()
+    await stream.stop(options)
+  }
+
   /** Rend son effet à chaque device. Appelé à la fermeture et sur signal. */
   async shutdown(): Promise<void> {
+    for (const handle of this.releases.values()) this.timers.clearTimeout(handle)
+    this.releases.clear()
+
     const streams = [...this.streams.values()]
     this.streams.clear()
     this.panelIds.clear()

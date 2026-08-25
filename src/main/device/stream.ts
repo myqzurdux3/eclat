@@ -123,8 +123,12 @@ export class PanelStream {
     }
   }
 
-  /** Ferme la socket et rend au device l'effet qu'il affichait. */
-  async stop(): Promise<void> {
+  /**
+   * Ferme la socket et, sauf mention contraire, rend au device l'effet qu'il
+   * affichait. `restore: false` sert quand l'appelant va lui-même imposer un
+   * autre effet : réécrire l'ancien au passage le ferait clignoter.
+   */
+  async stop({ restore = true }: { restore?: boolean } = {}): Promise<void> {
     if (this.probeHandle !== null) {
       this.scheduler.clearInterval(this.probeHandle)
       this.probeHandle = null
@@ -137,7 +141,7 @@ export class PanelStream {
 
     const saved = this.saved
     this.saved = null
-    if (saved === null) return
+    if (saved === null || !restore) return
 
     try {
       if (saved.effect !== EXT_CONTROL_EFFECT) {
