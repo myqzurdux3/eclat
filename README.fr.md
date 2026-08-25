@@ -7,7 +7,7 @@
 [![CI](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml/badge.svg)](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml)
 [![Licence : MIT](https://img.shields.io/badge/licence-MIT-6aa9ff.svg)](LICENSE)
 ![Plateforme : Linux](https://img.shields.io/badge/plateforme-Linux-33e0b0.svg)
-![Tests](https://img.shields.io/badge/tests-380%20passants-e0347a.svg)
+![Tests](https://img.shields.io/badge/tests-393%20passants-e0347a.svg)
 
 [English](README.md) · [Démarrer](#démarrer) · [Architecture](#architecture) · [Ce que le matériel apprend](#ce-que-le-matériel-apprend)
 
@@ -122,7 +122,7 @@ l'isolation du renderer pour contourner un réglage système temporaire.
 ## Développement
 
 ```bash
-npm test                # 380 tests unitaires, sans matériel ni réseau
+npm test                # 393 tests unitaires, sans matériel ni réseau
 npm run typecheck       # processus main + renderer
 npm run build           # processus main + renderer
 npm run dev:renderer    # serveur Vite, puis :
@@ -167,9 +167,11 @@ Trois règles tiennent l'ensemble :
 1. **Le renderer n'ouvre aucune socket.** Il produit des couleurs et les passe
    par IPC. Le token ne l'atteint jamais.
 2. **`stream.ts` est le seul writer de la socket UDP.** Toute source passe par
-   `arbiter.ts`, qui impose une priorité stricte : peinture manuelle (override
-   de 3 s) devant la synchronisation écran, devant l'audio, devant l'effet
-   propre du device.
+   `arbiter.ts`, qui impose une priorité stricte : peinture manuelle devant la
+   synchronisation écran, devant l'audio, devant l'effet propre du device. Un
+   trait prend le pas sur une synchro en cours pendant trois secondes ; seule,
+   la peinture tient le mur jusqu'à ce qu'une scène, une synchro, l'extinction
+   ou le device lui-même le reprenne.
 3. **Le traitement pixel vit dans un Worker.** Le thread UI ne touche jamais
    une frame.
 

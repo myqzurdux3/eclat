@@ -7,7 +7,7 @@
 [![CI](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml/badge.svg)](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-6aa9ff.svg)](LICENSE)
 ![Platform: Linux](https://img.shields.io/badge/platform-Linux-33e0b0.svg)
-![Tests](https://img.shields.io/badge/tests-380%20passing-e0347a.svg)
+![Tests](https://img.shields.io/badge/tests-393%20passing-e0347a.svg)
 
 [Français](README.fr.md) · [Getting started](#getting-started) · [How it works](#architecture) · [What the hardware taught us](#notes-from-the-hardware)
 
@@ -111,7 +111,7 @@ isolation to work around a temporary system setting.
 ## Development
 
 ```bash
-npm test                # 380 unit tests — no hardware, network, GPU or DOM
+npm test                # 393 unit tests — no hardware, network, GPU or DOM
 npm run typecheck       # main process + renderer
 npm run build           # main process + renderer
 npm run dev:renderer    # Vite dev server, then, in another terminal:
@@ -162,8 +162,9 @@ Three rules hold the whole thing together:
    IPC. The auth token never reaches it.
 2. **`stream.ts` is the only writer of the UDP socket.** Every source goes
    through `arbiter.ts`, which enforces a strict priority: manual painting
-   (3-second override) over screen sync over audio sync over the device's own
-   effect.
+   over screen sync over audio sync over the device's own effect. A stroke
+   outranks a running sync for three seconds; painting on its own holds the
+   wall until a scene, a sync, the power or the device itself takes it back.
 3. **Pixel work lives in a Worker.** The UI thread never touches a frame.
 
 The screen sync pipeline runs in a fixed order, and the order is not
