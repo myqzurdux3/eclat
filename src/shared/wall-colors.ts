@@ -50,6 +50,14 @@ export function wallColors(
       return
     }
 
+    // Painting drives the whole wall: the frame carries black for every
+    // panel the user has not painted. Showing those under the effect
+    // palette would invent light the wall is not emitting.
+    if (painted.size > 0) {
+      colors.set(panel.panelId, OFF)
+      return
+    }
+
     if (state === null) {
       colors.set(panel.panelId, NEUTRAL)
       return

@@ -365,13 +365,10 @@ describe('DeviceService — manual painting', () => {
 
 describe('DeviceService — releasing external control', () => {
   let receiver: FakeStreamReceiver
-  /** Manual timers: the release fires on demand. */
-  let deadlines: Array<() => void>
 
   beforeEach(async () => {
     receiver = new FakeStreamReceiver()
     await receiver.start()
-    deadlines = []
 
     const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-release-'))
     service = new DeviceService({
@@ -388,16 +385,6 @@ describe('DeviceService — releasing external control', () => {
       discoverTimeoutMs: 0,
       sleep: () => Promise.resolve(),
       pairAttempts: 2,
-      timers: {
-        setTimeout: (fn) => {
-          deadlines.push(fn)
-          return deadlines.length
-        },
-        clearTimeout: (handle) => {
-          const index = (handle as number) - 1
-          if (index >= 0) deadlines[index] = () => undefined
-        },
-      },
       streamFactory: ({ client }) =>
         new PanelStream({
           client,
@@ -417,11 +404,12 @@ describe('DeviceService — releasing external control', () => {
     }
   })
 
-  /** Fires every pending release and lets the promises settle. */
+  /**
+   * Waits well past the old three-second deadline's worth of event-loop
+   * turns: nothing may take the wall back on its own any more.
+   */
   async function fire(): Promise<void> {
-    const pending = deadlines.splice(0)
-    for (const fn of pending) fn()
-    await new Promise((resolve) => setTimeout(resolve, 30))
+    await new Promise((resolve) => setTimeout(resolve, 60))
   }
 
   /**
@@ -437,32 +425,65 @@ describe('DeviceService — releasing external control', () => {
     expect(device.state.on).toBe(true)
   })
 
-  /** And the release must not undo it: the wall stays lit afterwards. */
-  it('leaves the wall on once the painting expires', async () => {
+  /** And nothing may undo it afterwards: the wall stays lit. */
+  it('leaves the wall on after painting it from off', async () => {
     device.state.on = false
     device.state.effect = 'Forest'
 
     await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
-    await fire()
 
     expect(device.state.on).toBe(true)
-    expect(device.state.effect).toBe('Forest')
   })
 
-  it('gives the device its effect back when the painting expires', async () => {
+  /**
+   * Painting used to expire on a three-second deadline, which read as the
+   * wall wiping itself moments after being painted. A panel the user lit
+   * stays lit; handing the wall back is something they ask for.
+   */
+  it('keeps the painting until something else takes the wall', async () => {
     device.state.effect = 'Forest'
     await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
-    expect(device.state.effect).toBe(EXT_CONTROL_EFFECT)
 
     await fire()
 
-    expect(device.state.effect).toBe('Forest')
+    expect(device.state.effect).toBe(EXT_CONTROL_EFFECT)
+    expect(device.extControlVersion).toBe('v2')
+    expect(await service.sendFrame('Shapes Lounge', 'manual', [{ r: 0, g: 255, b: 0 }])).toBe(true)
+  })
+
+  /**
+   * The counterpart to holding on: the probe re-arms external control every
+   * ten seconds, so a stream nobody lets go of overwrites whatever the phone
+   * app or the physical button chooses. The device's own announcement is the
+   * signal to stand down.
+   */
+  it('lets go when the device announces an effect of its own', async () => {
+    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
+    expect(device.extControlVersion).toBe('v2')
+
+    // The announcement follows the change: by the time it reaches us the
+    // device has already dropped external control for the new effect.
+    device.state.effect = 'Northern Lights'
+    device.extControlVersion = null
+    await service.noteEffectChange('Shapes Lounge', 'Northern Lights')
+    await fire()
+
+    expect(await service.sendFrame('Shapes Lounge', 'manual', [{ r: 0, g: 255, b: 0 }])).toBe(false)
+  })
+
+  it('holds on when the announced effect is its own external control', async () => {
+    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
+
+    await service.noteEffectChange('Shapes Lounge', EXT_CONTROL_EFFECT)
+    await fire()
+
+    expect(await service.sendFrame('Shapes Lounge', 'manual', [{ r: 0, g: 255, b: 0 }])).toBe(true)
   })
 
   /**
    * The stream saves the power state it found and puts it back on release.
-   * Cutting the power in between makes that saved value a lie: three seconds
-   * later the restore would light the wall the user just switched off.
+   * Cutting the power in between makes that saved value a lie: the release
+   * would light the wall the user just switched off.
    */
   it('does not light the wall back up when the power was cut mid-stroke', async () => {
     device.state.effect = 'Forest'
@@ -471,28 +492,10 @@ describe('DeviceService — releasing external control', () => {
     await service.setOn('Shapes Lounge', false)
     expect(device.state.on).toBe(false)
 
-    await fire()
+    await service.stopStream('Shapes Lounge', 'manual')
 
     expect(device.state.on).toBe(false)
-  })
-
-  it('postpones the release on every new stroke', async () => {
-    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
-    await new Promise((resolve) => setTimeout(resolve, 40))
-    await service.paintPanel('Shapes Lounge', 2, { r: 0, g: 255, b: 0 })
-
-    // The first deadline was cancelled: only the second releases.
-    expect(deadlines.filter((fn) => fn.toString() !== '() => undefined')).toHaveLength(1)
-  })
-
-  it('does not release while a screen sync is running', async () => {
-    device.state.effect = 'Forest'
-    await service.startStream('Shapes Lounge', 'screen')
-    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
-
-    await fire()
-
-    expect(device.state.effect).toBe(EXT_CONTROL_EFFECT)
+    expect(device.state.effect).toBe('Forest')
   })
 
   it('hands control back to the device when a scene is chosen', async () => {

@@ -1,6 +1,7 @@
+import { EXT_CONTROL_EFFECT } from '../shared/types'
 import type { Color, DeviceState, EffectPalette, PanelLayout, SourceId } from '../shared/types'
 import { IPC_CHANNELS, type RendererDevice } from '../shared/ipc-contract'
-import { MANUAL_HOLD_MS, SourceArbiter } from './device/arbiter'
+import { SourceArbiter } from './device/arbiter'
 import { NanoleafClient } from './device/client'
 import { NanoleafError } from './device/errors'
 import { discoverDevices, type MdnsFactory } from './device/discovery'
@@ -20,11 +21,6 @@ export interface DeviceServiceOptions {
   pairAttempts?: number
   /** Arbiter factory, one per device: two walls arbitrate separately. */
   arbiterFactory?: () => SourceArbiter
-  /** Injected by tests to control the release deadline. */
-  timers?: {
-    setTimeout: (handler: () => void, ms: number) => unknown
-    clearTimeout: (handle: unknown) => void
-  }
   /** Receives whatever the device reports of its own accord. */
   onDeviceEvent?: (event: DeviceEvent) => void
   /** Receives the analysed audio, block by block. */
@@ -49,11 +45,6 @@ export class DeviceService {
   private readonly arbiters = new Map<string, SourceArbiter>()
   private readonly subscriptions = new Map<string, EventSubscription>()
   private audio: AudioCapture | null = null
-  /** External-control release deadlines, per device. */
-  private readonly releases = new Map<string, unknown>()
-
-  private readonly timers: NonNullable<DeviceServiceOptions['timers']>
-
   /**
    * A device's arbiter, created on demand.
    *
@@ -70,12 +61,7 @@ export class DeviceService {
     return arbiter
   }
 
-  constructor(private readonly options: DeviceServiceOptions) {
-    this.timers = options.timers ?? {
-      setTimeout: (handler, ms) => setTimeout(handler, ms),
-      clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
-    }
-  }
+  constructor(private readonly options: DeviceServiceOptions) {}
 
   async discover(): Promise<RendererDevice[]> {
     const found = await discoverDevices(this.options.mdnsFactory, {
@@ -114,7 +100,12 @@ export class DeviceService {
         port: stored.port,
         token: stored.token,
         deviceId,
-        onEvent: (event) => this.options.onDeviceEvent?.(event),
+        onEvent: (event) => {
+          if (event.kind === 'effect') {
+            void this.noteEffectChange(deviceId, String(event.value)).catch(() => undefined)
+          }
+          this.options.onDeviceEvent?.(event)
+        },
       }),
     )
   }
@@ -321,7 +312,6 @@ export class DeviceService {
       this.painted.set(deviceId, painted)
     }
     painted.set(panelId, color)
-    this.scheduleRelease(deviceId)
 
     return this.sendFrame(
       deviceId,
@@ -335,34 +325,23 @@ export class DeviceService {
   }
 
   /**
-   * Schedules the end of the manual override.
+   * Takes note of an effect the device announced by itself.
    *
-   * The spec gives a stroke three seconds, then releases: without this
-   * deadline external control would stay armed indefinitely, its probe
-   * would re-arm every ten seconds, and the device could never display an
-   * effect again — every scene picked would be overwritten.
+   * Manual painting holds the wall until something takes it back, and the
+   * stream's probe re-arms external control every ten seconds. Left alone
+   * that probe would overwrite whatever the phone app or the physical button
+   * chooses, a few seconds after every choice. The device announcing an
+   * effect that is not our own external control is the signal to stand down.
    */
-  private scheduleRelease(deviceId: string): void {
-    const pending = this.releases.get(deviceId)
-    if (pending !== undefined) this.timers.clearTimeout(pending)
+  async noteEffectChange(deviceId: string, effect: string): Promise<void> {
+    if (effect === EXT_CONTROL_EFFECT) return
+    if (!this.streams.has(deviceId)) return
 
-    this.releases.set(
-      deviceId,
-      this.timers.setTimeout(() => {
-        this.releases.delete(deviceId)
-        void this.stopStream(deviceId, 'manual')
-      }, MANUAL_HOLD_MS),
-    )
+    await this.release(deviceId, { restore: false })
   }
 
   /** Cuts a device's stream, with or without restoring its effect. */
   private async release(deviceId: string, options: { restore: boolean }): Promise<void> {
-    const pending = this.releases.get(deviceId)
-    if (pending !== undefined) {
-      this.timers.clearTimeout(pending)
-      this.releases.delete(deviceId)
-    }
-
     const stream = this.streams.get(deviceId)
     if (stream === undefined) return
 
@@ -413,8 +392,6 @@ export class DeviceService {
     for (const subscription of this.subscriptions.values()) subscription.close()
     this.subscriptions.clear()
 
-    for (const handle of this.releases.values()) this.timers.clearTimeout(handle)
-    this.releases.clear()
 
     const streams = [...this.streams.values()]
     this.streams.clear()

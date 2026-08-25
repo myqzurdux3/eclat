@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { DeviceEventMessage, NanoleafApi, RendererDevice } from '../shared/ipc-contract'
 import { createCoalescer } from '../shared/coalesce'
 import { rotateLayout } from '../shared/geometry'
+import { nextPaint } from '../shared/paint'
 import { wallColors } from '../shared/wall-colors'
 import type { Color, DeviceState, EffectPalette, PanelLayout } from '../shared/types'
 
@@ -311,15 +312,17 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
       if (deviceId !== undefined) pushColour({ id: deviceId, hue, sat })
     },
 
-    // Painting an off wall switches it on in the main process. Reflecting
-    // that here at once keeps the mock-up from drawing a dark wall for the
-    // time it takes the device to announce its own change.
+    // A click either lights a panel or switches it back off. Painting an off
+    // wall switches it on in the main process; reflecting that here at once
+    // keeps the mock-up from drawing a dark wall for the time it takes the
+    // device to announce its own change.
     paint: (panelId, color) => {
-      setPainted((previous) => new Map(previous).set(panelId, color))
+      const next = nextPaint(painted.get(panelId), color)
+      setPainted((previous) => new Map(previous).set(panelId, next))
       if (deviceId === undefined) return
       setLive(true)
       setState((previous) => (previous === null ? previous : { ...previous, on: true }))
-      void bridge.paintPanel(deviceId, panelId, color).catch(report)
+      void bridge.paintPanel(deviceId, panelId, next).catch(report)
     },
 
     armScreen: async () => {

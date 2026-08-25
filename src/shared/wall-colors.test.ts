@@ -116,6 +116,27 @@ describe('wallColors', () => {
   })
 
   /**
+   * Manual painting drives every panel: the frame carries a colour for the
+   * painted ones and black for all the rest. Showing the others under the
+   * effect palette would be inventing light the wall does not emit.
+   */
+  it('switches unpainted panels off as soon as one is painted', () => {
+    const painted = new Map([[2, { r: 255, g: 0, b: 0 }]])
+
+    const colors = wallColors(layout.panels, state({ colorMode: 'effect', effect: 'Blaze' }), palettes, painted)
+
+    expect(colors.get(2)).toEqual({ r: 255, g: 0, b: 0 })
+    expect(colors.get(1)).toEqual({ r: 0, g: 0, b: 0 })
+    expect(colors.get(3)).toEqual({ r: 0, g: 0, b: 0 })
+  })
+
+  it('leaves the effect alone while nothing is painted', () => {
+    const colors = wallColors(layout.panels, state({ colorMode: 'effect', effect: 'Blaze' }), palettes, nothing)
+
+    expect(colors.get(1)).not.toEqual({ r: 0, g: 0, b: 0 })
+  })
+
+  /**
    * Power beats painting. The device cuts its LEDs whatever external control
    * last sent it, so a painted panel drawn lit over an off wall is the
    * mock-up contradicting the room.
