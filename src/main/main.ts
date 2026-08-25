@@ -84,8 +84,13 @@ app.whenReady().then(() => {
     store: new ConfigStore(defaultConfigPath(), legacyConfigPath()),
     mdnsFactory: createMdnsFactory(),
     onDeviceEvent: (event) => {
-      for (const fenetre of BrowserWindow.getAllWindows()) {
-        fenetre.webContents.send(IPC_CHANNELS.deviceEvent, event)
+      for (const window of BrowserWindow.getAllWindows()) {
+        window.webContents.send(IPC_CHANNELS.deviceEvent, event)
+      }
+    },
+    onAudioFeatures: (features) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        window.webContents.send(IPC_CHANNELS.audioFeatures, features)
       }
     },
   })

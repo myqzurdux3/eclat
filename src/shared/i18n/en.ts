@@ -4,7 +4,8 @@ import type { Dictionary } from './fr'
 export const en: Dictionary = {
   'app.tab.control': 'Control',
   'app.tab.scenes': 'Scenes',
-  'app.tab.sync': 'Sync',
+  'app.tab.sync': 'Screen',
+  'app.tab.audio': 'Audio',
   'app.window.minimise': 'Minimise',
   'app.window.close': 'Close',
   'app.language': 'Language',
@@ -61,6 +62,23 @@ export const en: Dictionary = {
   'sync.attack': 'Attack',
   'sync.release': 'Release',
   'sync.hz': 'Frame rate',
+  'sync.source.screen': 'Screen',
+  'sync.source.audio': 'Audio',
+  'audio.title': 'Audio sync',
+  'audio.output': 'Output to listen to',
+  'audio.refresh': 'Re-read the outputs',
+  'audio.none': 'No audio output found. Is PipeWire running?',
+  'audio.start': 'Start',
+  'audio.stop': 'Stop',
+  'audio.sensitivity': 'Sensitivity',
+  'audio.beatFlash': 'Beat flash',
+  'audio.gate': 'Silence gate',
+  'audio.bass': 'Bass',
+  'audio.mid': 'Mids',
+  'audio.treble': 'Treble',
+  'audio.beat': 'Beat',
+  'audio.help':
+    'Éclat listens to what leaves your speakers, through the PipeWire monitor. If the wall stays black while music plays, check the output is not muted: PipeWire applies volume before the monitor tap, and a muted output yields nothing but silence.',
   'sync.wayland.help':
     'On Wayland the GNOME picker chooses the window, so this application cannot show window thumbnails. The source must be picked again on every launch, as the portal does not hand its restore token to Electron. The stream itself stays open while the app runs, so stopping and restarting the sync asks nothing.',
 

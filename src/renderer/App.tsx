@@ -3,6 +3,8 @@ import type { NanoleafApi } from '../shared/ipc-contract'
 import { ControlScreen } from './screens/ControlScreen'
 import { ScenesScreen } from './screens/ScenesScreen'
 import { SyncScreen } from './screens/SyncScreen'
+import { AudioScreen } from './screens/AudioScreen'
+import { useAudioSync } from './useAudioSync'
 import { useScreenSync } from './useScreenSync'
 import { LocaleProvider, useLocale, useT } from './i18n'
 import { LOCALES, type MessageKey } from '../shared/i18n'
@@ -54,12 +56,13 @@ function LocaleSwitch() {
   )
 }
 
-type Tab = 'controle' | 'scenes' | 'sync'
+type Tab = 'controle' | 'scenes' | 'sync' | 'audio'
 
 const TABS: Array<{ value: Tab; key: MessageKey }> = [
   { value: 'controle', key: 'app.tab.control' },
   { value: 'scenes', key: 'app.tab.scenes' },
   { value: 'sync', key: 'app.tab.sync' },
+  { value: 'audio', key: 'app.tab.audio' },
 ]
 
 const TAB_KEY = 'eclat.tab'
@@ -85,6 +88,7 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
   )
 
   const sync = useScreenSync(walls, session.pushColors)
+  const audio = useAudioSync(bridge, walls, session.pushColors)
   const [screen, setScreen] = useState<Tab>(readTab)
 
   const chooseTab = (value: Tab): void => {
@@ -98,7 +102,9 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
 
   // During a sync, the wall shows what is actually sent to the panels.
   const wallColours =
-    (session.device === undefined ? undefined : sync.colors?.get(session.device.id)) ??
+    (session.device === undefined
+      ? undefined
+      : (sync.colors?.get(session.device.id) ?? audio.colors?.get(session.device.id))) ??
     session.colors
 
   /** The background drifts towards the mean of the colours on the wall. */
@@ -166,6 +172,7 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
         {screen === 'controle' && <ControlScreen session={session} colors={wallColours} />}
         {screen === 'scenes' && <ScenesScreen session={session} />}
         {screen === 'sync' && <SyncScreen session={session} sync={sync} />}
+        {screen === 'audio' && <AudioScreen session={session} audio={audio} />}
       </div>
     </>
   )

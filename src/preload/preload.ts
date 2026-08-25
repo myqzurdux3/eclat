@@ -4,6 +4,7 @@ import {
   type DeviceEventMessage,
   type NanoleafApi,
 } from '../shared/ipc-contract'
+import type { AudioFeatures } from '../shared/audio/analyser'
 
 const api: NanoleafApi = {
   discover: () => ipcRenderer.invoke(IPC_CHANNELS.discover),
@@ -27,6 +28,14 @@ const api: NanoleafApi = {
     const relais = (_event: unknown, message: DeviceEventMessage): void => listener(message)
     ipcRenderer.on(IPC_CHANNELS.deviceEvent, relais)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.deviceEvent, relais)
+  },
+  listAudioSources: () => ipcRenderer.invoke(IPC_CHANNELS.audioSources),
+  startAudioCapture: (sourceId) => ipcRenderer.invoke(IPC_CHANNELS.audioStart, sourceId),
+  stopAudioCapture: () => ipcRenderer.invoke(IPC_CHANNELS.audioStop),
+  onAudioFeatures: (listener) => {
+    const relay = (_event: unknown, features: AudioFeatures): void => listener(features)
+    ipcRenderer.on(IPC_CHANNELS.audioFeatures, relay)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.audioFeatures, relay)
   },
   minimizeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.windowMinimize),
   closeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.windowClose),

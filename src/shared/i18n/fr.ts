@@ -8,7 +8,8 @@
 export const fr = {
   'app.tab.control': 'Contrôle',
   'app.tab.scenes': 'Scènes',
-  'app.tab.sync': 'Sync',
+  'app.tab.sync': 'Écran',
+  'app.tab.audio': 'Audio',
   'app.window.minimise': 'Réduire',
   'app.window.close': 'Fermer',
   'app.language': 'Langue',
@@ -65,6 +66,23 @@ export const fr = {
   'sync.attack': 'Attaque',
   'sync.release': 'Relâche',
   'sync.hz': 'Cadence',
+  'sync.source.screen': 'Écran',
+  'sync.source.audio': 'Audio',
+  'audio.title': 'Synchronisation audio',
+  'audio.output': 'Sortie à écouter',
+  'audio.refresh': 'Relire les sorties',
+  'audio.none': 'Aucune sortie audio trouvée. PipeWire est-il en marche ?',
+  'audio.start': 'Démarrer',
+  'audio.stop': 'Arrêter',
+  'audio.sensitivity': 'Sensibilité',
+  'audio.beatFlash': 'Éclat au battement',
+  'audio.gate': 'Seuil de silence',
+  'audio.bass': 'Graves',
+  'audio.mid': 'Médiums',
+  'audio.treble': 'Aigus',
+  'audio.beat': 'Battement',
+  'audio.help':
+    'Éclat écoute ce qui sort de tes enceintes, par le monitor PipeWire. Si le mur reste noir alors que la musique joue, vérifie que la sortie n’est pas coupée : PipeWire applique le volume avant la prise du monitor, et une sortie muette ne donne que du silence.',
   'sync.wayland.help':
     "Sous Wayland, c'est le sélecteur de GNOME qui choisit la fenêtre : l'application ne peut pas en afficher les vignettes. La source doit être re-choisie à chaque lancement, le portail ne rendant pas son jeton de restauration. En revanche le flux reste ouvert tant que l'app tourne, donc arrêter puis relancer le sync ne redemande rien.",
 

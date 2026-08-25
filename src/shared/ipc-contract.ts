@@ -1,4 +1,12 @@
 import type { Color, DeviceState, EffectPalette, PanelLayout, SourceId } from './types'
+import type { AudioFeatures } from './audio/analyser'
+
+/** One of the machine's audio outputs, as PipeWire sees it. */
+export interface AudioSourceInfo {
+  id: number
+  name: string
+  description: string
+}
 
 /** What a device reports of its own accord, unprompted. */
 export interface DeviceEventMessage {
@@ -41,6 +49,11 @@ export interface NanoleafApi {
   setColor(deviceId: string, hue: number, sat: number): Promise<void>
   /** Subscribes to device-reported changes. Returns the unsubscribe function. */
   onDeviceEvent(listener: (event: DeviceEventMessage) => void): () => void
+  listAudioSources(): Promise<AudioSourceInfo[]>
+  startAudioCapture(sourceId: number): Promise<void>
+  stopAudioCapture(): Promise<void>
+  /** Subscribes to the analysed audio features. Returns the unsubscribe function. */
+  onAudioFeatures(listener: (features: AudioFeatures) => void): () => void
   minimizeWindow(): Promise<void>
   closeWindow(): Promise<void>
 }
@@ -62,6 +75,10 @@ export const IPC_CHANNELS = {
   paintPanel: 'devices:paintPanel',
   setColor: 'devices:setColor',
   deviceEvent: 'devices:event',
+  audioSources: 'audio:sources',
+  audioStart: 'audio:start',
+  audioStop: 'audio:stop',
+  audioFeatures: 'audio:features',
   windowMinimize: 'window:minimize',
   windowClose: 'window:close',
 } as const

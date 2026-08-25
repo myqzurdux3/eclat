@@ -51,8 +51,8 @@
 
 **Tests :** un sinus pur à une fréquence de bin exacte concentre l'énergie sur ce bin et pas ailleurs ; deux sinus donnent deux pics ; le silence donne un spectre nul ; l'amplitude d'un signal doublé double ; une taille qui n'est pas une puissance de deux est refusée ; la fenêtre de Hann vaut zéro aux bords et un au centre.
 
-- [ ] Step 1 : test, échec, implémentation, succès
-- [ ] Step 2 : commit
+- [x] Step 1 : test, échec, implémentation, succès
+- [x] Step 2 : commit
 
 ---
 
@@ -71,8 +71,8 @@
 
 **Tests :** un sinus à 100 Hz remplit les graves et laisse médiums et aigus près de zéro ; à 1 kHz, les médiums ; à 8 kHz, les aigus ; le silence rend trois zéros ; un bruit blanc remplit les trois de façon comparable, ce qui vaut vérification de la division par le nombre de bins.
 
-- [ ] Step 1 : test, échec, implémentation, succès
-- [ ] Step 2 : commit
+- [x] Step 1 : test, échec, implémentation, succès
+- [x] Step 2 : commit
 
 ---
 
@@ -86,8 +86,8 @@
 
 **Tests :** un signal constant ne déclenche jamais ; un pic isolé après du calme déclenche une fois ; deux pics rapprochés ne comptent que pour un, la période réfractaire jouant ; un morceau uniformément fort finit par ne plus déclencher, le seuil s'étant adapté ; `reset` oublie l'historique ; les premières valeurs, faute d'historique, ne déclenchent pas.
 
-- [ ] Step 1 : test, échec, implémentation, succès
-- [ ] Step 2 : commit
+- [x] Step 1 : test, échec, implémentation, succès
+- [x] Step 2 : commit
 
 ---
 
@@ -106,8 +106,8 @@
 
 **Tests :** le silence rend des grandeurs nulles et `beat` faux ; un sinus grave donne `bass` nettement supérieur aux deux autres ; `pcmToMono` moyenne bien les deux canaux et borne dans `[-1,1]` ; un buffer de taille impaire ne fait pas planter ; `level` suit l'amplitude.
 
-- [ ] Step 1 : test, échec, implémentation, succès
-- [ ] Step 2 : commit
+- [x] Step 1 : test, échec, implémentation, succès
+- [x] Step 2 : commit
 
 ---
 
@@ -123,8 +123,8 @@
 
 **Tests :** une couleur par panneau ; le silence rend du noir ; un battement rend le mur plus clair que la même frame sans battement ; la sensibilité change l'amplitude sans changer la teinte ; un mur sans panneau rend un tableau vide.
 
-- [ ] Step 1 : test, échec, implémentation, succès
-- [ ] Step 2 : commit
+- [x] Step 1 : test, échec, implémentation, succès
+- [x] Step 2 : commit
 
 ---
 
@@ -142,9 +142,9 @@
 
 **Tests :** `parsePipewireDump` sur un extrait réel de `pw-dump` retient les sinks et écarte le reste ; un JSON illisible rend un tableau vide ; un nœud sans nom est ignoré. La capture elle-même n'est pas testée automatiquement — elle dépend d'un binaire externe et d'une carte son.
 
-- [ ] Step 1 : test de `parsePipewireDump`, échec, implémentation, succès
-- [ ] Step 2 : écrire `capture.ts`
-- [ ] Step 3 : commit
+- [x] Step 1 : test de `parsePipewireDump`, échec, implémentation, succès
+- [x] Step 2 : écrire `capture.ts`
+- [x] Step 3 : commit
 
 ---
 
@@ -162,11 +162,11 @@ wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.3
 npm start   # onglet Sync, source Audio, puis lancer de la musique
 ```
 
-- [ ] Step 1 : contrat IPC et service
-- [ ] Step 2 : hook et interface
-- [ ] Step 3 : compilation, suite complète, capture visuelle
-- [ ] Step 4 : vérification manuelle, son allumé
-- [ ] Step 5 : commit
+- [x] Step 1 : contrat IPC et service
+- [x] Step 2 : hook et interface
+- [x] Step 3 : compilation, suite complète, capture visuelle
+- [ ] Step 4 : vérification manuelle, son allumé — le sink est muet, et une tentative de contournement par null sink PipeWire a échoué : `pw-play` ne s'y est pas lié. Reste à faire, son activé.
+- [x] Step 5 : commit
 
 ---
 

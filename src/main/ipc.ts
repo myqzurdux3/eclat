@@ -7,6 +7,9 @@ import { discoverDevices, type MdnsFactory } from './device/discovery'
 import { subscribeToEvents, type DeviceEvent, type EventSubscription } from './device/events'
 import { pairDevice } from './device/pairing'
 import { PanelStream } from './device/stream'
+import { AudioCapture } from './audio/capture'
+import { listAudioSources, type AudioSource } from './audio/sources'
+import type { AudioFeatures } from '../shared/audio/analyser'
 import type { ConfigStore, StoredDevice } from './store'
 
 export interface DeviceServiceOptions {
@@ -24,6 +27,8 @@ export interface DeviceServiceOptions {
   }
   /** Receives whatever the device reports of its own accord. */
   onDeviceEvent?: (event: DeviceEvent) => void
+  /** Receives the analysed audio, block by block. */
+  onAudioFeatures?: (features: AudioFeatures) => void
   /** Injected by tests to aim at a local UDP receiver. */
   streamFactory?: (options: { client: NanoleafClient; ip: string }) => PanelStream
 }
@@ -43,6 +48,7 @@ export class DeviceService {
   private readonly painted = new Map<string, Map<number, Color>>()
   private readonly arbiters = new Map<string, SourceArbiter>()
   private readonly subscriptions = new Map<string, EventSubscription>()
+  private audio: AudioCapture | null = null
   /** External-control release deadlines, per device. */
   private readonly releases = new Map<string, unknown>()
 
@@ -341,6 +347,30 @@ export class DeviceService {
     await stream.stop(options)
   }
 
+  /** The machine's audio outputs; their monitors carry what is played. */
+  async listAudioSources(): Promise<AudioSource[]> {
+    return listAudioSources()
+  }
+
+  /**
+   * Starts analysing one audio output.
+   *
+   * The features are pushed rather than polled: a block lasts 21 ms at
+   * 48 kHz, and asking for them one at a time would cost more than the
+   * analysis itself.
+   */
+  startAudioCapture(sourceId: number): void {
+    if (this.options.onAudioFeatures === undefined) return
+    this.audio ??= new AudioCapture({
+      onFeatures: (features) => this.options.onAudioFeatures?.(features),
+    })
+    this.audio.start(sourceId)
+  }
+
+  stopAudioCapture(): void {
+    this.audio?.stop()
+  }
+
   /** Gives every device its effect back. Called on quit and on signal. */
   /** Opens event tracking for every device already paired. */
   async watchPairedDevices(): Promise<void> {
@@ -351,6 +381,9 @@ export class DeviceService {
   }
 
   async shutdown(): Promise<void> {
+    this.audio?.stop()
+    this.audio = null
+
     for (const subscription of this.subscriptions.values()) subscription.close()
     this.subscriptions.clear()
 
@@ -408,6 +441,11 @@ export function registerIpc(ipcMain: IpcMainLike, service: DeviceService): void 
   ipcMain.handle(IPC_CHANNELS.selectEffect, (_event, id: string, name: string) =>
     service.selectEffect(id, name),
   )
+  ipcMain.handle(IPC_CHANNELS.audioSources, () => service.listAudioSources())
+  ipcMain.handle(IPC_CHANNELS.audioStart, (_event, sourceId: number) =>
+    service.startAudioCapture(sourceId),
+  )
+  ipcMain.handle(IPC_CHANNELS.audioStop, () => service.stopAudioCapture())
   ipcMain.handle(
     IPC_CHANNELS.paintPanel,
     (_event, id: string, panelId: number, color: Color) =>

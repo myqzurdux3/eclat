@@ -537,3 +537,63 @@ input[type='range']:active::-webkit-slider-thumb {
   opacity: 0.4;
   cursor: default;
 }
+
+/* --- Audio meters --------------------------------------------------- */
+
+.meters {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 520px;
+}
+
+.meter {
+  display: grid;
+  grid-template-columns: 68px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.meter-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faible);
+}
+
+.meter-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--verre);
+  border: 1px solid var(--bord);
+  overflow: hidden;
+}
+
+/* Only `transform` is animated: a width transition would relayout the row
+   on every audio block, sixty times a second. */
+.meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #33e0b0, #6aa9ff, #e0347a);
+  transform-origin: left center;
+  transform: scaleX(0);
+  transition: transform 90ms linear;
+}
+
+.beat-lamp {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--verre-fort);
+  border: 1px solid var(--bord);
+  transition: opacity 120ms ease, transform 120ms ease;
+  opacity: 0.35;
+}
+
+.beat-lamp[data-on='true'] {
+  background: #fff;
+  border-color: #fff;
+  opacity: 1;
+  transform: scale(1.25);
+}
