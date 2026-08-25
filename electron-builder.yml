@@ -1,0 +1,56 @@
+appId: dev.eclat.app
+productName: Éclat
+copyright: Copyright © 2026 myqzurdux3
+
+directories:
+  output: release
+  buildResources: assets
+
+# Only the built output and the icon ship. `src/` is TypeScript the packaged
+# app never reads, and `docs/` is for people, not for the binary.
+files:
+  - dist/**/*
+  - assets/logo.png
+  - package.json
+
+linux:
+  # The .deb needs a maintainer. This is the address already public in the
+  # commit history; a personal one has no business in a distributed package.
+  maintainer: myqzurdux3 <142512240+myqzurdux3@users.noreply.github.com>
+  syncDesktopName: true
+  category: Utility
+  icon: assets/logo.png
+  synopsis: Drive your Nanoleaf panels from Linux
+  description: >-
+    Éclat finds Nanoleaf light panels over mDNS, pairs with them, draws your
+    wall in WebGL2 at its real geometry, and can drive every panel in real
+    time from what is on your screen or coming out of your speakers.
+  target:
+    # AppImage runs anywhere without installation; deb suits Debian and
+    # Ubuntu, which is what this is built and tested on.
+    - AppImage
+    - deb
+  desktop:
+    entry:
+      Name: Éclat
+      Comment: Drive your Nanoleaf panels from Linux
+      Keywords: nanoleaf;led;ambilight;light;
+      StartupWMClass: Éclat
+
+deb:
+  # `pw-record` and `pw-dump` come from pipewire-bin and are what audio sync
+  # reads the speaker monitor with. `libasound2t64` is Electron's own.
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libsecret-1-0
+  recommends:
+    - pipewire-bin
+
+appImage:
+  artifactName: ${productName}-${version}-${arch}.${ext}

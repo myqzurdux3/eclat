@@ -122,22 +122,38 @@ export class DeviceService {
   async listDevices(): Promise<RendererDevice[]> {
     const config = await this.options.store.load()
     const merged = new Map<string, RendererDevice>()
+    const moved: StoredDevice[] = []
 
     for (const [id, entry] of this.seen) {
       merged.set(id, { id, ...entry, paired: false })
     }
 
     for (const stored of Object.values(config.devices)) {
+      // A panel announcing itself right now is more trustworthy about its
+      // own address than a value written weeks ago: a renewed DHCP lease
+      // would otherwise strand the pairing for good.
+      const live = this.seen.get(stored.id)
+      const ip = live?.ip ?? stored.ip
+      const port = live?.port ?? stored.port
+
+      if (live !== undefined && (ip !== stored.ip || port !== stored.port)) {
+        moved.push({ ...stored, ip, port })
+      }
+
       merged.set(stored.id, {
         id: stored.id,
         name: stored.name,
-        ip: stored.ip,
-        port: stored.port,
-        model: merged.get(stored.id)?.model,
-        firmware: merged.get(stored.id)?.firmware,
+        ip,
+        port,
+        model: live?.model,
+        firmware: live?.firmware,
         paired: true,
       })
     }
+
+    // Persisted after the loop so the next start finds the panel directly,
+    // without waiting on another discovery pass.
+    for (const device of moved) await this.options.store.upsertDevice(device)
 
     return [...merged.values()]
   }

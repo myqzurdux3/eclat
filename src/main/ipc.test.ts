@@ -580,3 +580,118 @@ describe('DeviceService — several devices', () => {
     expect(second.state.effect).toBe('Jungle')
   })
 })
+
+describe('DeviceService — address refresh', () => {
+  it('prefers the freshly discovered address over the stored one', async () => {
+    device.pairingMode = true
+    await service.discover()
+    await service.pair('Shapes Lounge')
+
+    // The panel comes back on a different address, as DHCP does.
+    const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-move-'))
+    const store = new ConfigStore(join(dir, 'config.json'))
+    await store.upsertDevice({
+      id: 'Shapes Lounge',
+      name: 'Shapes Lounge',
+      ip: '10.0.0.9',
+      port: 1,
+      token: 'tok',
+    })
+
+    const moved = new DeviceService({
+      store,
+      mdnsFactory: fakeFactory([
+        {
+          name: 'Shapes Lounge',
+          host: 'shapes.local',
+          addresses: ['127.0.0.1'],
+          port: device.port,
+          txt: { md: 'NL42' },
+        },
+      ]),
+      discoverTimeoutMs: 0,
+      sleep: () => Promise.resolve(),
+    })
+
+    const listed = await moved.discover()
+
+    expect(listed[0]!.ip).toBe('127.0.0.1')
+    expect(listed[0]!.port).toBe(device.port)
+    expect(listed[0]!.paired).toBe(true)
+  })
+
+  it('writes the new address back, so the next start finds it', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-move-'))
+    const store = new ConfigStore(join(dir, 'config.json'))
+    await store.upsertDevice({
+      id: 'Shapes Lounge',
+      name: 'Shapes Lounge',
+      ip: '10.0.0.9',
+      port: 1,
+      token: 'tok',
+    })
+
+    const moved = new DeviceService({
+      store,
+      mdnsFactory: fakeFactory([
+        {
+          name: 'Shapes Lounge',
+          host: 'shapes.local',
+          addresses: ['127.0.0.1'],
+          port: device.port,
+          txt: { md: 'NL42' },
+        },
+      ]),
+      discoverTimeoutMs: 0,
+      sleep: () => Promise.resolve(),
+    })
+    await moved.discover()
+
+    expect((await store.load()).devices['Shapes Lounge']?.ip).toBe('127.0.0.1')
+  })
+
+  it('keeps the stored address when mDNS says nothing', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-move-'))
+    const store = new ConfigStore(join(dir, 'config.json'))
+    await store.upsertDevice({
+      id: 'Shapes Lounge',
+      name: 'Shapes Lounge',
+      ip: '10.0.0.9',
+      port: 1,
+      token: 'tok',
+    })
+
+    const quiet = new DeviceService({
+      store,
+      mdnsFactory: fakeFactory([]),
+      discoverTimeoutMs: 0,
+      sleep: () => Promise.resolve(),
+    })
+
+    expect((await quiet.listDevices())[0]!.ip).toBe('10.0.0.9')
+  })
+
+  it('leaves the token untouched when the address moves', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-move-'))
+    const store = new ConfigStore(join(dir, 'config.json'))
+    await store.upsertDevice({
+      id: 'Shapes Lounge',
+      name: 'Shapes Lounge',
+      ip: '10.0.0.9',
+      port: 1,
+      token: 'precious',
+    })
+
+    const moved = new DeviceService({
+      store,
+      mdnsFactory: fakeFactory([
+        { name: 'Shapes Lounge', host: 'h', addresses: ['127.0.0.1'], port: 9, txt: {} },
+      ]),
+      discoverTimeoutMs: 0,
+      sleep: () => Promise.resolve(),
+    })
+    await moved.discover()
+
+    expect((await store.load()).devices['Shapes Lounge']?.token).toBe('precious')
+  })
+})

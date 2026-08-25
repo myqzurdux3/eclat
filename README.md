@@ -45,6 +45,7 @@ detail it ran into is written down in [Notes from the hardware](#notes-from-the-
 | **Control** | power, brightness, hue/saturation wheel, and click-to-paint on any single panel |
 | **Scenes** | built from the palettes actually stored on the device, not from invented colours |
 | **Screen sync** | Wayland portal capture, analysed in a Worker; spatial, dominant and palette mapping |
+| **Audio sync** | reads the PipeWire monitor of your speakers: bands drive the hue, beats flash the wall |
 | **Several walls** | pair as many devices as you like, switch between them, and sync them all from one capture |
 | **A living wall** | the mock-up follows the device: exact while Éclat drives the panels, animated from the scene's own palette otherwise |
 | **Languages** | French and English |
@@ -77,6 +78,16 @@ cd eclat
 npm install
 npm start
 ```
+
+To build an AppImage and a `.deb` instead:
+
+```bash
+npm run package     # writes to release/
+```
+
+Audio sync reads the speaker monitor through `pw-record` and `pw-dump`,
+which ship in `pipewire-bin`. The `.deb` recommends the package; the
+AppImage expects it on the system.
 
 On first launch Éclat looks for panels on the local network. Hold the panel's
 power button for 5–7 seconds until the LED blinks, then press **Pair**.
@@ -190,6 +201,12 @@ Things no documentation mentions, found by measuring:
 - **A `MediaStreamTrack` is not transferable** in this build of Chromium.
   The `MediaStreamTrackProcessor` is built on the main thread and its
   `ReadableStream` is what crosses into the Worker.
+- **`enumerateDevices()` exposes no monitor source**, so system audio cannot
+  be captured through the browser APIs at all. Éclat reads the sink's monitor
+  straight from PipeWire instead. Mind that PipeWire applies the sink volume
+  *before* the monitor tap: a muted output records silence.
+- **A panel's address is not for keeping.** A renewed DHCP lease moves it,
+  and a stored address would strand the pairing; discovery refreshes it.
 
 ## Roadmap
 
@@ -199,8 +216,8 @@ Things no documentation mentions, found by measuring:
 | 2 — Streaming: extControl v2, frame encoding, arbiter | ✅ |
 | 3 — Control UI: WebGL2 wall, colour wheel, scenes | ✅ |
 | 4 — Screen sync: portal capture, Worker, colour pipeline | ✅ |
-| 5 — Audio sync: PipeWire monitor capture, analysis | — |
-| 6 — Packaging with electron-builder | — |
+| 5 — Audio sync: PipeWire monitor capture, analysis | ✅ |
+| 6 — Packaging with electron-builder | ✅ |
 
 ## Contributing
 

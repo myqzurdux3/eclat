@@ -1,6 +1,7 @@
 node_modules/
 dist/
 out/
+release/
 
 # Worktrees et bac à sable des outils d'assistance.
 .claude/worktrees/

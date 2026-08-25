@@ -67,6 +67,8 @@ sans compte cloud, sans SDK propriétaire, sans télémétrie.
   à l'autre, et alimente-les tous depuis une seule capture.
 - **Un mur vivant** : la maquette suit le device — exacte quand Éclat pilote
   les panneaux, animée d'après la palette de la scène sinon.
+- **Synchronisation audio** : Éclat écoute le monitor PipeWire de tes
+  enceintes ; les bandes pilotent la teinte, les battements éclairent le mur.
 - Interface **française et anglaise**.
 
 ## Prérequis
@@ -87,6 +89,16 @@ cd eclat
 npm install
 npm start
 ```
+
+Pour produire une AppImage et un `.deb` :
+
+```bash
+npm run package     # écrit dans release/
+```
+
+La synchronisation audio lit le monitor des enceintes via `pw-record` et
+`pw-dump`, fournis par `pipewire-bin`. Le `.deb` recommande le paquet ;
+l'AppImage l'attend sur le système.
 
 Au premier lancement l'application cherche les panneaux sur le réseau local.
 Maintiens le bouton power du panneau 5 à 7 secondes, jusqu'au clignotement de
@@ -199,8 +211,8 @@ Des choses que la documentation ne dit pas, trouvées à la mesure :
 | 2 — Streaming : extControl v2, encodage, arbitre | fait |
 | 3 — UI de contrôle : mur WebGL2, roue chromatique, scènes | fait |
 | 4 — Sync écran : capture portail, Worker, pipeline couleur | fait |
-| 5 — Sync audio : capture monitor PipeWire, analyse | à faire |
-| 6 — Empaquetage avec electron-builder | à faire |
+| 5 — Sync audio : capture monitor PipeWire, analyse | fait |
+| 6 — Empaquetage avec electron-builder | fait |
 
 ## Contribuer
 
