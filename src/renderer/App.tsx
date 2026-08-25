@@ -4,8 +4,41 @@ import type { DeviceState, PanelLayout } from '../shared/types'
 
 declare global {
   interface Window {
-    nanoleaf: NanoleafApi
+    /**
+     * Injecté par le preload d'Electron. Absent quand la page est ouverte
+     * directement dans un navigateur : le serveur Vite ne sert que le
+     * renderer, il n'apporte aucun pont IPC.
+     */
+    nanoleaf?: NanoleafApi
   }
+}
+
+/** Affiché quand la page tourne hors d'Electron, sans pont IPC. */
+function MissingBridge() {
+  return (
+    <main style={{ padding: 24, display: 'grid', gap: 16, maxWidth: 620 }}>
+      <h1 style={{ margin: 0, fontSize: 20 }}>Nanoleaf — pont IPC absent</h1>
+      <p style={{ margin: 0, lineHeight: 1.5 }}>
+        Cette page est servie par Vite, qui ne fournit que l&apos;interface. Le dialogue
+        avec les panneaux passe par le processus main d&apos;Electron : le token
+        d&apos;authentification ne doit jamais atteindre le navigateur.
+      </p>
+      <p style={{ margin: 0, lineHeight: 1.5 }}>
+        Lance l&apos;application dans Electron, en gardant ce serveur actif :
+      </p>
+      <pre
+        style={{
+          margin: 0,
+          padding: 12,
+          background: '#17171c',
+          borderRadius: 6,
+          overflowX: 'auto',
+        }}
+      >
+        VITE_DEV_SERVER_URL=http://localhost:5173 npm run start
+      </pre>
+    </main>
+  )
 }
 
 /** Teinte [0,1] vers RGB saturé, pour la démonstration de balayage. */
@@ -36,6 +69,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null)
   const [streaming, setStreaming] = useState(false)
 
+  const bridge = typeof window === 'undefined' ? undefined : window.nanoleaf
   const active = devices.find((d) => d.paired) ?? devices[0]
 
   const run = async (fn: () => Promise<void>): Promise<void> => {
@@ -51,11 +85,12 @@ export function App() {
   }
 
   useEffect(() => {
-    void run(async () => setDevices(await window.nanoleaf.listDevices()))
-  }, [])
+    if (bridge === undefined) return
+    void run(async () => setDevices(await bridge.listDevices()))
+  }, [bridge])
 
   useEffect(() => {
-    if (!streaming || active === undefined || layout === null) return
+    if (bridge === undefined || !streaming || active === undefined || layout === null) return
 
     const count = layout.panels.length
     const startedAt = Date.now()
@@ -64,11 +99,13 @@ export function App() {
       const colors = Array.from({ length: count }, (_, index) =>
         hueToRgb(phase + index / count),
       )
-      void window.nanoleaf.sendFrame(active.id, 'screen', colors)
+      void bridge.sendFrame(active.id, 'screen', colors)
     }, 40)
 
     return () => clearInterval(timer)
-  }, [streaming, active, layout])
+  }, [bridge, streaming, active, layout])
+
+  if (bridge === undefined) return <MissingBridge />
 
   return (
     <main style={{ padding: 24, display: 'grid', gap: 16 }}>
@@ -77,7 +114,7 @@ export function App() {
       <div style={{ display: 'flex', gap: 8 }}>
         <button
           disabled={busy}
-          onClick={() => void run(async () => setDevices(await window.nanoleaf.discover()))}
+          onClick={() => void run(async () => setDevices(await bridge.discover()))}
         >
           Découvrir
         </button>
@@ -85,8 +122,8 @@ export function App() {
           disabled={busy || active === undefined || active.paired}
           onClick={() =>
             void run(async () => {
-              await window.nanoleaf.pair(active!.id)
-              setDevices(await window.nanoleaf.listDevices())
+              await bridge.pair(active!.id)
+              setDevices(await bridge.listDevices())
             })
           }
         >
@@ -96,8 +133,8 @@ export function App() {
           disabled={busy || active === undefined || !active.paired}
           onClick={() =>
             void run(async () => {
-              setState(await window.nanoleaf.getState(active!.id))
-              setLayout(await window.nanoleaf.getLayout(active!.id))
+              setState(await bridge.getState(active!.id))
+              setLayout(await bridge.getLayout(active!.id))
             })
           }
         >
@@ -107,8 +144,8 @@ export function App() {
           disabled={busy || state === null}
           onClick={() =>
             void run(async () => {
-              await window.nanoleaf.setOn(active!.id, !state!.on)
-              setState(await window.nanoleaf.getState(active!.id))
+              await bridge.setOn(active!.id, !state!.on)
+              setState(await bridge.getState(active!.id))
             })
           }
         >
@@ -118,8 +155,8 @@ export function App() {
           disabled={busy || streaming || active === undefined || !active.paired}
           onClick={() =>
             void run(async () => {
-              setLayout(await window.nanoleaf.getLayout(active!.id))
-              await window.nanoleaf.startStream(active!.id, 'screen')
+              setLayout(await bridge.getLayout(active!.id))
+              await bridge.startStream(active!.id, 'screen')
               setStreaming(true)
             })
           }
@@ -131,7 +168,7 @@ export function App() {
           onClick={() =>
             void run(async () => {
               setStreaming(false)
-              await window.nanoleaf.stopStream(active!.id, 'screen')
+              await bridge.stopStream(active!.id, 'screen')
             })
           }
         >
