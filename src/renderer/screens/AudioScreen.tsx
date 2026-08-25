@@ -2,6 +2,7 @@ import { useT } from '../i18n'
 import type { AudioSync } from '../useAudioSync'
 import type { NanoleafSession } from '../useNanoleaf'
 import type { MessageKey } from '../../shared/i18n'
+import { translateError } from '../../shared/i18n/errors'
 
 const SLIDERS = [
   { key: 'sensitivity', label: 'audio.sensitivity', min: 0.2, max: 3, step: 0.1 },
@@ -143,7 +144,7 @@ export function AudioScreen({
 
         <p className="hint">{t('audio.help')}</p>
 
-        {audio.error !== null && <p className="error">{audio.error}</p>}
+        {audio.error !== null && <p className="error">{translateError(audio.error, t)}</p>}
       </aside>
     </section>
   )

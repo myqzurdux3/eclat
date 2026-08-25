@@ -82,7 +82,7 @@ describe('servicesFromPacket', () => {
     ])
   })
 
-  it('ne retient que les adresses IPv4', () => {
+  it('keeps only IPv4 addresses', () => {
     const withV6 = packet({
       answers: [
         ...packet().answers,

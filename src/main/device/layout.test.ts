@@ -66,7 +66,7 @@ describe('normalizeLayout', () => {
     expect(layout.panels[1]!.nx).toBeCloseTo(1)
   })
 
-  it('renvoie une disposition vide sans planter', () => {
+  it('returns an empty layout without crashing', () => {
     const layout = normalizeLayout([], 67)
     expect(layout.panels).toEqual([])
     expect(layout.aspect).toBe(1)

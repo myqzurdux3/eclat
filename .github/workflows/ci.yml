@@ -18,14 +18,10 @@ jobs:
 
       - run: npm ci
 
-      # Les tests ne touchent ni matériel, ni réseau, ni GPU, ni DOM :
-      # le device est doublé de bout en bout.
+      # The tests touch no hardware, network, GPU or DOM: the device is
+      # doubled end to end.
       - run: npm test
 
-      - name: Vérifier les types du processus main
-        run: npx tsc -p tsconfig.main.json --noEmit
-
-      - name: Vérifier les types du renderer
-        run: npx tsc -p tsconfig.json --noEmit
+      - run: npm run typecheck
 
       - run: npm run build

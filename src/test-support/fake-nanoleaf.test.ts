@@ -88,7 +88,7 @@ describe('FakeNanoleaf', () => {
     expect(device.state.effect).toBe('Nemo')
   })
 
-  it('sert la layout des panneaux', async () => {
+  it('serves the panel layout', async () => {
     device = new FakeNanoleaf({
       token: 'tok',
       positionData: [{ panelId: 42, x: 0, y: 0, o: 0, shapeType: 7 }],

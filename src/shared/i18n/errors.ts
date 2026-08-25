@@ -2,9 +2,9 @@ import { fr } from './fr'
 import type { MessageKey, Translate } from './index'
 
 /** `[error.deviceUnpaired] Device not paired: Shapes` yields the key. */
-const CLE = /\[(error\.[A-Za-z]+)\]/
+const KEY = /\[(error\.[A-Za-z]+)\]/
 
-const EXISTE = (cle: string): cle is MessageKey => cle in fr
+const EXISTS = (key: string): key is MessageKey => key in fr
 
 /**
  * Translates an error raised by the main process.
@@ -16,9 +16,9 @@ const EXISTE = (cle: string): cle is MessageKey => cle in fr
  * swallowed error.
  */
 export function translateError(raw: string, t: Translate): string {
-  const trouve = CLE.exec(raw)
-  if (trouve === null) return raw
+  const found = KEY.exec(raw)
+  if (found === null) return raw
 
-  const cle = trouve[1]!
-  return EXISTE(cle) ? t(cle) : raw
+  const key = found[1]!
+  return EXISTS(key) ? t(key) : raw
 }

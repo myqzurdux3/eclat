@@ -223,8 +223,8 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
   }, [bridge, deviceId])
 
   /**
-   * The other paired walls' geometry is loaded in the background: a sync
-   * alimente tous, et sans leur layout on ne saurait pas quoi leur envoyer.
+   * The other paired walls' geometry is loaded in the background: one sync
+   * feeds them all, and without their layout we would not know what to send.
    */
   useEffect(() => {
     for (const entry of devices) {
@@ -258,7 +258,7 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
       try {
         localStorage.setItem(ACTIVE_KEY, id)
       } catch {
-        // Stockage indisponible : le choix vaut pour cette session.
+        // Storage unavailable: the choice holds for this session only.
       }
     },
 

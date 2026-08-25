@@ -52,6 +52,10 @@ function readSource(): number | null {
  * features cross the IPC boundary, five numbers at a time. Sending raw PCM
  * would move roughly 192 kB a second for no gain.
  */
+/** Electron flattens `Error` across IPC: keep the message, drop the wrapper. */
+const message = (cause: unknown): string =>
+  cause instanceof Error ? cause.message : String(cause)
+
 export function useAudioSync(
   bridge: NanoleafApi,
   targets: AudioSyncTarget[],
@@ -78,7 +82,7 @@ export function useAudioSync(
     void bridge
       .listAudioSources()
       .then(setSources)
-      .catch((cause: unknown) => setError(String(cause)))
+      .catch((cause: unknown) => setError(message(cause)))
   }, [bridge])
 
   useEffect(() => {
@@ -149,7 +153,7 @@ export function useAudioSync(
       void bridge
         .startAudioCapture(sourceId)
         .then(() => setActive(true))
-        .catch((cause: unknown) => setError(String(cause)))
+        .catch((cause: unknown) => setError(message(cause)))
     },
 
     stop: () => {

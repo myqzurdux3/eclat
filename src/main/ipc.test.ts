@@ -69,7 +69,7 @@ describe('DeviceService', () => {
     ])
   })
 
-  it('n expose jamais le token au renderer', async () => {
+  it('never exposes the token to the renderer', async () => {
     device.pairingMode = true
     await service.discover()
 

@@ -32,9 +32,9 @@ declare class MediaStreamTrackProcessor<T> {
  */
 function openFrameStream(track: MediaStreamTrack): ReadableStream<VideoFrame> {
   if (typeof MediaStreamTrackProcessor === 'undefined') {
-    throw new Error(
-      "MediaStreamTrackProcessor est indisponible : cette version de Chromium ne peut pas lire la capture image par image.",
-    )
+    // The key travels inside the message: the renderer translates it the
+    // same way it translates errors coming back from the main process.
+    throw new Error('[error.processorMissing] MediaStreamTrackProcessor is unavailable.')
   }
   return new MediaStreamTrackProcessor<VideoFrame>({ track }).readable
 }

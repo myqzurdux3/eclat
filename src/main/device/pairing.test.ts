@@ -19,7 +19,7 @@ afterEach(async () => {
 const noSleep = () => Promise.resolve()
 
 describe('pairDevice', () => {
-  it('renvoie le token quand le device est en mode appairage', async () => {
+  it('returns the token when the device is in pairing mode', async () => {
     device.pairingMode = true
 
     const token = await pairDevice({
@@ -56,7 +56,7 @@ describe('pairDevice', () => {
     expect(pairingCalls).toHaveLength(3)
   })
 
-  it('s interrompt sur signal d annulation', async () => {
+  it('stops on an abort signal', async () => {
     const controller = new AbortController()
     controller.abort()
 
@@ -71,7 +71,7 @@ describe('pairDevice', () => {
     ).rejects.toThrow(/cancelled/i)
   })
 
-  it('rapporte status 0 si le device est injoignable', async () => {
+  it('reports status 0 when the device is unreachable', async () => {
     // Create a server, grab its port, then close it to obtain a free port
     // where nothing is listening.
     const tempServer = createServer()
