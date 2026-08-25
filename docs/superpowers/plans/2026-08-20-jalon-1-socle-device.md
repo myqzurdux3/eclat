@@ -47,7 +47,7 @@
   - `Color { r: number; g: number; b: number }`
   - `normalizeLayout(raw: RawPanel[], sideLength: number): PanelLayout`
 
-- [ ] **Step 1: Initialiser le paquet et installer les dépendances**
+- [x] **Step 1: Initialiser le paquet et installer les dépendances**
 
 ```bash
 cd /home/user/Documents/nanoleaf
@@ -65,7 +65,7 @@ npm pkg set scripts.dev:renderer="vite"
 npm pkg set scripts.start="npm run build:main && electron ."
 ```
 
-- [ ] **Step 2: Écrire les fichiers de configuration**
+- [x] **Step 2: Écrire les fichiers de configuration**
 
 `tsconfig.json` (base, sert au renderer et à Vitest) :
 
@@ -131,7 +131,7 @@ node_modules/
 dist/
 ```
 
-- [ ] **Step 3: Écrire les types partagés**
+- [x] **Step 3: Écrire les types partagés**
 
 `src/shared/types.ts` :
 
@@ -184,7 +184,7 @@ export interface Color {
 }
 ```
 
-- [ ] **Step 4: Écrire le test qui échoue**
+- [x] **Step 4: Écrire le test qui échoue**
 
 `src/main/device/layout.test.ts` :
 
@@ -251,12 +251,12 @@ describe('normalizeLayout', () => {
 })
 ```
 
-- [ ] **Step 5: Lancer le test et vérifier qu'il échoue**
+- [x] **Step 5: Lancer le test et vérifier qu'il échoue**
 
 Run: `npx vitest run src/main/device/layout.test.ts`
 Expected: FAIL — `Failed to resolve import "./layout"`
 
-- [ ] **Step 6: Écrire l'implémentation minimale**
+- [x] **Step 6: Écrire l'implémentation minimale**
 
 `src/main/device/layout.ts` :
 
@@ -315,12 +315,12 @@ export function normalizeLayout(raw: RawPanel[], sideLength: number): PanelLayou
 }
 ```
 
-- [ ] **Step 7: Lancer le test et vérifier qu'il passe**
+- [x] **Step 7: Lancer le test et vérifier qu'il passe**
 
 Run: `npx vitest run src/main/device/layout.test.ts`
 Expected: PASS — 6 tests
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add package.json package-lock.json tsconfig.json tsconfig.main.json vitest.config.ts .gitignore src/shared/types.ts src/main/device/layout.ts src/main/device/layout.test.ts
@@ -349,7 +349,7 @@ git commit -m "feat: échafaudage du projet et normalisation de la géométrie d
   - `effects: string[]`
   - `requests: Array<{ method: string; path: string; body: unknown }>` — journal pour les assertions
 
-- [ ] **Step 1: Écrire le test qui échoue**
+- [x] **Step 1: Écrire le test qui échoue**
 
 `src/test-support/fake-nanoleaf.test.ts` :
 
@@ -460,12 +460,12 @@ describe('FakeNanoleaf', () => {
 })
 ```
 
-- [ ] **Step 2: Lancer le test et vérifier qu'il échoue**
+- [x] **Step 2: Lancer le test et vérifier qu'il échoue**
 
 Run: `npx vitest run src/test-support/fake-nanoleaf.test.ts`
 Expected: FAIL — `Failed to resolve import "./fake-nanoleaf"`
 
-- [ ] **Step 3: Écrire l'implémentation**
+- [x] **Step 3: Écrire l'implémentation**
 
 `src/test-support/fake-nanoleaf.ts` :
 
@@ -624,12 +624,12 @@ function sendJson(res: ServerResponse, status: number, payload: unknown): void {
 }
 ```
 
-- [ ] **Step 4: Lancer le test et vérifier qu'il passe**
+- [x] **Step 4: Lancer le test et vérifier qu'il passe**
 
 Run: `npx vitest run src/test-support/fake-nanoleaf.test.ts`
 Expected: PASS — 7 tests
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/test-support/fake-nanoleaf.ts src/test-support/fake-nanoleaf.test.ts
@@ -662,7 +662,7 @@ git commit -m "test: device Nanoleaf factice pour les tests d intégration"
   - `selectEffect(name: string): Promise<void>`
   - `getLayout(): Promise<PanelLayout>`
 
-- [ ] **Step 1: Écrire le test qui échoue**
+- [x] **Step 1: Écrire le test qui échoue**
 
 `src/main/device/client.test.ts` :
 
@@ -771,12 +771,12 @@ describe('NanoleafClient', () => {
 })
 ```
 
-- [ ] **Step 2: Lancer le test et vérifier qu'il échoue**
+- [x] **Step 2: Lancer le test et vérifier qu'il échoue**
 
 Run: `npx vitest run src/main/device/client.test.ts`
 Expected: FAIL — `Failed to resolve import "./client"`
 
-- [ ] **Step 3: Écrire les erreurs**
+- [x] **Step 3: Écrire les erreurs**
 
 `src/main/device/errors.ts` :
 
@@ -793,7 +793,7 @@ export class NanoleafError extends Error {
 }
 ```
 
-- [ ] **Step 4: Écrire le client**
+- [x] **Step 4: Écrire le client**
 
 `src/main/device/client.ts` :
 
@@ -935,17 +935,17 @@ export class NanoleafClient {
 }
 ```
 
-- [ ] **Step 5: Lancer le test et vérifier qu'il passe**
+- [x] **Step 5: Lancer le test et vérifier qu'il passe**
 
 Run: `npx vitest run src/main/device/client.test.ts`
 Expected: PASS — 9 tests
 
-- [ ] **Step 6: Vérifier la compilation du main**
+- [x] **Step 6: Vérifier la compilation du main**
 
 Run: `npm run build:main`
 Expected: aucune erreur TypeScript
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/main/device/client.ts src/main/device/errors.ts src/main/device/client.test.ts
@@ -967,7 +967,7 @@ git commit -m "feat: client REST Nanoleaf"
   - `interface PairOptions { ip: string; port?: number; attempts?: number; intervalMs?: number; sleep?: (ms: number) => Promise<void>; signal?: AbortSignal }`
   - Valeurs par défaut : `port = 16021`, `attempts = 15`, `intervalMs = 2000` (soit 30 s de fenêtre)
 
-- [ ] **Step 1: Écrire le test qui échoue**
+- [x] **Step 1: Écrire le test qui échoue**
 
 `src/main/device/pairing.test.ts` :
 
@@ -1046,12 +1046,12 @@ describe('pairDevice', () => {
 })
 ```
 
-- [ ] **Step 2: Lancer le test et vérifier qu'il échoue**
+- [x] **Step 2: Lancer le test et vérifier qu'il échoue**
 
 Run: `npx vitest run src/main/device/pairing.test.ts`
 Expected: FAIL — `Failed to resolve import "./pairing"`
 
-- [ ] **Step 3: Écrire l'implémentation**
+- [x] **Step 3: Écrire l'implémentation**
 
 `src/main/device/pairing.ts` :
 
@@ -1120,12 +1120,12 @@ export async function pairDevice(options: PairOptions): Promise<string> {
 }
 ```
 
-- [ ] **Step 4: Lancer le test et vérifier qu'il passe**
+- [x] **Step 4: Lancer le test et vérifier qu'il passe**
 
 Run: `npx vitest run src/main/device/pairing.test.ts`
 Expected: PASS — 4 tests
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/device/pairing.ts src/main/device/pairing.test.ts
@@ -1148,7 +1148,7 @@ git commit -m "feat: appairage du device avec boucle de sollicitation"
   - `defaultConfigPath(): string` — `$XDG_CONFIG_HOME/nanoleaf-app/config.json`, repli `~/.config/...`
   - `class ConfigStore { constructor(filePath: string); load(): Promise<AppConfig>; save(config: AppConfig): Promise<void>; upsertDevice(device: StoredDevice): Promise<AppConfig>; }`
 
-- [ ] **Step 1: Écrire le test qui échoue**
+- [x] **Step 1: Écrire le test qui échoue**
 
 `src/main/store.test.ts` :
 
@@ -1242,12 +1242,12 @@ describe('ConfigStore', () => {
 })
 ```
 
-- [ ] **Step 2: Lancer le test et vérifier qu'il échoue**
+- [x] **Step 2: Lancer le test et vérifier qu'il échoue**
 
 Run: `npx vitest run src/main/store.test.ts`
 Expected: FAIL — `Failed to resolve import "./store"`
 
-- [ ] **Step 3: Écrire l'implémentation**
+- [x] **Step 3: Écrire l'implémentation**
 
 `src/main/store.ts` :
 
@@ -1322,12 +1322,12 @@ export class ConfigStore {
 }
 ```
 
-- [ ] **Step 4: Lancer le test et vérifier qu'il passe**
+- [x] **Step 4: Lancer le test et vérifier qu'il passe**
 
 Run: `npx vitest run src/main/store.test.ts`
 Expected: PASS — 7 tests
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/store.ts src/main/store.test.ts
@@ -1351,7 +1351,7 @@ git commit -m "feat: persistance de la configuration en 0600"
   - `discoverDevices(factory: MdnsFactory, options?: { timeoutMs?: number; sleep?: (ms: number) => Promise<void> }): Promise<DeviceInfo[]>`
   - `createBonjourFactory(): MdnsFactory` — implémentation réelle sur `bonjour-service`, non couverte par les tests unitaires
 
-- [ ] **Step 1: Écrire le test qui échoue**
+- [x] **Step 1: Écrire le test qui échoue**
 
 `src/main/device/discovery.test.ts` :
 
@@ -1439,12 +1439,12 @@ describe('discoverDevices', () => {
 })
 ```
 
-- [ ] **Step 2: Lancer le test et vérifier qu'il échoue**
+- [x] **Step 2: Lancer le test et vérifier qu'il échoue**
 
 Run: `npx vitest run src/main/device/discovery.test.ts`
 Expected: FAIL — `Failed to resolve import "./discovery"`
 
-- [ ] **Step 3: Écrire l'implémentation**
+- [x] **Step 3: Écrire l'implémentation**
 
 `src/main/device/discovery.ts` :
 
@@ -1546,12 +1546,12 @@ export function createBonjourFactory(): MdnsFactory {
 }
 ```
 
-- [ ] **Step 4: Lancer le test et vérifier qu'il passe**
+- [x] **Step 4: Lancer le test et vérifier qu'il passe**
 
 Run: `npx vitest run src/main/device/discovery.test.ts`
 Expected: PASS — 5 tests
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/device/discovery.ts src/main/device/discovery.test.ts
@@ -1574,14 +1574,14 @@ git commit -m "feat: découverte mDNS des contrôleurs Nanoleaf"
 - Test: `src/main/ipc.test.ts`
 
 **Interfaces:**
-- Consumes: `NanoleafClient` (tâche 3), `pairDevice` (tâche 4), `ConfigStore`, `defaultConfigPath`, `StoredDevice` (tâche 5), `discoverDevices`, `createBonjourFactory` (tâche 6), `normalizeLayout` (tâche 1)
+- Consumes: `NanoleafClient` (tâche 3), `pairDevice` (tâche 4), `ConfigStore`, `defaultConfigPath`, `StoredDevice` (tâche 5), `discoverDevices`, `createMdnsFactory` (tâche 6), `normalizeLayout` (tâche 1)
 - Produces:
   - `interface RendererDevice { id: string; name: string; ip: string; port: number; model?: string; firmware?: string; paired: boolean }` — **sans token**
   - `class DeviceService` — logique des handlers, testable sans Electron
   - `registerIpc(ipcMain: IpcMainLike, service: DeviceService): void`
   - `window.nanoleaf` côté renderer : `{ discover, pair, listDevices, getState, setOn, setBrightness, getLayout, getEffects, selectEffect }`
 
-- [ ] **Step 1: Écrire le contrat IPC partagé**
+- [x] **Step 1: Écrire le contrat IPC partagé**
 
 `src/shared/ipc-contract.ts` :
 
@@ -1624,7 +1624,7 @@ export const IPC_CHANNELS = {
 } as const
 ```
 
-- [ ] **Step 2: Écrire le test qui échoue**
+- [x] **Step 2: Écrire le test qui échoue**
 
 `src/main/ipc.test.ts` :
 
@@ -1759,12 +1759,12 @@ describe('DeviceService', () => {
 })
 ```
 
-- [ ] **Step 3: Lancer le test et vérifier qu'il échoue**
+- [x] **Step 3: Lancer le test et vérifier qu'il échoue**
 
 Run: `npx vitest run src/main/ipc.test.ts`
 Expected: FAIL — `Failed to resolve import "./ipc"`
 
-- [ ] **Step 4: Écrire le service et l'enregistrement IPC**
+- [x] **Step 4: Écrire le service et l'enregistrement IPC**
 
 `src/main/ipc.ts` :
 
@@ -1934,12 +1934,12 @@ export function registerIpc(ipcMain: IpcMainLike, service: DeviceService): void 
 }
 ```
 
-- [ ] **Step 5: Lancer le test et vérifier qu'il passe**
+- [x] **Step 5: Lancer le test et vérifier qu'il passe**
 
 Run: `npx vitest run src/main/ipc.test.ts`
 Expected: PASS — 7 tests
 
-- [ ] **Step 6: Écrire le processus main et le preload**
+- [x] **Step 6: Écrire le processus main et le preload**
 
 `src/main/main.ts` :
 
@@ -2011,7 +2011,7 @@ const api: NanoleafApi = {
 contextBridge.exposeInMainWorld('nanoleaf', api)
 ```
 
-- [ ] **Step 7: Écrire le renderer minimal**
+- [x] **Step 7: Écrire le renderer minimal**
 
 Ce renderer n'est **pas** l'interface finale : il ne sert qu'à prouver le chemin complet. Le design du jalon 3 le remplacera.
 
@@ -2155,12 +2155,12 @@ export function App() {
 }
 ```
 
-- [ ] **Step 8: Vérifier la compilation et la suite complète**
+- [x] **Step 8: Vérifier la compilation et la suite complète**
 
 Run: `npm run build:main && npx tsc -p tsconfig.json --noEmit && npx vitest run`
 Expected: aucune erreur, tous les tests passent (45 au total : 6 + 7 + 9 + 4 + 7 + 5 + 7)
 
-- [ ] **Step 9: Vérification manuelle contre le matériel réel**
+- [x] **Step 9: Vérification manuelle contre le matériel réel**
 
 Lancer, en deux terminaux :
 
@@ -2186,7 +2186,7 @@ Checklist, à cocher une par une :
    Attendu : `600`
 7. Relancer l'application → le device apparaît « appairé » sans redécouverte.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/main/main.ts src/main/ipc.ts src/main/ipc.test.ts src/preload/preload.ts src/shared/ipc-contract.ts src/renderer/main.tsx src/renderer/App.tsx index.html vite.config.ts package.json

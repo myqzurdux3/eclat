@@ -77,7 +77,7 @@ describe('pairDevice', () => {
     const tempServer = createServer()
     await new Promise<void>((resolve) => tempServer.listen(0, '127.0.0.1', resolve))
     const closedPort = (tempServer.address() as any).port
-    await new Promise<void>((resolve) => tempServer.close(resolve))
+    await new Promise<void>((resolve) => tempServer.close(() => resolve()))
 
     try {
       await pairDevice({
