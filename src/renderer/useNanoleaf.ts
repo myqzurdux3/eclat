@@ -159,8 +159,16 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
     [bridge, run],
   )
 
+  /**
+   * Les devices déjà appairés d'abord, pour que l'interface soit utile tout
+   * de suite, puis une passe de découverte : un panneau ajouté depuis la
+   * dernière session doit apparaître sans qu'on ait à le demander.
+   */
   useEffect(() => {
-    run(async () => setDevices(await bridge.listDevices()))
+    run(async () => {
+      setDevices(await bridge.listDevices())
+      setDevices(await bridge.discover())
+    })
   }, [bridge, run])
 
   useEffect(() => {

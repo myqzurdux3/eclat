@@ -499,3 +499,41 @@ input[type='range']:active::-webkit-slider-thumb {
   padding: 6px 12px;
   white-space: nowrap;
 }
+
+.rangee-murs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rangee-murs .murs {
+  min-width: 0;
+}
+
+/* Relancer une découverte doit rester possible une fois un mur appairé :
+   c'est le seul chemin pour en ajouter un second. */
+.rechercher {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  border: 1px solid var(--bord);
+  background: var(--verre);
+  color: var(--discret);
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.rechercher:hover:not(:disabled) {
+  background: var(--verre-fort);
+  color: var(--texte);
+}
+
+.rechercher:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

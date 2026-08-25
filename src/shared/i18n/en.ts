@@ -16,6 +16,9 @@ export const en: Dictionary = {
   'control.noDevice.title': 'No device known',
   'control.noDevice.body': 'Panels announce themselves over mDNS on the local network.',
   'control.discover': 'Discover',
+  'control.rescan': 'Look for more panels',
+  'control.newDevice':
+    'Another wall was found on the network. Pick it above to pair it.',
   'control.found.title': '{name} found',
   'control.found.body':
     'Hold the power button on the panel for 5 to 7 seconds, until the LED blinks, then start pairing.',

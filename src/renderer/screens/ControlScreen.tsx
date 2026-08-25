@@ -85,20 +85,31 @@ export function ControlScreen({
       )}
 
       <aside className="verre panneau-lateral">
-        {session.devices.length > 1 && (
-          <div className="segments murs">
-            {session.devices.map((entry) => (
-              <button
-                key={entry.id}
-                aria-pressed={entry.id === device.id}
-                onClick={() => session.selectDevice(entry.id)}
-                title={entry.paired ? entry.name : `${entry.name} — ${t('control.pair')}`}
-              >
-                {entry.paired ? entry.name : `• ${entry.name}`}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="rangee-murs">
+          {session.devices.length > 1 && (
+            <div className="segments murs">
+              {session.devices.map((entry) => (
+                <button
+                  key={entry.id}
+                  aria-pressed={entry.id === device.id}
+                  onClick={() => session.selectDevice(entry.id)}
+                  title={entry.paired ? entry.name : `${entry.name} — ${t('control.pair')}`}
+                >
+                  {entry.paired ? entry.name : `• ${entry.name}`}
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            className="rechercher"
+            disabled={session.busy}
+            onClick={session.discover}
+            title={t('control.rescan')}
+            aria-label={t('control.rescan')}
+          >
+            ⟳
+          </button>
+        </div>
 
         <div className="titre-device">
           <strong>{device.name}</strong>

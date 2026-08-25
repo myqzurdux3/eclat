@@ -20,6 +20,9 @@ export const fr = {
   'control.noDevice.title': 'Aucun device connu',
   'control.noDevice.body': "Les panneaux s'annoncent en mDNS sur le réseau local.",
   'control.discover': 'Découvrir',
+  'control.rescan': 'Rechercher d’autres panneaux',
+  'control.newDevice':
+    'Un autre mur a été trouvé sur le réseau. Choisis-le ci-dessus pour l’appairer.',
   'control.found.title': '{name} trouvé',
   'control.found.body':
     "Maintiens le bouton power du panneau 5 à 7 secondes, jusqu'à ce que la LED clignote, puis lance l'appairage.",
