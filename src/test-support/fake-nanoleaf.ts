@@ -23,6 +23,15 @@ export class FakeNanoleaf {
   /** Version d'External Control armée, `null` tant que le mode est inactif. */
   extControlVersion: string | null = null
   effects: string[] = ['Nemo', 'Northern Lights', 'Forest']
+  /** Palettes HSB renvoyées par `requestAll`, indexées par nom d'effet. */
+  palettes: Record<string, Array<{ hue: number; saturation: number; brightness: number }>> = {
+    Nemo: [
+      { hue: 200, saturation: 90, brightness: 80 },
+      { hue: 220, saturation: 70, brightness: 60 },
+    ],
+    'Northern Lights': [{ hue: 140, saturation: 100, brightness: 90 }],
+    Forest: [{ hue: 100, saturation: 80, brightness: 50 }],
+  }
   state = { on: true, brightness: 50, hue: 120, sat: 80, ct: 4000, effect: 'Nemo' }
   requests: Array<{ method: string; path: string; body: unknown }> = []
 
@@ -88,7 +97,24 @@ export class FakeNanoleaf {
     if (method === 'PUT' && route === '/effects') {
       const payload = (body ?? {}) as {
         select?: string
-        write?: { command?: string; animType?: string; extControlVersion?: string }
+        write?: {
+          command?: string
+          animName?: string
+          animType?: string
+          extControlVersion?: string
+        }
+      }
+      if (payload.write?.command === 'requestAll') {
+        return sendJson(res, 200, {
+          animations: this.effects.map((name) => ({
+            animName: name,
+            colorType: 'HSB',
+            palette: (this.palettes[name] ?? []).map((entry) => ({
+              ...entry,
+              probability: 0,
+            })),
+          })),
+        })
       }
       if (payload.write?.command === 'display' && payload.write.animType === 'extControl') {
         this.extControlVersion = payload.write.extControlVersion ?? 'v1'

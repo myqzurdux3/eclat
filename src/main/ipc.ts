@@ -1,4 +1,4 @@
-import type { Color, DeviceState, PanelLayout, SourceId } from '../shared/types'
+import type { Color, DeviceState, EffectPalette, PanelLayout, SourceId } from '../shared/types'
 import { IPC_CHANNELS, type RendererDevice } from '../shared/ipc-contract'
 import { SourceArbiter } from './device/arbiter'
 import { NanoleafClient } from './device/client'
@@ -131,6 +131,10 @@ export class DeviceService {
     return (await this.client(deviceId)).getEffects()
   }
 
+  async getEffectPalettes(deviceId: string): Promise<EffectPalette[]> {
+    return (await this.client(deviceId)).getEffectPalettes()
+  }
+
   async selectEffect(deviceId: string, name: string): Promise<void> {
     await (await this.client(deviceId)).selectEffect(name)
   }
@@ -247,6 +251,9 @@ export function registerIpc(ipcMain: IpcMainLike, service: DeviceService): void 
   )
   ipcMain.handle(IPC_CHANNELS.getLayout, (_event, id: string) => service.getLayout(id))
   ipcMain.handle(IPC_CHANNELS.getEffects, (_event, id: string) => service.getEffects(id))
+  ipcMain.handle(IPC_CHANNELS.effectPalettes, (_event, id: string) =>
+    service.getEffectPalettes(id),
+  )
   ipcMain.handle(IPC_CHANNELS.selectEffect, (_event, id: string, name: string) =>
     service.selectEffect(id, name),
   )

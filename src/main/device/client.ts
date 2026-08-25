@@ -1,4 +1,5 @@
-import type { DeviceState, PanelLayout, RawPanel } from '../../shared/types'
+import type { Color, DeviceState, EffectPalette, PanelLayout, RawPanel } from '../../shared/types'
+import { hsbToRgb } from '../../shared/color'
 import { NanoleafError } from './errors'
 import { normalizeLayout } from './layout'
 
@@ -23,6 +24,13 @@ interface FullStateResponse {
     ct: { value: number }
     colorMode: string
   }
+}
+
+interface AnimationsResponse {
+  animations?: Array<{
+    animName?: string
+    palette?: Array<{ hue?: number; saturation?: number; brightness?: number }>
+  }>
 }
 
 interface LayoutResponse {
@@ -99,6 +107,25 @@ export class NanoleafClient {
 
   async selectEffect(name: string): Promise<void> {
     await this.request('PUT', '/effects', { select: name })
+  }
+
+  /**
+   * Récupère toutes les palettes d'un coup. `requestAll` est un `PUT` qui ne
+   * modifie rien : c'est la seule route qui expose les couleurs réelles des
+   * effets, `effectsList` n'en donne que les noms.
+   */
+  async getEffectPalettes(): Promise<EffectPalette[]> {
+    const body = await this.request<AnimationsResponse>('PUT', '/effects', {
+      write: { command: 'requestAll' },
+    })
+
+    return (body.animations ?? []).map((animation) => ({
+      name: animation.animName ?? '',
+      colors: (animation.palette ?? []).map(
+        (entry): Color =>
+          hsbToRgb(entry.hue ?? 0, entry.saturation ?? 0, entry.brightness ?? 0),
+      ),
+    }))
   }
 
   /**

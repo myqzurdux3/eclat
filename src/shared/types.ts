@@ -58,3 +58,9 @@ export const EXT_CONTROL_EFFECT = '*ExtControl*'
  * jamais depuis le processus main.
  */
 export type SourceId = 'manual' | 'screen' | 'audio'
+
+/** Palette d'un effet du device, convertie en RGB pour l'affichage. */
+export interface EffectPalette {
+  name: string
+  colors: Color[]
+}

@@ -250,3 +250,31 @@ describe('DeviceService — streaming', () => {
     expect(device.state.effect).toBe('Forest')
   })
 })
+
+describe('DeviceService — palettes', () => {
+  it('renvoie les palettes converties en RGB', async () => {
+    device.pairingMode = true
+    await service.discover()
+    await service.pair('Shapes Salon')
+
+    const palettes = await service.getEffectPalettes('Shapes Salon')
+
+    expect(palettes).toHaveLength(3)
+    expect(palettes[1]).toEqual({
+      name: 'Northern Lights',
+      colors: [{ r: 0, g: 230, b: 77 }],
+    })
+  })
+
+  it('tolère un effet sans palette', async () => {
+    device.pairingMode = true
+    device.effects = ['Vide']
+    device.palettes = {}
+    await service.discover()
+    await service.pair('Shapes Salon')
+
+    expect(await service.getEffectPalettes('Shapes Salon')).toEqual([
+      { name: 'Vide', colors: [] },
+    ])
+  })
+})
