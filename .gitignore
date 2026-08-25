@@ -1,9 +1,10 @@
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-
-.claude/worktrees/
 node_modules/
 dist/
+out/
+
+# Worktrees et bac à sable des outils d'assistance.
+.claude/worktrees/
 .superpowers/
+
+*.log
+.DS_Store

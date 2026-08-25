@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Les tests ne touchent ni matériel, ni réseau, ni GPU, ni DOM :
+      # le device est doublé de bout en bout.
+      - run: npm test
+
+      - name: Vérifier les types du processus main
+        run: npx tsc -p tsconfig.main.json --noEmit
+
+      - name: Vérifier les types du renderer
+        run: npx tsc -p tsconfig.json --noEmit
+
+      - run: npm run build

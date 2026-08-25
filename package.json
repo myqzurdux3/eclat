@@ -1,7 +1,7 @@
 {
   "name": "nanoleaf-linux",
   "version": "0.1.0",
-  "description": "",
+  "description": "Control and screen-sync application for Nanoleaf light panels on Linux",
   "main": "dist/main/main/main.js",
   "directories": {
     "doc": "docs"
@@ -14,9 +14,18 @@
     "build:renderer": "vite build",
     "build": "npm run build:main && npm run build:renderer"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "nanoleaf",
+    "linux",
+    "electron",
+    "ambilight",
+    "screen-sync",
+    "wayland",
+    "led",
+    "smart-home"
+  ],
+  "author": "myqzurdux3",
+  "license": "MIT",
   "private": true,
   "dependencies": {
     "dns-packet": "^5.6.1",
@@ -33,5 +42,13 @@
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vitest": "^4.1.11"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/myqzurdux3/nanoleaf.git"
+  },
+  "bugs": {
+    "url": "https://github.com/myqzurdux3/nanoleaf/issues"
+  },
+  "homepage": "https://github.com/myqzurdux3/nanoleaf#readme"
 }
