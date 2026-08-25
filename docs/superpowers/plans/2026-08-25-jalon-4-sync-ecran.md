@@ -67,9 +67,9 @@
 
 **Tests:** aller-retour idempotent sur les 256 valeurs ; le noir et le blanc restent exacts ; la moyenne linéaire de rouge pur et vert pur ne donne pas le même résultat qu'en sRGB ; `clampSettings` ramène chaque réglage dans sa plage et complète les manquants par le défaut.
 
-- [ ] Step 1 : écrire `settings.test.ts`, le voir échouer, écrire `settings.ts`, le voir passer
-- [ ] Step 2 : écrire `srgb.test.ts`, le voir échouer, écrire `srgb.ts`, le voir passer
-- [ ] Step 3 : `npx vitest run src/shared/sync` puis commit
+- [x] Step 1 : écrire `settings.test.ts`, le voir échouer, écrire `settings.ts`, le voir passer
+- [x] Step 2 : écrire `srgb.test.ts`, le voir échouer, écrire `srgb.ts`, le voir passer
+- [x] Step 3 : `npx vitest run src/shared/sync` puis commit
 
 ---
 
@@ -87,8 +87,8 @@
 
 **Tests :** image 16:9 pleine → rectangle complet ; bandes horizontales de 20 % → crop vertical exact ; bandes verticales (pillarbox) ; image entièrement noire → image entière, jamais un rectangle vide ; bruit sombre non nul sous le seuil toujours détecté.
 
-- [ ] Step 1 : test, échec, implémentation, succès
-- [ ] Step 2 : commit
+- [x] Step 1 : test, échec, implémentation, succès
+- [x] Step 2 : commit
 
 ---
 
@@ -104,8 +104,8 @@
 
 **Tests :** image moitié rouge / moitié bleue, panneau à gauche → rouge dominant ; panneau à droite → bleu ; un rayon large rapproche les deux couleurs, un rayon étroit les sépare ; un panneau hors cadre prend la couleur du bord la plus proche plutôt que du noir ; layout vide → tableau vide.
 
-- [ ] Step 1 : test, échec, implémentation, succès
-- [ ] Step 2 : commit
+- [x] Step 1 : test, échec, implémentation, succès
+- [x] Step 2 : commit
 
 ---
 
@@ -121,8 +121,8 @@
 
 **Tests :** image à 90 % grise et 10 % rouge vif → dominante rouge, la pondération par saturation faisant son office ; image bicolore → palette de deux couleurs distinctes ; demander plus de clusters qu'il n'y a de couleurs ne duplique pas ; image unie → une seule couleur.
 
-- [ ] Step 1 : test, échec, implémentation, succès
-- [ ] Step 2 : commit
+- [x] Step 1 : test, échec, implémentation, succès
+- [x] Step 2 : commit
 
 ---
 
@@ -138,9 +138,9 @@
 
 **Tests :** saturation à 1 ne change rien ; saturation à 2 écarte les canaux sans déplacer la luminance ; une valeur sous le plancher tombe à zéro, juste au-dessus survit ; réponse à un échelon montant plus rapide qu'à un échelon descendant, valeurs exactes vérifiées sur trois pas ; le premier `push` sort tel quel, sans amorçage ; `reset` oublie l'historique ; un changement du nombre de panneaux ne fait pas planter le lisseur.
 
-- [ ] Step 1 : `correction` — test, échec, implémentation, succès
-- [ ] Step 2 : `smoothing` — test, échec, implémentation, succès
-- [ ] Step 3 : commit
+- [x] Step 1 : `correction` — test, échec, implémentation, succès
+- [x] Step 2 : `smoothing` — test, échec, implémentation, succès
+- [x] Step 3 : commit
 
 ---
 
@@ -156,8 +156,8 @@
 
 **Tests :** une image rouge unie rend des panneaux rouges pour les trois modes ; un letterbox n'éteint pas les panneaux hauts et bas ; `process` rend exactement un `Color` par panneau ; deux frames identiques convergent ; changer de mode en cours de route ne fait pas exploser le lisseur ; `reset` remet à zéro ; frame entièrement noire → panneaux noirs, pas `NaN`.
 
-- [ ] Step 1 : test, échec, implémentation, succès
-- [ ] Step 2 : commit
+- [x] Step 1 : test, échec, implémentation, succès
+- [x] Step 2 : commit
 
 ---
 
@@ -175,12 +175,12 @@
 
 **Vérification :** manuelle, la capture Wayland ne s'automatisant pas raisonnablement. Checklist en fin de tâche.
 
-- [ ] Step 1 : `setDisplayMediaRequestHandler` côté main
-- [ ] Step 2 : Worker de capture
-- [ ] Step 3 : écran Sync, réglages et aperçu
-- [ ] Step 4 : compilation, suite complète, capture visuelle
-- [ ] Step 5 : vérification manuelle contre le matériel
-- [ ] Step 6 : commit
+- [x] Step 1 : `setDisplayMediaRequestHandler` côté main
+- [x] Step 2 : Worker de capture
+- [x] Step 3 : écran Sync, réglages et aperçu
+- [x] Step 4 : compilation, suite complète, capture visuelle
+- [ ] Step 5 : vérification manuelle contre le matériel — le sélecteur du portail GNOME demande un clic humain, cette étape ne s'automatise pas
+- [x] Step 6 : commit
 
 ---
 
