@@ -1,12 +1,7 @@
-import { panelPolygon, type Point } from './geometry'
-import type { PanelLayout } from './types'
+import { wallBounds, type Bounds, type Point } from './geometry'
 
-export interface Bounds {
-  minX: number
-  minY: number
-  maxX: number
-  maxY: number
-}
+export { wallBounds }
+export type { Bounds }
 
 export interface ViewTransform {
   /** Facteurs vers le repère de clip, X puis Y. */
@@ -17,30 +12,6 @@ export interface ViewTransform {
 
 /** Marge laissée autour du mur, en fraction du demi-repère de clip. */
 export const DEFAULT_MARGIN = 0.86
-
-/**
- * Étendue réelle des panneaux, sommets compris.
- *
- * `normalizeLayout` ne normalise que les *centres* : un panneau déborde du
- * carré unité de tout son rayon circonscrit. Cadrer sur `[0,1]²` couperait
- * donc les bords du mur.
- */
-export function wallBounds(layout: PanelLayout): Bounds {
-  if (layout.panels.length === 0) return { minX: 0, minY: 0, maxX: 1, maxY: 1 }
-
-  const points: Point[] = layout.panels.flatMap((panel) =>
-    panelPolygon(panel, layout.nSideLength),
-  )
-  const xs = points.map((point) => point.x)
-  const ys = points.map((point) => point.y)
-
-  return {
-    minX: Math.min(...xs),
-    minY: Math.min(...ys),
-    maxX: Math.max(...xs),
-    maxY: Math.max(...ys),
-  }
-}
 
 /**
  * Cadre une boîte dans le repère de clip en préservant les proportions.

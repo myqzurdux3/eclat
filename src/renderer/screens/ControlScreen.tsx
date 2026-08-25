@@ -4,12 +4,8 @@ import { hsbToRgb } from '../../shared/color'
 import type { NanoleafSession } from '../useNanoleaf'
 import type { Color } from '../../shared/types'
 
-const ROTATIONS = [
-  { turns: 0, libelle: '0°' },
-  { turns: 1, libelle: '90°' },
-  { turns: 2, libelle: '180°' },
-  { turns: 3, libelle: '270°' },
-]
+/** Repères pour retomber d'un clic sur un angle droit. */
+const ANGLES_DROITS = [0, 90, 180, 270]
 
 function Accueil({ session }: { session: NanoleafSession }) {
   const { device } = session
@@ -118,20 +114,31 @@ export function ControlScreen({
         </div>
 
         <div className="groupe">
-          <div className="etiquette">Orientation du mur</div>
+          <div className="etiquette">
+            Orientation du mur <b>{session.rotation}°</b>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={359}
+            step={1}
+            value={session.rotation}
+            onChange={(event) => session.setRotation(Number(event.target.value))}
+          />
           <div className="segments">
-            {ROTATIONS.map(({ turns, libelle }) => (
+            {ANGLES_DROITS.map((angle) => (
               <button
-                key={turns}
-                aria-pressed={session.rotation === turns}
-                onClick={() => session.setRotation(turns)}
+                key={angle}
+                aria-pressed={session.rotation === angle}
+                onClick={() => session.setRotation(angle)}
               >
-                {libelle}
+                {angle}°
               </button>
             ))}
           </div>
           <p className="aide">
-            Le device ne dit pas comment le mur est accroché.
+            Le device ne dit pas comment le mur est accroché, et rien n&apos;oblige un mur à
+            être posé d&apos;équerre.
           </p>
         </div>
 

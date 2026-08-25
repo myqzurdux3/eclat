@@ -132,28 +132,43 @@ describe('rotateLayout', () => {
     100,
   )
 
-  it('ne touche à rien pour zéro quart de tour', () => {
+  it('ne touche à rien pour un angle nul', () => {
     expect(rotateLayout(layout, 0)).toEqual(layout)
   })
 
   it('amène le haut à droite pour un quart de tour', () => {
     const haut = layout.panels.reduce((a, b) => (a.ny < b.ny ? a : b))
-    const tourne = rotateLayout(layout, 1)
-    const droite = tourne.panels.reduce((a, b) => (a.nx > b.nx ? a : b))
+    const droite = rotateLayout(layout, 90).panels.reduce((a, b) => (a.nx > b.nx ? a : b))
 
     expect(droite.panelId).toBe(haut.panelId)
   })
 
-  it('échange le rapport d aspect pour un quart de tour', () => {
-    expect(rotateLayout(layout, 1).aspect).toBeCloseTo(1 / layout.aspect, 6)
+  it('retranche l angle à l orientation de chaque panneau', () => {
+    expect(rotateLayout(layout, 37).panels[0]!.o).toBe(layout.panels[0]!.o - 37)
   })
 
-  it('garde le rapport d aspect pour un demi-tour', () => {
-    expect(rotateLayout(layout, 2).aspect).toBeCloseTo(layout.aspect, 6)
+  it('accepte un angle qui n est pas un multiple de 90', () => {
+    const oblique = rotateLayout(layout, 37)
+
+    for (const panel of oblique.panels) {
+      expect(Number.isFinite(panel.nx)).toBe(true)
+      expect(Number.isFinite(panel.ny)).toBe(true)
+    }
+    expect(oblique.panels[0]!.nx).not.toBeCloseTo(layout.panels[0]!.nx, 3)
   })
 
-  it('fait revenir quatre quarts de tour au point de départ', () => {
-    const retour = rotateLayout(layout, 4)
+  it('conserve les distances entre panneaux', () => {
+    const ecart = (l: typeof layout) =>
+      Math.hypot(
+        l.panels[0]!.nx - l.panels[1]!.nx,
+        l.panels[0]!.ny - l.panels[1]!.ny,
+      )
+
+    expect(ecart(rotateLayout(layout, 37))).toBeCloseTo(ecart(layout), 6)
+  })
+
+  it('fait revenir un tour complet au point de départ', () => {
+    const retour = rotateLayout(layout, 360)
 
     retour.panels.forEach((panel, index) => {
       expect(panel.nx).toBeCloseTo(layout.panels[index]!.nx, 6)
@@ -163,7 +178,7 @@ describe('rotateLayout', () => {
 
   it('tourne aussi les polygones, pas seulement les centres', () => {
     const avant = panelPolygon(layout.panels[0]!, layout.nSideLength)
-    const tourne = rotateLayout(layout, 1)
+    const tourne = rotateLayout(layout, 90)
     const apres = panelPolygon(tourne.panels[0]!, tourne.nSideLength)
 
     // Un sommet pointé vers le haut se retrouve pointé vers la droite.
@@ -171,10 +186,20 @@ describe('rotateLayout', () => {
     expect(apres[0]!.x).toBeGreaterThan(tourne.panels[0]!.nx)
   })
 
-  it('accepte un nombre négatif de quarts de tour', () => {
-    expect(rotateLayout(layout, -1).panels[0]!.nx).toBeCloseTo(
-      rotateLayout(layout, 3).panels[0]!.nx,
+  it('accepte un angle négatif', () => {
+    expect(rotateLayout(layout, -90).panels[0]!.nx).toBeCloseTo(
+      rotateLayout(layout, 270).panels[0]!.nx,
       6,
     )
+  })
+
+  it('recalcule le rapport d aspect depuis la géométrie tournée', () => {
+    const tourne = rotateLayout(layout, 90)
+
+    // Un quart de tour inverse le rapport, à ceci près que la valeur tournée
+    // mesure l'étendue réelle des sommets là où `normalizeLayout` approxime
+    // depuis les seuls centres : les deux ne coïncident pas exactement.
+    expect(tourne.aspect).toBeGreaterThan(1)
+    expect(Math.abs(tourne.aspect * layout.aspect - 1)).toBeLessThan(0.1)
   })
 })

@@ -7,6 +7,9 @@ import type { Color, DeviceState, EffectPalette, PanelLayout } from '../shared/t
 
 const CLE_ROTATION = 'nanoleaf.rotation'
 
+/** Rotation du mur, en degrés horaires à l'écran. */
+const ROTATION_MAX = 360
+
 export interface NanoleafSession {
   device: RendererDevice | undefined
   state: DeviceState | null
@@ -20,7 +23,8 @@ export interface NanoleafSession {
   discover: () => void
   pair: () => void
   refresh: () => void
-  setRotation: (quarterTurns: number) => void
+  /** Angle en degrés horaires, à l'écran. */
+  setRotation: (degrees: number) => void
   setOn: (on: boolean) => void
   setBrightness: (value: number) => void
   setColor: (hue: number, sat: number) => void
@@ -33,11 +37,14 @@ export interface NanoleafSession {
   pushColors: (colors: Color[]) => void
 }
 
+const normaliserAngle = (degres: number): number =>
+  ((Math.round(degres) % ROTATION_MAX) + ROTATION_MAX) % ROTATION_MAX
+
 /** Le device ne dit pas comment le mur est accroché : l'utilisateur décide. */
 function lireRotation(): number {
   try {
     const brut = Number(localStorage.getItem(CLE_ROTATION))
-    return Number.isInteger(brut) ? ((brut % 4) + 4) % 4 : 0
+    return Number.isFinite(brut) ? normaliserAngle(brut) : 0
   } catch {
     return 0
   }
@@ -147,11 +154,11 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
       if (deviceId !== undefined) load(deviceId)
     },
 
-    setRotation: (quarterTurns) => {
-      const turns = ((quarterTurns % 4) + 4) % 4
-      setRotationState(turns)
+    setRotation: (degrees) => {
+      const angle = normaliserAngle(degrees)
+      setRotationState(angle)
       try {
-        localStorage.setItem(CLE_ROTATION, String(turns))
+        localStorage.setItem(CLE_ROTATION, String(angle))
       } catch {
         // Stockage indisponible : le réglage vaut pour cette session.
       }

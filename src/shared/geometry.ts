@@ -83,34 +83,75 @@ export function panelAt(layout: PanelLayout, point: Point): NormalizedPanel | nu
   return null
 }
 
-/**
- * Fait tourner le mur par quarts de tour horaires, à l'écran.
- *
- * Le device ne dit pas dans quel sens les panneaux sont accrochés : seul
- * l'utilisateur le sait. Tourner la layout plutôt que le rendu garde le
- * maillage, la désignation au clic et le mapping spatial d'accord entre eux,
- * puisque tous repartent des mêmes `nx`, `ny` et `o`.
- *
- * `o` est mesuré dans le repère du device, dont l'axe Y est inversé au
- * rendu : un quart de tour horaire à l'écran retranche donc 90 à `o`.
- */
-export function rotateLayout(layout: PanelLayout, quarterTurns: number): PanelLayout {
-  const turns = ((quarterTurns % 4) + 4) % 4
-  if (turns === 0) return layout
+export interface Bounds {
+  minX: number
+  minY: number
+  maxX: number
+  maxY: number
+}
 
-  const panels = layout.panels.map((panel) => {
-    let { nx, ny } = panel
-    for (let turn = 0; turn < turns; turn += 1) {
-      const tourne = { nx: 1 - ny, ny: nx }
-      nx = tourne.nx
-      ny = tourne.ny
-    }
-    return { ...panel, nx, ny, o: panel.o - 90 * turns }
-  })
+/**
+ * Étendue réelle des panneaux, sommets compris.
+ *
+ * `normalizeLayout` ne normalise que les *centres* : un panneau déborde du
+ * carré unité de tout son rayon circonscrit. Cadrer sur `[0,1]²` couperait
+ * donc les bords du mur.
+ */
+export function wallBounds(layout: PanelLayout): Bounds {
+  if (layout.panels.length === 0) return { minX: 0, minY: 0, maxX: 1, maxY: 1 }
+
+  const points: Point[] = layout.panels.flatMap((panel) =>
+    panelPolygon(panel, layout.nSideLength),
+  )
+  const xs = points.map((point) => point.x)
+  const ys = points.map((point) => point.y)
 
   return {
-    ...layout,
-    aspect: turns % 2 === 0 ? layout.aspect : 1 / layout.aspect,
-    panels,
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  }
+}
+
+/**
+ * Fait tourner le mur d'un angle libre, horaire, à l'écran.
+ *
+ * Le device ne dit pas dans quel sens les panneaux sont accrochés, et rien
+ * n'oblige un mur à être posé à angle droit : seul l'utilisateur le sait.
+ * Tourner la layout plutôt que le rendu garde le maillage, la désignation au
+ * clic et le mapping spatial d'accord entre eux, puisque tous repartent des
+ * mêmes `nx`, `ny` et `o`.
+ *
+ * `o` est mesuré dans le repère du device, dont l'axe Y est inversé au
+ * rendu : une rotation horaire à l'écran se retranche donc de `o`.
+ */
+export function rotateLayout(layout: PanelLayout, degrees: number): PanelLayout {
+  const angle = ((degrees % 360) + 360) % 360
+  if (angle === 0) return layout
+
+  const radians = (angle * Math.PI) / 180
+  const cos = Math.cos(radians)
+  const sin = Math.sin(radians)
+
+  const panels = layout.panels.map((panel) => {
+    const dx = panel.nx - 0.5
+    const dy = panel.ny - 0.5
+    return {
+      ...panel,
+      nx: 0.5 + dx * cos - dy * sin,
+      ny: 0.5 + dx * sin + dy * cos,
+      o: panel.o - angle,
+    }
+  })
+
+  const tourne: PanelLayout = { ...layout, panels }
+  const bounds = wallBounds(tourne)
+  const largeur = bounds.maxX - bounds.minX
+  const hauteur = bounds.maxY - bounds.minY
+
+  return {
+    ...tourne,
+    aspect: hauteur === 0 ? layout.aspect : largeur / hauteur,
   }
 }
