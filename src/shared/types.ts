@@ -15,6 +15,8 @@ export interface NormalizedPanel extends RawPanel {
 
 export interface PanelLayout {
   sideLength: number
+  /** Côté d'un panneau, dans la même échelle normalisée que `nx` et `ny`. */
+  nSideLength: number
   /** largeur / hauteur de l'enveloppe des panneaux ; 1 si un seul panneau. */
   aspect: number
   panels: NormalizedPanel[]

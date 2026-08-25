@@ -21,7 +21,7 @@ export function normalizeLayout(raw: RawPanel[], sideLength: number): PanelLayou
   const usable = raw.filter((p) => p.panelId !== CONTROLLER_PANEL_ID)
 
   if (usable.length === 0) {
-    return { sideLength, aspect: 1, panels: [] }
+    return { sideLength, nSideLength: 0, aspect: 1, panels: [] }
   }
 
   const xs = usable.map((p) => p.x)
@@ -38,7 +38,7 @@ export function normalizeLayout(raw: RawPanel[], sideLength: number): PanelLayou
 
   if (scale === 0) {
     const panels: NormalizedPanel[] = usable.map((p) => ({ ...p, nx: 0.5, ny: 0.5 }))
-    return { sideLength, aspect, panels }
+    return { sideLength, nSideLength: 1, aspect, panels }
   }
 
   const offsetX = (1 - width / scale) / 2
@@ -52,6 +52,7 @@ export function normalizeLayout(raw: RawPanel[], sideLength: number): PanelLayou
 
   return {
     sideLength,
+    nSideLength: sideLength / scale,
     aspect,
     panels,
   }

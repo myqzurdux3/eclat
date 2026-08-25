@@ -72,3 +72,28 @@ describe('normalizeLayout', () => {
     expect(layout.aspect).toBe(1)
   })
 })
+
+describe('normalizeLayout — côté normalisé', () => {
+  it('exprime le côté dans la même échelle que nx et ny', () => {
+    const layout = normalizeLayout(
+      [
+        { panelId: 1, x: 0, y: 0, o: 0, shapeType: 8 },
+        { panelId: 2, x: 200, y: 0, o: 0, shapeType: 8 },
+      ],
+      100,
+    )
+
+    expect(layout.nSideLength).toBeCloseTo(0.5, 6)
+  })
+
+  it('remplit le carré quand un seul panneau est présent', () => {
+    const layout = normalizeLayout([{ panelId: 1, x: 5, y: 5, o: 0, shapeType: 8 }], 100)
+
+    expect(layout.nSideLength).toBe(1)
+  })
+
+  it('renvoie un côté nul quand aucun panneau n est éclairable', () => {
+    expect(normalizeLayout([{ panelId: 0, x: 0, y: 0, o: 0, shapeType: 12 }], 100).nSideLength)
+      .toBe(0)
+  })
+})
