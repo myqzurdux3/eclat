@@ -21,6 +21,8 @@ export interface DeviceServiceOptions {
   pairAttempts?: number
   /** Arbiter factory, one per device: two walls arbitrate separately. */
   arbiterFactory?: () => SourceArbiter
+  /** How long a stored device has to answer before it counts as absent. */
+  probeTimeoutMs?: number
   /** Receives whatever the device reports of its own accord. */
   onDeviceEvent?: (event: DeviceEvent) => void
   /** Receives the analysed audio, block by block. */
@@ -119,7 +121,17 @@ export class DeviceService {
       merged.set(id, { id, ...entry, paired: false })
     }
 
-    for (const stored of Object.values(config.devices)) {
+    const known = Object.values(config.devices)
+    // A panel announcing itself over mDNS is alive by definition; the others
+    // are asked directly, all at once so a switched-off wall costs one
+    // timeout rather than one per device in a row.
+    const answers = await Promise.all(
+      known.map((entry) => (this.seen.has(entry.id) ? true : this.answers(entry))),
+    )
+
+    for (const [index, stored] of known.entries()) {
+      if (!answers[index]) continue
+
       // A panel announcing itself right now is more trustworthy about its
       // own address than a value written weeks ago: a renewed DHCP lease
       // would otherwise strand the pairing for good.
@@ -147,6 +159,29 @@ export class DeviceService {
     for (const device of moved) await this.options.store.upsertDevice(device)
 
     return [...merged.values()]
+  }
+
+  /**
+   * Whether a stored device answers right now.
+   *
+   * A wall on a switched-off socket answers nothing, and listing it invites
+   * the user to drive a device that cannot hear them — every command they
+   * try then ends on a timeout. The pairing itself is kept: a token is only
+   * obtained by holding the power button for five seconds, so discarding it
+   * over a power cut would charge the user that dance every time.
+   */
+  private async answers(device: StoredDevice): Promise<boolean> {
+    try {
+      await new NanoleafClient({
+        ip: device.ip,
+        port: device.port,
+        token: device.token,
+        timeoutMs: this.options.probeTimeoutMs ?? 1500,
+      }).getState()
+      return true
+    } catch {
+      return false
+    }
   }
 
   async pair(deviceId: string): Promise<RendererDevice> {

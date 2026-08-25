@@ -279,6 +279,70 @@ describe('DeviceService — palettes', () => {
   })
 })
 
+describe('DeviceService — a device that is switched off', () => {
+  let store: ConfigStore
+
+  beforeEach(async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-absent-'))
+    store = new ConfigStore(join(dir, 'config.json'))
+    service = new DeviceService({
+      store,
+      mdnsFactory: fakeFactory([]),
+      discoverTimeoutMs: 0,
+      sleep: () => Promise.resolve(),
+      probeTimeoutMs: 200,
+    })
+  })
+
+  /**
+   * A wall at the wrong end of a switched-off socket answers nothing. Listing
+   * it invites the user to drive a device that cannot hear them, and every
+   * command they try ends on a timeout.
+   */
+  it('leaves an unreachable wall out of the list', async () => {
+    await store.upsertDevice({
+      id: 'Ghost',
+      name: 'Ghost',
+      // Port 1 is closed and privileged: the connection is refused at once.
+      ip: '127.0.0.1',
+      port: 1,
+      token: 'tok',
+    })
+
+    expect(await service.listDevices()).toEqual([])
+  })
+
+  it('lists a wall that answers', async () => {
+    await store.upsertDevice({
+      id: 'Shapes Lounge',
+      name: 'Shapes Lounge',
+      ip: '127.0.0.1',
+      port: device.port,
+      token: 'tok',
+    })
+
+    expect((await service.listDevices()).map((entry) => entry.id)).toEqual(['Shapes Lounge'])
+  })
+
+  /**
+   * The pairing survives: a token is only obtained by holding the power
+   * button, so throwing it away over a power cut would make every switch-off
+   * cost the user that dance again.
+   */
+  it('keeps the pairing so the wall comes back on its own', async () => {
+    await store.upsertDevice({
+      id: 'Ghost',
+      name: 'Ghost',
+      ip: '127.0.0.1',
+      port: 1,
+      token: 'tok',
+    })
+    await service.listDevices()
+
+    expect((await store.load()).devices['Ghost']?.token).toBe('tok')
+  })
+})
+
 describe('DeviceService — manual painting', () => {
   let receiver: FakeStreamReceiver
 
@@ -695,14 +759,19 @@ describe('DeviceService — address refresh', () => {
     expect((await store.load()).devices['Shapes Lounge']?.ip).toBe('127.0.0.1')
   })
 
+  /**
+   * mDNS is regularly deaf on Linux — avahi holds the port, a VPN owns the
+   * route — and the stored address is then all there is to go on. It has to
+   * survive a silent discovery pass.
+   */
   it('keeps the stored address when mDNS says nothing', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-move-'))
     const store = new ConfigStore(join(dir, 'config.json'))
     await store.upsertDevice({
       id: 'Shapes Lounge',
       name: 'Shapes Lounge',
-      ip: '10.0.0.9',
-      port: 1,
+      ip: '127.0.0.1',
+      port: device.port,
       token: 'tok',
     })
 
@@ -713,7 +782,10 @@ describe('DeviceService — address refresh', () => {
       sleep: () => Promise.resolve(),
     })
 
-    expect((await quiet.listDevices())[0]!.ip).toBe('10.0.0.9')
+    const listed = (await quiet.listDevices())[0]!
+
+    expect(listed.ip).toBe('127.0.0.1')
+    expect(listed.port).toBe(device.port)
   })
 
   it('leaves the token untouched when the address moves', async () => {
