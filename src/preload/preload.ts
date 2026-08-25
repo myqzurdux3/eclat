@@ -19,6 +19,8 @@ const api: NanoleafApi = {
   paintPanel: (deviceId, panelId, color) =>
     ipcRenderer.invoke(IPC_CHANNELS.paintPanel, deviceId, panelId, color),
   setColor: (deviceId, hue, sat) => ipcRenderer.invoke(IPC_CHANNELS.setColor, deviceId, hue, sat),
+  minimizeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.windowMinimize),
+  closeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.windowClose),
 }
 
 contextBridge.exposeInMainWorld('nanoleaf', api)

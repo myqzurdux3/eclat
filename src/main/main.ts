@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { createMdnsFactory } from './device/mdns'
 import { DeviceService, registerIpc } from './ipc'
 import { ConfigStore, defaultConfigPath } from './store'
+import { IPC_CHANNELS } from '../shared/ipc-contract'
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
 
@@ -10,6 +11,9 @@ function createWindow(): void {
   const window = new BrowserWindow({
     width: 1100,
     height: 720,
+    minWidth: 880,
+    minHeight: 560,
+    frame: false,
     backgroundColor: '#0a0a0c',
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
@@ -39,6 +43,14 @@ app.whenReady().then(() => {
     mdnsFactory: createMdnsFactory(),
   })
   registerIpc(ipcMain, service)
+
+  ipcMain.handle(IPC_CHANNELS.windowMinimize, (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize()
+  })
+  ipcMain.handle(IPC_CHANNELS.windowClose, (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.close()
+  })
+
   createWindow()
 
   app.on('activate', () => {

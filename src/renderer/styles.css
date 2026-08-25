@@ -1,0 +1,156 @@
+:root {
+  --fond: #0a0a0c;
+  --texte: #f2f2f5;
+  --discret: #9a9aa6;
+  --verre: rgba(255, 255, 255, 0.06);
+  --bord: rgba(255, 255, 255, 0.1);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fond);
+  color: var(--texte);
+  font-family: system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* Dégradé lent dérivant vers la couleur dominante.
+   Deux calques empilés au fond statique, dont seule l'opacité s'anime : un
+   `transition: background` repeindrait un flou de 90 px plein écran à chaque
+   frame, ce que la contrainte des 60 fps interdit. */
+.derive {
+  position: fixed;
+  inset: -30%;
+  z-index: 0;
+  filter: blur(90px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.6s linear;
+  will-change: opacity;
+}
+
+.derive[data-visible='true'] {
+  opacity: 0.5;
+}
+
+.coquille {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: 38px 1fr;
+  height: 100vh;
+}
+
+.barre {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+}
+
+.barre button,
+.onglets button {
+  -webkit-app-region: no-drag;
+}
+
+.onglets {
+  display: flex;
+  gap: 4px;
+  margin-left: 12px;
+}
+
+.onglets button {
+  background: transparent;
+  border: 0;
+  color: var(--discret);
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.onglets button[aria-selected='true'] {
+  background: var(--verre);
+  color: var(--texte);
+}
+
+.commandes-fenetre {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.commandes-fenetre button {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--bord);
+  background: var(--verre);
+  color: var(--discret);
+  cursor: pointer;
+  line-height: 1;
+  font-size: 12px;
+}
+
+.verre {
+  background: var(--verre);
+  border: 1px solid var(--bord);
+  backdrop-filter: blur(18px);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.controle {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 20px;
+  padding: 0 20px 20px;
+  min-height: 0;
+}
+
+.mur {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.grille-scenes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+  padding: 0 20px 20px;
+  overflow-y: auto;
+  align-content: start;
+}
+
+.vignette {
+  border: 1px solid var(--bord);
+  border-radius: 14px;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  color: var(--texte);
+  background: transparent;
+  transition: transform 160ms ease;
+}
+
+.vignette:hover {
+  transform: scale(1.03);
+}
+
+.vignette[aria-current='true'] {
+  border-color: var(--texte);
+}
+
+.vignette span {
+  display: block;
+  padding: 8px 10px;
+  font-size: 13px;
+  text-align: left;
+}
