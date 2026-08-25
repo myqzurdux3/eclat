@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createWallRenderer, type WallRenderer } from '../gl/wall'
 import { panelAt } from '../../shared/geometry'
 import type { Color, PanelLayout } from '../../shared/types'
@@ -19,6 +19,7 @@ export function WallCanvas({ layout, colors, onPaint }: WallCanvasProps) {
   const rendererRef = useRef<WallRenderer | null>(null)
   const colorsRef = useRef(colors)
   colorsRef.current = colors
+  const [panne, setPanne] = useState<string | null>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -27,9 +28,13 @@ export function WallCanvas({ layout, colors, onPaint }: WallCanvasProps) {
     let renderer: WallRenderer
     try {
       renderer = createWallRenderer(canvas, layout)
-    } catch {
+    } catch (cause) {
+      // Contexte GPU indisponible ou shader refusé : le dire, plutôt que de
+      // laisser une zone vide sans explication.
+      setPanne(cause instanceof Error ? cause.message : String(cause))
       return
     }
+    setPanne(null)
     rendererRef.current = renderer
     renderer.resize()
     renderer.draw(colorsRef.current)
@@ -68,6 +73,15 @@ export function WallCanvas({ layout, colors, onPaint }: WallCanvasProps) {
       y: ((event.clientY - bounds.top) / bounds.height - 0.5) / scaleY + 0.5,
     })
     if (panel !== null) onPaint(panel.panelId)
+  }
+
+  if (panne !== null) {
+    return (
+      <div className="verre" style={{ display: 'grid', alignContent: 'center', gap: 8 }}>
+        <strong>Rendu du mur indisponible</strong>
+        <p style={{ margin: 0, color: 'var(--discret)', fontSize: 13 }}>{panne}</p>
+      </div>
+    )
   }
 
   return <canvas ref={canvasRef} className="mur" onClick={handleClick} />
