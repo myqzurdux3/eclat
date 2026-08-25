@@ -3,6 +3,7 @@ import { createWallRenderer, type WallRenderer } from '../gl/wall'
 import { panelAt } from '../../shared/geometry'
 import { unproject } from '../../shared/view'
 import type { Color, PanelLayout } from '../../shared/types'
+import { useT } from '../i18n'
 
 interface WallCanvasProps {
   layout: PanelLayout
@@ -21,6 +22,7 @@ export function WallCanvas({ layout, colors, onPaint }: WallCanvasProps) {
   const colorsRef = useRef(colors)
   colorsRef.current = colors
   const [panne, setPanne] = useState<string | null>(null)
+  const t = useT()
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -76,7 +78,7 @@ export function WallCanvas({ layout, colors, onPaint }: WallCanvasProps) {
   if (panne !== null) {
     return (
       <div className="scene" style={{ display: 'grid', alignContent: 'center', padding: 24 }}>
-        <strong>Rendu du mur indisponible</strong>
+        <strong>{t('control.wallUnavailable')}</strong>
         <p className="aide">{panne}</p>
       </div>
     )

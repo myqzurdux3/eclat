@@ -1,5 +1,6 @@
 import type { EffectPalette } from '../../shared/types'
 import type { NanoleafSession } from '../useNanoleaf'
+import { useT } from '../i18n'
 
 /** Dégradé horizontal bâti sur la palette réelle de l'effet. */
 function degrade(palette: EffectPalette): string {
@@ -17,13 +18,13 @@ function degrade(palette: EffectPalette): string {
 }
 
 export function ScenesScreen({ session }: { session: NanoleafSession }) {
+  const t = useT()
+
   if (session.palettes.length === 0) {
     return (
       <section className="grille-scenes">
-        <p style={{ color: 'var(--discret)' }}>
-          {session.device?.paired === true
-            ? 'Aucune scène lue pour le moment.'
-            : 'Appaire un device pour voir ses scènes.'}
+        <p className="etat-vide">
+          {session.device?.paired === true ? t('scenes.empty') : t('scenes.unpaired')}
         </p>
       </section>
     )

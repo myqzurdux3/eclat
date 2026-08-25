@@ -171,6 +171,7 @@ export class NanoleafClient {
       throw new NanoleafError(
         `Device injoignable : ${this.ip}:${this.port} (${String(cause)})`,
         0,
+        'error.unreachable',
       )
     }
 

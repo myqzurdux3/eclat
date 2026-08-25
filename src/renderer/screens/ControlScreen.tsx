@@ -3,12 +3,15 @@ import { WallCanvas } from '../components/WallCanvas'
 import { hsbToRgb } from '../../shared/color'
 import type { NanoleafSession } from '../useNanoleaf'
 import type { Color } from '../../shared/types'
+import { useT } from '../i18n'
+import { translateError } from '../../shared/i18n/errors'
 
 /** Repères pour retomber d'un clic sur un angle droit. */
 const ANGLES_DROITS = [0, 90, 180, 270]
 
 function Accueil({ session }: { session: NanoleafSession }) {
   const { device } = session
+  const t = useT()
 
   return (
     <section className="controle" style={{ gridTemplateColumns: 'minmax(0, 1fr)' }}>
@@ -18,25 +21,24 @@ function Accueil({ session }: { session: NanoleafSession }) {
       >
         {device === undefined ? (
           <>
-            <strong style={{ fontSize: 17 }}>Aucun device connu</strong>
-            <p className="aide">Les panneaux s&apos;annoncent en mDNS sur le réseau local.</p>
+            <strong style={{ fontSize: 17 }}>{t('control.noDevice.title')}</strong>
+            <p className="aide">{t('control.noDevice.body')}</p>
             <button className="bouton" disabled={session.busy} onClick={session.discover}>
-              Découvrir
+              {t('control.discover')}
             </button>
           </>
         ) : (
           <>
-            <strong style={{ fontSize: 17 }}>{device.name} trouvé</strong>
+            <strong style={{ fontSize: 17 }}>{t('control.found.title', { name: device.name })}</strong>
             <p className="aide" style={{ maxWidth: 320 }}>
-              Maintiens le bouton power du panneau 5 à 7 secondes, jusqu&apos;à ce que la LED
-              clignote, puis lance l&apos;appairage.
+              {t('control.found.body')}
             </p>
             <button className="bouton" disabled={session.busy} onClick={session.pair}>
-              Appairer
+              {t('control.pair')}
             </button>
           </>
         )}
-        {session.error !== null && <p className="erreur">{session.error}</p>}
+        {session.error !== null && <p className="erreur">{translateError(session.error, t)}</p>}
       </div>
     </section>
   )
@@ -50,6 +52,7 @@ export function ControlScreen({
   colors: Map<number, Color>
 }) {
   const { device, state, layout } = session
+  const t = useT()
 
   if (device === undefined || !device.paired) return <Accueil session={session} />
 
@@ -71,8 +74,10 @@ export function ControlScreen({
         <div className="titre-device">
           <strong>{device.name}</strong>
           <span>
-            {layout?.panels.length ?? 0} panneaux
-            {device.firmware === undefined ? '' : ` · firmware ${device.firmware}`}
+            {t('control.panels', { count: layout?.panels.length ?? 0 })}
+            {device.firmware === undefined
+              ? ''
+              : ` · ${t('control.firmware', { version: device.firmware })}`}
           </span>
         </div>
 
@@ -82,12 +87,12 @@ export function ControlScreen({
           disabled={session.busy || state === null}
           onClick={() => session.setOn(!(state?.on ?? false))}
         >
-          {state?.on === true ? 'Éteindre' : 'Allumer'}
+          {state?.on === true ? t('control.turnOff') : t('control.turnOn')}
         </button>
 
         <div className="groupe">
           <div className="etiquette">
-            Luminosité <b>{state?.brightness ?? 0} %</b>
+            {t('control.brightness')} <b>{state?.brightness ?? 0} %</b>
           </div>
           <input
             type="range"
@@ -100,7 +105,7 @@ export function ControlScreen({
 
         <div className="groupe">
           <div className="etiquette">
-            Couleur
+            {t('control.colour')}
             <b>
               {Math.round(state?.hue ?? 0)}° · {Math.round(state?.sat ?? 0)} %
             </b>
@@ -115,7 +120,7 @@ export function ControlScreen({
 
         <div className="groupe">
           <div className="etiquette">
-            Orientation du mur <b>{session.rotation}°</b>
+            {t('control.orientation')} <b>{session.rotation}°</b>
           </div>
           <input
             type="range"
@@ -136,17 +141,12 @@ export function ControlScreen({
               </button>
             ))}
           </div>
-          <p className="aide">
-            Le device ne dit pas comment le mur est accroché, et rien n&apos;oblige un mur à
-            être posé d&apos;équerre.
-          </p>
+          <p className="aide">{t('control.orientation.help')}</p>
         </div>
 
-        <p className="aide">
-          Clique un panneau du mur pour le peindre de la couleur choisie.
-        </p>
+        <p className="aide">{t('control.paint.help')}</p>
 
-        {session.error !== null && <p className="erreur">{session.error}</p>}
+        {session.error !== null && <p className="erreur">{translateError(session.error, t)}</p>}
       </aside>
     </section>
   )

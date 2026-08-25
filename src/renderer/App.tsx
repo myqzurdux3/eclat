@@ -4,6 +4,8 @@ import { ControlScreen } from './screens/ControlScreen'
 import { ScenesScreen } from './screens/ScenesScreen'
 import { SyncScreen } from './screens/SyncScreen'
 import { useScreenSync } from './useScreenSync'
+import { LangueProvider, useLangue, useT } from './i18n'
+import { LOCALES, type MessageKey } from '../shared/i18n'
 import { useNanoleaf } from './useNanoleaf'
 
 declare global {
@@ -19,14 +21,12 @@ declare global {
 
 /** Affiché quand la page tourne hors d'Electron, sans pont IPC. */
 function MissingBridge() {
+  const t = useT()
+
   return (
     <main style={{ padding: 24, display: 'grid', gap: 16, maxWidth: 620 }}>
-      <h1 style={{ margin: 0, fontSize: 20 }}>Nanoleaf — pont IPC absent</h1>
-      <p style={{ margin: 0, lineHeight: 1.5 }}>
-        Cette page est servie par Vite, qui ne fournit que l&apos;interface. Le dialogue avec
-        les panneaux passe par le processus main d&apos;Electron : le token
-        d&apos;authentification ne doit jamais atteindre le navigateur.
-      </p>
+      <h1 style={{ margin: 0, fontSize: 20 }}>{t('bridge.missing.title')}</h1>
+      <p style={{ margin: 0, lineHeight: 1.5 }}>{t('bridge.missing.body')}</p>
       <pre style={{ margin: 0, padding: 12, background: '#17171c', borderRadius: 6 }}>
         VITE_DEV_SERVER_URL=http://localhost:5173 npm run start
       </pre>
@@ -34,12 +34,32 @@ function MissingBridge() {
   )
 }
 
+/** Bascule de langue, dans la barre de titre. */
+function ChoixLangue() {
+  const { locale, setLocale, t } = useLangue()
+
+  return (
+    <div className="segments langues" role="group" aria-label={t('app.language')}>
+      {LOCALES.map(({ value, label }) => (
+        <button
+          key={value}
+          aria-pressed={locale === value}
+          onClick={() => setLocale(value)}
+          title={label}
+        >
+          {value.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 type Onglet = 'controle' | 'scenes' | 'sync'
 
-const ONGLETS: Array<{ value: Onglet; libelle: string }> = [
-  { value: 'controle', libelle: 'Contrôle' },
-  { value: 'scenes', libelle: 'Scènes' },
-  { value: 'sync', libelle: 'Sync' },
+const ONGLETS: Array<{ value: Onglet; cle: MessageKey }> = [
+  { value: 'controle', cle: 'app.tab.control' },
+  { value: 'scenes', cle: 'app.tab.scenes' },
+  { value: 'sync', cle: 'app.tab.sync' },
 ]
 
 const CLE_ONGLET = 'nanoleaf.onglet'
@@ -55,6 +75,7 @@ function lireOnglet(): Onglet {
 }
 
 function Shell({ bridge }: { bridge: NanoleafApi }) {
+  const t = useT()
   const session = useNanoleaf(bridge)
   const sync = useScreenSync(session.layout, session.pushColors)
   const [screen, setScreen] = useState<Onglet>(lireOnglet)
@@ -112,21 +133,22 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
       <div className="coquille">
         <header className="barre">
           <nav className="onglets">
-            {ONGLETS.map(({ value, libelle }) => (
+            {ONGLETS.map(({ value, cle }) => (
               <button
                 key={value}
                 aria-selected={screen === value}
                 onClick={() => choisirOnglet(value)}
               >
-                {libelle}
+                {t(cle)}
               </button>
             ))}
           </nav>
           <div className="commandes-fenetre">
-            <button title="Réduire" onClick={() => void bridge.minimizeWindow()}>
+            <ChoixLangue />
+            <button title={t('app.window.minimise')} onClick={() => void bridge.minimizeWindow()}>
               –
             </button>
-            <button title="Fermer" onClick={() => void bridge.closeWindow()}>
+            <button title={t('app.window.close')} onClick={() => void bridge.closeWindow()}>
               ×
             </button>
           </div>
@@ -140,8 +162,16 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
   )
 }
 
-export function App() {
+function Racine() {
   const bridge = typeof window === 'undefined' ? undefined : window.nanoleaf
   if (bridge === undefined) return <MissingBridge />
   return <Shell bridge={bridge} />
+}
+
+export function App() {
+  return (
+    <LangueProvider>
+      <Racine />
+    </LangueProvider>
+  )
 }

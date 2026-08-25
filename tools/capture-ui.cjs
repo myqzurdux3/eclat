@@ -59,6 +59,12 @@ app.whenReady().then(async () => {
   await window.webContents.executeJavaScript(
     `localStorage.setItem('nanoleaf.onglet', ${JSON.stringify(ONGLET)})`,
   )
+  const LANGUE = process.env.CAPTURE_LOCALE
+  if (LANGUE !== undefined) {
+    await window.webContents.executeJavaScript(
+      `localStorage.setItem('nanoleaf.langue', ${JSON.stringify(LANGUE)})`,
+    )
+  }
   if (ROTATION !== undefined) {
     await window.webContents.executeJavaScript(
       `localStorage.setItem('nanoleaf.rotation', ${JSON.stringify(ROTATION)})`,

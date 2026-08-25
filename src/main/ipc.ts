@@ -96,7 +96,7 @@ export class DeviceService {
   async pair(deviceId: string): Promise<RendererDevice> {
     const candidate = this.seen.get(deviceId)
     if (candidate === undefined) {
-      throw new NanoleafError(`Device inconnu : ${deviceId}`, 404)
+      throw new NanoleafError(`Device inconnu : ${deviceId}`, 404, 'error.deviceUnknown')
     }
 
     const token = await pairDevice({
@@ -313,7 +313,7 @@ export class DeviceService {
     const config = await this.options.store.load()
     const stored = config.devices[deviceId]
     if (stored === undefined) {
-      throw new NanoleafError(`Device non appairé : ${deviceId}`, 401)
+      throw new NanoleafError(`Device non appairé : ${deviceId}`, 401, 'error.deviceUnpaired')
     }
     return stored
   }

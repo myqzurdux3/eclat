@@ -465,3 +465,14 @@ input[type='range']:active::-webkit-slider-thumb {
   height: 26px;
   border-radius: 6px;
 }
+
+.langues {
+  padding: 2px;
+  margin-right: 4px;
+}
+
+.langues button {
+  padding: 4px 9px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}

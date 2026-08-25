@@ -30,7 +30,7 @@ export async function pairDevice(options: PairOptions): Promise<string> {
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     if (options.signal?.aborted) {
-      throw new NanoleafError('Appairage annulé', 0)
+      throw new NanoleafError('Appairage annulé', 0, 'error.pairingCancelled')
     }
 
     try {
@@ -64,5 +64,6 @@ export async function pairDevice(options: PairOptions): Promise<string> {
   throw new NanoleafError(
     'Appairage échoué : maintiens le bouton power 5-7 s jusqu au clignotement, puis réessaie',
     lastStatus,
+    'error.pairingRefused',
   )
 }
