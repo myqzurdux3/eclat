@@ -40,7 +40,7 @@
   - `encodeFrameV2(panels: PanelColor[], transitionTime?: number): Buffer`
   - `FRAME_HEADER_BYTES = 2`, `FRAME_PANEL_BYTES = 8`
 
-- [ ] **Step 1: Ajouter les constantes et types partagés**
+- [x] **Step 1: Ajouter les constantes et types partagés**
 
 Ajouter à la fin de `src/shared/types.ts` :
 
@@ -53,7 +53,7 @@ Ajouter à la fin de `src/shared/types.ts` :
 export const EXT_CONTROL_EFFECT = '*ExtControl*'
 ```
 
-- [ ] **Step 2: Écrire le test qui échoue**
+- [x] **Step 2: Écrire le test qui échoue**
 
 `src/main/device/frame.test.ts` :
 
@@ -107,12 +107,12 @@ describe('encodeFrameV2', () => {
 })
 ```
 
-- [ ] **Step 3: Lancer le test et vérifier qu'il échoue**
+- [x] **Step 3: Lancer le test et vérifier qu'il échoue**
 
 Run: `npx vitest run src/main/device/frame.test.ts`
 Expected: FAIL — `Failed to resolve import "./frame"`
 
-- [ ] **Step 4: Écrire l'encodeur**
+- [x] **Step 4: Écrire l'encodeur**
 
 `src/main/device/frame.ts` :
 
@@ -166,12 +166,12 @@ export function encodeFrameV2(panels: PanelColor[], transitionTime = 1): Buffer 
 }
 ```
 
-- [ ] **Step 5: Lancer le test et vérifier qu'il passe**
+- [x] **Step 5: Lancer le test et vérifier qu'il passe**
 
 Run: `npx vitest run src/main/device/frame.test.ts`
 Expected: PASS — 7 tests
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/main/device/frame.ts src/main/device/frame.test.ts src/shared/types.ts
@@ -192,7 +192,7 @@ git commit -m "feat: encodage de trame External Control v2"
   - `DecodedFrame { transitionTime: number; panels: PanelColor[] }`
   - `class FakeStreamReceiver` : `frames: DecodedFrame[]`, `port: number`, `start()`, `stop()`, `waitForFrames(count: number, timeoutMs?: number): Promise<DecodedFrame[]>`
 
-- [ ] **Step 1: Écrire le test qui échoue**
+- [x] **Step 1: Écrire le test qui échoue**
 
 `src/test-support/fake-stream.test.ts` :
 
@@ -268,12 +268,12 @@ describe('FakeStreamReceiver', () => {
 })
 ```
 
-- [ ] **Step 2: Lancer le test et vérifier qu'il échoue**
+- [x] **Step 2: Lancer le test et vérifier qu'il échoue**
 
 Run: `npx vitest run src/test-support/fake-stream.test.ts`
 Expected: FAIL — `Failed to resolve import "./fake-stream"`
 
-- [ ] **Step 3: Écrire le récepteur factice**
+- [x] **Step 3: Écrire le récepteur factice**
 
 `src/test-support/fake-stream.ts` :
 
@@ -372,12 +372,12 @@ function decodeFrame(message: Buffer): DecodedFrame | null {
 }
 ```
 
-- [ ] **Step 4: Lancer le test et vérifier qu'il passe**
+- [x] **Step 4: Lancer le test et vérifier qu'il passe**
 
 Run: `npx vitest run src/test-support/fake-stream.test.ts`
 Expected: PASS — 5 tests
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/test-support/fake-stream.ts src/test-support/fake-stream.test.ts
@@ -398,7 +398,7 @@ git commit -m "test: récepteur UDP factice décodant les trames v2"
   - `RateGovernorOptions { targetHz?: number; minHz?: number; now?: () => number; driftRatio?: number; patience?: number }`
   - `class RateGovernor` : `shouldSend(): boolean`, `recordSent(): void`, `get hz(): number`, `get intervalMs(): number`
 
-- [ ] **Step 1: Écrire le test qui échoue**
+- [x] **Step 1: Écrire le test qui échoue**
 
 `src/main/device/rate.test.ts` :
 
@@ -507,12 +507,12 @@ describe('RateGovernor', () => {
 })
 ```
 
-- [ ] **Step 2: Lancer le test et vérifier qu'il échoue**
+- [x] **Step 2: Lancer le test et vérifier qu'il échoue**
 
 Run: `npx vitest run src/main/device/rate.test.ts`
 Expected: FAIL — `Failed to resolve import "./rate"`
 
-- [ ] **Step 3: Écrire le régulateur**
+- [x] **Step 3: Écrire le régulateur**
 
 `src/main/device/rate.ts` :
 
@@ -602,12 +602,12 @@ export class RateGovernor {
 }
 ```
 
-- [ ] **Step 4: Lancer le test et vérifier qu'il passe**
+- [x] **Step 4: Lancer le test et vérifier qu'il passe**
 
 Run: `npx vitest run src/main/device/rate.test.ts`
 Expected: PASS — 8 tests
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/device/rate.ts src/main/device/rate.test.ts
@@ -634,7 +634,7 @@ git commit -m "feat: régulateur de cadence adaptatif pour le streaming"
   - `NanoleafClient.enableExternalControl(): Promise<void>`
   - `FakeNanoleaf.extControlVersion: string | null`
 
-- [ ] **Step 1: Ajouter l'armement au client REST**
+- [x] **Step 1: Ajouter l'armement au client REST**
 
 Ajouter cette méthode à `NanoleafClient`, dans `src/main/device/client.ts`, juste après `selectEffect` :
 
@@ -651,7 +651,7 @@ Ajouter cette méthode à `NanoleafClient`, dans `src/main/device/client.ts`, ju
   }
 ```
 
-- [ ] **Step 2: Faire reconnaître l'armement au device factice**
+- [x] **Step 2: Faire reconnaître l'armement au device factice**
 
 Dans `src/test-support/fake-nanoleaf.ts`, ajouter l'import du sentinel en tête de fichier :
 
@@ -685,7 +685,7 @@ Remplacer le bloc `PUT /effects` de la méthode `handle` par :
     }
 ```
 
-- [ ] **Step 3: Écrire le test qui échoue**
+- [x] **Step 3: Écrire le test qui échoue**
 
 `src/main/device/stream.test.ts` :
 
@@ -877,12 +877,12 @@ describe('PanelStream', () => {
 })
 ```
 
-- [ ] **Step 4: Lancer le test et vérifier qu'il échoue**
+- [x] **Step 4: Lancer le test et vérifier qu'il échoue**
 
 Run: `npx vitest run src/main/device/stream.test.ts`
 Expected: FAIL — `Failed to resolve import "./stream"`
 
-- [ ] **Step 5: Écrire le streamer**
+- [x] **Step 5: Écrire le streamer**
 
 `src/main/device/stream.ts` :
 
@@ -1040,17 +1040,17 @@ export class PanelStream {
 }
 ```
 
-- [ ] **Step 6: Lancer le test et vérifier qu'il passe**
+- [x] **Step 6: Lancer le test et vérifier qu'il passe**
 
 Run: `npx vitest run src/main/device/stream.test.ts`
 Expected: PASS — 11 tests
 
-- [ ] **Step 7: Vérifier que la suite complète passe toujours**
+- [x] **Step 7: Vérifier que la suite complète passe toujours**
 
 Run: `npx vitest run`
 Expected: PASS — le device factice modifié ne casse aucun test du jalon 1
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/main/device/stream.ts src/main/device/stream.test.ts src/main/device/client.ts src/test-support/fake-nanoleaf.ts
@@ -1074,7 +1074,7 @@ git commit -m "feat: armement extControl v2, émission UDP et restauration d'ét
   - `ArbiterOptions { now?: () => number; manualHoldMs?: number }`
   - `class SourceArbiter` : `activate(source)`, `deactivate(source)`, `touchManual()`, `current(): SourceId | null`, `accepts(source): boolean`, `reset()`
 
-- [ ] **Step 1: Déclarer le type de source dans le contrat partagé**
+- [x] **Step 1: Déclarer le type de source dans le contrat partagé**
 
 Ajouter à la fin de `src/shared/types.ts` :
 
@@ -1087,7 +1087,7 @@ Ajouter à la fin de `src/shared/types.ts` :
 export type SourceId = 'manual' | 'screen' | 'audio'
 ```
 
-- [ ] **Step 2: Écrire le test qui échoue**
+- [x] **Step 2: Écrire le test qui échoue**
 
 `src/main/device/arbiter.test.ts` :
 
@@ -1198,12 +1198,12 @@ describe('SourceArbiter', () => {
 })
 ```
 
-- [ ] **Step 3: Lancer le test et vérifier qu'il échoue**
+- [x] **Step 3: Lancer le test et vérifier qu'il échoue**
 
 Run: `npx vitest run src/main/device/arbiter.test.ts`
 Expected: FAIL — `Failed to resolve import "./arbiter"`
 
-- [ ] **Step 4: Écrire l'arbitre**
+- [x] **Step 4: Écrire l'arbitre**
 
 `src/main/device/arbiter.ts` :
 
@@ -1287,12 +1287,12 @@ export class SourceArbiter {
 }
 ```
 
-- [ ] **Step 5: Lancer le test et vérifier qu'il passe**
+- [x] **Step 5: Lancer le test et vérifier qu'il passe**
 
 Run: `npx vitest run src/main/device/arbiter.test.ts`
 Expected: PASS — 10 tests
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/main/device/arbiter.ts src/main/device/arbiter.test.ts src/shared/types.ts
@@ -1319,7 +1319,7 @@ git commit -m "feat: arbitrage des sources de streaming par priorité stricte"
   - `DeviceServiceOptions.arbiter?`, `DeviceServiceOptions.streamFactory?`
   - `DeviceService.startStream`, `.stopStream`, `.sendFrame`, `.shutdown`
 
-- [ ] **Step 1: Étendre le contrat IPC**
+- [x] **Step 1: Étendre le contrat IPC**
 
 Dans `src/shared/ipc-contract.ts`, remplacer l'import de tête par :
 
@@ -1348,7 +1348,7 @@ Ajouter ces trois canaux à `IPC_CHANNELS`, avant la parenthèse fermante :
   frame: 'stream:frame',
 ```
 
-- [ ] **Step 2: Écrire le test qui échoue**
+- [x] **Step 2: Écrire le test qui échoue**
 
 Ajouter en tête de `src/main/ipc.test.ts` les imports manquants :
 
@@ -1483,12 +1483,12 @@ describe('DeviceService — streaming', () => {
 })
 ```
 
-- [ ] **Step 3: Lancer le test et vérifier qu'il échoue**
+- [x] **Step 3: Lancer le test et vérifier qu'il échoue**
 
 Run: `npx vitest run src/main/ipc.test.ts`
 Expected: FAIL — `service.startStream is not a function`
 
-- [ ] **Step 4: Étendre `DeviceService`**
+- [x] **Step 4: Étendre `DeviceService`**
 
 Dans `src/main/ipc.ts`, remplacer les imports de tête par :
 
@@ -1650,12 +1650,12 @@ Ajouter les trois canaux dans `registerIpc`, avant la parenthèse fermante :
   )
 ```
 
-- [ ] **Step 5: Lancer le test et vérifier qu'il passe**
+- [x] **Step 5: Lancer le test et vérifier qu'il passe**
 
 Run: `npx vitest run src/main/ipc.test.ts`
 Expected: PASS — 15 tests
 
-- [ ] **Step 6: Exposer les canaux au renderer**
+- [x] **Step 6: Exposer les canaux au renderer**
 
 Dans `src/preload/preload.ts`, ajouter ces trois entrées à l'objet `api`, après `selectEffect` :
 
@@ -1666,7 +1666,7 @@ Dans `src/preload/preload.ts`, ajouter ces trois entrées à l'objet `api`, apr�
     ipcRenderer.invoke(IPC_CHANNELS.frame, deviceId, source, colors, transitionTime),
 ```
 
-- [ ] **Step 7: Restaurer l'état à l'extinction du processus main**
+- [x] **Step 7: Restaurer l'état à l'extinction du processus main**
 
 Dans `src/main/main.ts`, remplacer le bloc `app.whenReady()` et le gestionnaire `window-all-closed` par :
 
@@ -1711,7 +1711,7 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
 }
 ```
 
-- [ ] **Step 8: Ajouter la démonstration au renderer**
+- [x] **Step 8: Ajouter la démonstration au renderer**
 
 Ce balayage n'est **pas** la fonctionnalité finale : il prouve le chemin complet renderer → IPC → UDP → panneaux, en attendant le sync écran du jalon 4.
 
@@ -1793,12 +1793,12 @@ Ajouter ces deux boutons dans la barre d'actions, après « Basculer on/off » :
         </button>
 ```
 
-- [ ] **Step 9: Vérifier la compilation et la suite complète**
+- [x] **Step 9: Vérifier la compilation et la suite complète**
 
 Run: `npm run build:main && npx tsc -p tsconfig.json --noEmit && npm run build:renderer && npx vitest run`
 Expected: aucune erreur, tous les tests passent
 
-- [ ] **Step 10: Vérification manuelle contre le matériel réel**
+- [ ] **Step 10: Vérification manuelle contre le matériel réel** — points 1, 3 et 4 déjà validés en tête-à-tête avec le matériel (armement, réarmement après reprise externe, restauration de l'effet) ; les points 2, 5, 6 et 7 demandent l'interface et un œil humain.
 
 ```bash
 npm run dev:renderer
@@ -1818,7 +1818,7 @@ Checklist, à cocher une par une :
 6. Relancer le balayage, puis `Ctrl+C` dans le terminal `npm run start` → les panneaux retrouvent leur effet.
 7. Mesurer la charge pendant un balayage : `top -p $(pgrep -f 'electron .' | head -1)` → objectif sous 10 % d'un cœur.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add src/shared/ipc-contract.ts src/main/ipc.ts src/main/ipc.test.ts src/preload/preload.ts src/main/main.ts src/renderer/App.tsx
