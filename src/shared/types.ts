@@ -44,3 +44,10 @@ export interface Color {
   g: number
   b: number
 }
+
+/**
+ * Nom d'effet rapporté par le contrôleur quand le mode External Control est
+ * armé. Sert de sonde : si l'effet courant n'est plus celui-ci, une autre
+ * source (app mobile, bouton physique) a repris la main.
+ */
+export const EXT_CONTROL_EFFECT = '*ExtControl*'
