@@ -1,24 +1,24 @@
 import { hsbToRgb } from './color'
 import type { Color, DeviceState, EffectPalette, NormalizedPanel } from './types'
 
-/** Gris sourd affiché tant que l'état du device n'est pas connu. */
-const NEUTRE: Color = { r: 40, g: 42, b: 52 }
-const ETEINT: Color = { r: 0, g: 0, b: 0 }
+/** Muted grey shown while the device state is still unknown. */
+const NEUTRAL: Color = { r: 40, g: 42, b: 52 }
+const OFF: Color = { r: 0, g: 0, b: 0 }
 
-const attenuer = (color: Color, facteur: number): Color => ({
-  r: Math.round(color.r * facteur),
-  g: Math.round(color.g * facteur),
-  b: Math.round(color.b * facteur),
+const dim = (color: Color, factor: number): Color => ({
+  r: Math.round(color.r * factor),
+  g: Math.round(color.g * factor),
+  b: Math.round(color.b * factor),
 })
 
 /**
- * Couleur à afficher pour chaque panneau.
+ * The colour to show for each panel.
  *
- * Le device ne publie pas la couleur panneau par panneau : seul le streaming
- * la connaît, et seulement pour ce qu'il envoie lui-même. Hors streaming on
- * l'approxime — la palette de l'effet courant étalée sur le mur, ou la
- * teinte réglée en mode couleur unie. C'est une maquette fidèle à l'état du
- * device, pas une lecture de ses LED.
+ * The device publishes no per-panel colour: only streaming knows it, and only
+ * for what it sends itself. Outside streaming we approximate — the current
+ * effect's palette spread over the wall, or the configured hue in solid
+ * colour mode. This is a mock-up faithful to the device's state, not a
+ * reading of its LEDs.
  */
 export function wallColors(
   panels: NormalizedPanel[],
@@ -32,39 +32,38 @@ export function wallColors(
     state !== null && state.colorMode === 'effect'
       ? palettes.find((entry) => entry.name === state.effect)?.colors
       : undefined
-  const facteur = state === null ? 1 : Math.max(0, Math.min(100, state.brightness)) / 100
+  const factor = state === null ? 1 : Math.max(0, Math.min(100, state.brightness)) / 100
 
   panels.forEach((panel, index) => {
-    // Un panneau peint l'est délibérément : il garde sa couleur pleine.
-    const peint = painted.get(panel.panelId)
-    if (peint !== undefined) {
-      colors.set(panel.panelId, peint)
+    // A painted panel was painted on purpose: it keeps its full colour.
+    const paintedColour = painted.get(panel.panelId)
+    if (paintedColour !== undefined) {
+      colors.set(panel.panelId, paintedColour)
       return
     }
 
     if (state === null) {
-      colors.set(panel.panelId, NEUTRE)
+      colors.set(panel.panelId, NEUTRAL)
       return
     }
 
     if (!state.on) {
-      colors.set(panel.panelId, ETEINT)
+      colors.set(panel.panelId, OFF)
       return
     }
 
     if (palette !== undefined && palette.length > 0) {
-      colors.set(panel.panelId, attenuer(palette[index % palette.length]!, facteur))
+      colors.set(panel.panelId, dim(palette[index % palette.length]!, factor))
       return
     }
 
-    // En mode effet, `hue` et `sat` sont périmées : le device cesse de les
-    // mettre à jour dès qu'une scène tourne, et elles restent souvent à
-    // 0/0 — soit du blanc franc. Afficher ce blanc ferait croire à un mur
-    // allumé en blanc alors qu'on ignore simplement ce qu'il montre.
-    const base =
-      state.colorMode === 'effect' ? NEUTRE : hsbToRgb(state.hue, state.sat, 100)
+    // In effect mode `hue` and `sat` are stale: the device stops updating
+    // them as soon as a scene runs, and they often sit at 0/0 — pure white.
+    // Showing that white would suggest a wall lit white when in truth we
+    // simply do not know what it is showing.
+    const base = state.colorMode === 'effect' ? NEUTRAL : hsbToRgb(state.hue, state.sat, 100)
 
-    colors.set(panel.panelId, attenuer(base, facteur))
+    colors.set(panel.panelId, dim(base, factor))
   })
 
   return colors

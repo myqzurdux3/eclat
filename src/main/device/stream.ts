@@ -4,9 +4,9 @@ import type { NanoleafClient } from './client'
 import { encodeFrameV2, type PanelColor } from './frame'
 import { RateGovernor } from './rate'
 
-/** Port UDP d'écoute du contrôleur en mode External Control. */
+/** The UDP port the controller listens on in External Control mode. */
 export const STREAM_PORT = 60222
-/** Périodicité de la sonde de réarmement, imposée par la spec. */
+/** How often the re-arm probe runs, as the spec requires. */
 export const PROBE_INTERVAL_MS = 10_000
 
 export interface UdpSocketLike {
@@ -40,9 +40,8 @@ const defaultScheduler: SchedulerLike = {
 }
 
 /**
- * Seul writer de la socket UDP. Possède l'armement du mode External Control,
- * l'émission des trames, la sonde de réarmement et la restauration de
- * l'état d'origine.
+ * The only writer of the UDP socket. It owns arming External Control,
+ * sending frames, the re-arm probe, and restoring the original state.
  */
 export class PanelStream {
   private readonly client: NanoleafClient
@@ -72,9 +71,9 @@ export class PanelStream {
   }
 
   /**
-   * Sauvegarde l'état courant, arme External Control et ouvre la socket.
-   * Sans la sauvegarde préalable, les panneaux resteraient figés sur la
-   * dernière trame diffusée à l'arrêt.
+   * Saves the current state, arms External Control and opens the socket.
+   * Without saving first, the panels would stay frozen on the last frame
+   * broadcast when it stops.
    */
   async arm(): Promise<void> {
     if (this.saved === null) {
@@ -95,21 +94,21 @@ export class PanelStream {
   }
 
   /**
-   * Émet une trame. Renvoie `false` si le mode n'est pas armé ou si la
-   * cadence maximale est déjà atteinte — l'appelant n'a rien à rattraper.
+   * Sends a frame. Returns `false` when the mode is not armed or the maximum
+   * rate is already reached — the caller has nothing to make up for.
    */
   send(panels: PanelColor[], transitionTime = 1): boolean {
     if (this.socket === undefined) return false
     if (!this.governor.shouldSend()) return false
 
     this.socket.send(encodeFrameV2(panels, transitionTime), this.port, this.ip, () => {
-      // Un datagramme perdu n'est pas rattrapable : la trame suivante corrige.
+      // A lost datagram cannot be recovered: the next frame corrects it.
     })
     this.governor.recordSent()
     return true
   }
 
-  /** Vérifie que le mode tient toujours, et le réarme sinon. */
+  /** Checks the mode still holds, and re-arms it otherwise. */
   async probe(): Promise<void> {
     if (this.socket === undefined) return
 
@@ -119,14 +118,15 @@ export class PanelStream {
         await this.client.enableExternalControl()
       }
     } catch {
-      // Device momentanément injoignable : la sonde suivante retentera.
+      // Device briefly unreachable: the next probe will try again.
     }
   }
 
   /**
-   * Ferme la socket et, sauf mention contraire, rend au device l'effet qu'il
-   * affichait. `restore: false` sert quand l'appelant va lui-même imposer un
-   * autre effet : réécrire l'ancien au passage le ferait clignoter.
+   * Closes the socket and, unless told otherwise, gives the device back the
+   * effect it was showing. `restore: false` is for when the caller is about
+   * to impose another effect: rewriting the old one on the way would make it
+   * blink.
    */
   async stop({ restore = true }: { restore?: boolean } = {}): Promise<void> {
     if (this.probeHandle !== null) {
@@ -149,7 +149,7 @@ export class PanelStream {
       }
       await this.client.setOn(saved.on)
     } catch {
-      // Device injoignable à l'arrêt : rien de mieux à tenter.
+      // Device unreachable on stop: nothing better to try.
     }
   }
 }

@@ -4,22 +4,22 @@ export { wallBounds }
 export type { Bounds }
 
 export interface ViewTransform {
-  /** Facteurs vers le repère de clip, X puis Y. */
+  /** Scale factors into clip space, X then Y. */
   scale: [number, number]
-  /** Point du mur amené au centre du canvas. */
+  /** The point of the wall brought to the centre of the canvas. */
   centre: [number, number]
 }
 
-/** Marge laissée autour du mur, en fraction du demi-repère de clip. */
+/** Margin left around the wall, as a fraction of half of clip space. */
 export const DEFAULT_MARGIN = 0.86
 
 /**
- * Cadre une boîte dans le repère de clip en préservant les proportions.
+ * Fits a box into clip space while preserving proportions.
  *
- * Le repère de clip couvre le canvas entier sur les deux axes : un même
- * écart y vaut plus de pixels en X qu'en Y dès que le canvas n'est pas
- * carré. `scale.x` est donc divisé par le rapport du canvas, sans quoi les
- * triangles sortiraient étirés.
+ * Clip space spans the whole canvas on both axes, so the same distance is
+ * worth more pixels along X than along Y as soon as the canvas is not
+ * square. `scale.x` is therefore divided by the canvas ratio; without that,
+ * the triangles would come out stretched.
  */
 export function fitTransform(
   bounds: Bounds,
@@ -39,8 +39,8 @@ export function fitTransform(
 }
 
 /**
- * Inverse du cadrage : d'une position relative dans le canvas, dans `[0,1]²`
- * avec l'origine en haut à gauche, vers un point du mur.
+ * The inverse of the fit: from a relative position inside the canvas, in
+ * `[0,1]²` with the origin top-left, back to a point on the wall.
  */
 export function unproject(transform: ViewTransform, u: number, v: number): Point {
   const ndcX = u * 2 - 1

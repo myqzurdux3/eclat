@@ -15,7 +15,7 @@ afterEach(async () => {
   await device.stop()
 })
 
-/** Temporisation instantanée : les tests ne doivent pas attendre réellement. */
+/** Instant delay: tests must not actually wait. */
 const noSleep = () => Promise.resolve()
 
 describe('pairDevice', () => {
@@ -31,7 +31,7 @@ describe('pairDevice', () => {
     expect(token).toBe('tok-abc')
   })
 
-  it('réessaie jusqu à ce que le bouton soit maintenu', async () => {
+  it('retries until the button is held', async () => {
     const sleep = vi.fn(async () => {
       if (device.requests.length >= 3) device.pairingMode = true
     })
@@ -47,7 +47,7 @@ describe('pairDevice', () => {
     expect(sleep).toHaveBeenCalled()
   })
 
-  it('abandonne après le nombre d essais imparti', async () => {
+  it('gives up after the allotted number of attempts', async () => {
     await expect(
       pairDevice({ ip: '127.0.0.1', port: device.port, attempts: 3, sleep: noSleep }),
     ).rejects.toBeInstanceOf(NanoleafError)
@@ -68,12 +68,12 @@ describe('pairDevice', () => {
         sleep: noSleep,
         signal: controller.signal,
       }),
-    ).rejects.toThrow(/annul/i)
+    ).rejects.toThrow(/cancelled/i)
   })
 
   it('rapporte status 0 si le device est injoignable', async () => {
-    // Créer un serveur, récupérer son port, puis le fermer
-    // pour obtenir un port libre où rien n'écoute.
+    // Create a server, grab its port, then close it to obtain a free port
+    // where nothing is listening.
     const tempServer = createServer()
     await new Promise<void>((resolve) => tempServer.listen(0, '127.0.0.1', resolve))
     const closedPort = (tempServer.address() as any).port
@@ -93,7 +93,7 @@ describe('pairDevice', () => {
     }
   })
 
-  it('rapporte le status HTTP si le device a refusé', async () => {
+  it('reports the HTTP status when the device refused', async () => {
     try {
       await pairDevice({ ip: '127.0.0.1', port: device.port, attempts: 2, sleep: noSleep })
       expect.fail('Should have thrown NanoleafError')

@@ -1,17 +1,17 @@
 import { NanoleafError } from './errors'
 
-/** Catégories du flux : 1 état, 2 layout, 3 effets, 4 tactile. */
+/** Stream categories: 1 state, 2 layout, 3 effects, 4 touch. */
 const CATEGORIES = '1,2,3'
 
 export interface DeviceEvent {
   deviceId: string
-  /** Ce qui a changé, tel que le device le rapporte. */
+  /** What changed, as the device reports it. */
   kind: 'on' | 'brightness' | 'hue' | 'sat' | 'ct' | 'colourMode' | 'effect' | 'layout'
   value: string | number | boolean
 }
 
-/** Attributs de la catégorie « état », dans l'ordre du protocole. */
-const ATTRIBUTS_ETAT: Record<number, DeviceEvent['kind']> = {
+/** Attributes of the "state" category, in protocol order. */
+const STATE_ATTRIBUTES: Record<number, DeviceEvent['kind']> = {
   1: 'on',
   2: 'brightness',
   3: 'hue',
@@ -20,42 +20,42 @@ const ATTRIBUTS_ETAT: Record<number, DeviceEvent['kind']> = {
   6: 'colourMode',
 }
 
-interface Brut {
+interface RawBlock {
   events?: Array<{ attr?: number; value?: unknown }>
 }
 
 /**
- * Traduit un bloc du flux en événements exploitables.
+ * Turns one block of the stream into usable events.
  *
- * Le device envoie du Server-Sent Events : `id:` porte la catégorie et
- * `data:` un objet dont les `attr` sont numérotés par catégorie. Pure, donc
- * testable sans device.
+ * The device speaks Server-Sent Events: `id:` carries the category and
+ * `data:` an object whose `attr` numbers are scoped to that category. Pure,
+ * hence testable without a device.
  */
 export function parseEventBlock(id: string, data: string): DeviceEvent[] {
-  let brut: Brut
+  let raw: RawBlock
   try {
-    brut = JSON.parse(data) as Brut
+    raw = JSON.parse(data) as RawBlock
   } catch {
     return []
   }
 
-  const categorie = Number(id)
-  return (brut.events ?? []).flatMap((event): DeviceEvent[] => {
-    const valeur = event.value
-    if (valeur === undefined || valeur === null) return []
+  const category = Number(id)
+  return (raw.events ?? []).flatMap((event): DeviceEvent[] => {
+    const value = event.value
+    if (value === undefined || value === null) return []
 
-    if (categorie === 1) {
-      const kind = ATTRIBUTS_ETAT[event.attr ?? 0]
+    if (category === 1) {
+      const kind = STATE_ATTRIBUTES[event.attr ?? 0]
       if (kind === undefined) return []
-      return [{ deviceId: '', kind, value: valeur as string | number | boolean }]
+      return [{ deviceId: '', kind, value: value as string | number | boolean }]
     }
 
-    // Catégorie 3 : seul `attr: 1` porte le nom de l'effet sélectionné.
-    if (categorie === 3 && event.attr === 1) {
-      return [{ deviceId: '', kind: 'effect', value: String(valeur) }]
+    // Category 3: only `attr: 1` carries the selected effect's name.
+    if (category === 3 && event.attr === 1) {
+      return [{ deviceId: '', kind: 'effect', value: String(value) }]
     }
 
-    if (categorie === 2) return [{ deviceId: '', kind: 'layout', value: String(valeur) }]
+    if (category === 2) return [{ deviceId: '', kind: 'layout', value: String(value) }]
 
     return []
   })
@@ -76,45 +76,45 @@ export interface SubscribeOptions {
 }
 
 /**
- * Suit en continu ce qui change sur un device.
+ * Follows what changes on a device, continuously.
  *
- * Sans ce flux, l'application ne verrait pas les commandes venues d'ailleurs
- * — l'app mobile, le bouton physique — et afficherait un état périmé jusqu'à
- * la prochaine relecture.
+ * Without this stream the application would not see commands issued
+ * elsewhere — the mobile app, the physical button — and would show a stale
+ * state until the next full re-read.
  */
 export function subscribeToEvents(options: SubscribeOptions): EventSubscription {
-  const controleur = new AbortController()
+  const controller = new AbortController()
   const signal = options.signal
-    ? AbortSignal.any([controleur.signal, options.signal])
-    : controleur.signal
+    ? AbortSignal.any([controller.signal, options.signal])
+    : controller.signal
 
   const url = `http://${options.ip}:${options.port}/api/v1/${options.token}/events?id=${CATEGORIES}`
 
   void (async () => {
     try {
-      const reponse = await fetch(url, { signal, headers: { accept: 'text/event-stream' } })
-      if (!reponse.ok || reponse.body === null) {
-        throw new NanoleafError(`Flux d evenements refuse (${reponse.status})`, reponse.status)
+      const response = await fetch(url, { signal, headers: { accept: 'text/event-stream' } })
+      if (!response.ok || response.body === null) {
+        throw new NanoleafError(`Event stream refused (${response.status})`, response.status)
       }
 
-      const lecteur = reponse.body.getReader()
-      const decodeur = new TextDecoder()
-      let tampon = ''
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
 
       while (!signal.aborted) {
-        const { done, value } = await lecteur.read()
+        const { done, value } = await reader.read()
         if (done) break
-        tampon += decodeur.decode(value, { stream: true })
+        buffer += decoder.decode(value, { stream: true })
 
-        // Les blocs sont séparés par une ligne vide.
-        let coupure = tampon.indexOf('\n\n')
-        while (coupure !== -1) {
-          const bloc = tampon.slice(0, coupure)
-          tampon = tampon.slice(coupure + 2)
-          for (const evenement of parseBlock(bloc)) {
-            options.onEvent({ ...evenement, deviceId: options.deviceId })
+        // Blocks are separated by a blank line.
+        let cut = buffer.indexOf('\n\n')
+        while (cut !== -1) {
+          const block = buffer.slice(0, cut)
+          buffer = buffer.slice(cut + 2)
+          for (const event of parseBlock(block)) {
+            options.onEvent({ ...event, deviceId: options.deviceId })
           }
-          coupure = tampon.indexOf('\n\n')
+          cut = buffer.indexOf('\n\n')
         }
       }
     } catch (cause) {
@@ -122,16 +122,16 @@ export function subscribeToEvents(options: SubscribeOptions): EventSubscription 
     }
   })()
 
-  return { close: () => controleur.abort() }
+  return { close: () => controller.abort() }
 }
 
-/** Découpe un bloc SSE en ses champs `id:` et `data:`. */
-function parseBlock(bloc: string): DeviceEvent[] {
+/** Splits one SSE block into its `id:` and `data:` fields. */
+function parseBlock(block: string): DeviceEvent[] {
   let id = ''
   let data = ''
-  for (const ligne of bloc.split('\n')) {
-    if (ligne.startsWith('id:')) id = ligne.slice(3).trim()
-    else if (ligne.startsWith('data:')) data += ligne.slice(5).trim()
+  for (const line of block.split('\n')) {
+    if (line.startsWith('id:')) id = line.slice(3).trim()
+    else if (line.startsWith('data:')) data += line.slice(5).trim()
   }
   return id === '' || data === '' ? [] : parseEventBlock(id, data)
 }

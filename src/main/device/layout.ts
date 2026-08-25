@@ -1,21 +1,20 @@
 import type { NormalizedPanel, PanelLayout, RawPanel } from '../../shared/types'
 
-/** Identifiant du panneau contrôleur, présent dans la layout mais non éclairable. */
+/** The controller panel's id: present in the layout but not lightable. */
 const CONTROLLER_PANEL_ID = 0
 
 /**
- * Convertit les coordonnées brutes du device en positions normalisées dans
- * [0,1]², origine en haut à gauche, rapport d'aspect préservé.
+ * Converts the device's raw coordinates into normalised positions in [0,1]²,
+ * origin top-left, aspect ratio preserved.
  *
- * Le device exprime ses coordonnées en millimètres avec un axe Y orienté vers
- * le haut ; l'axe est inversé ici pour correspondre aux conventions écran.
+ * The device expresses its coordinates in millimetres with Y pointing up;
+ * the axis is flipped here to match screen conventions.
  *
- * `width`/`height` mesurent l'enveloppe des *centres* des panneaux : une
- * rangée horizontale a donc une hauteur nulle alors que le mur physique n'en
- * a pas. `aspect` ajoute `sideLength` aux deux axes pour approximer
- * l'étendue réelle occupée par les panneaux (leur propre taille) ; le
- * résultat est toujours fini et strictement positif, y compris pour les
- * dispositions colinéaires (ligne ou colonne).
+ * `width`/`height` measure the envelope of the panel *centres*, so a
+ * horizontal row has zero height while the physical wall does not. `aspect`
+ * adds `sideLength` on both axes to approximate the real extent the panels
+ * occupy (their own size); the result is always finite and strictly
+ * positive, including for collinear arrangements (a row or a column).
  */
 export function normalizeLayout(raw: RawPanel[], sideLength: number): PanelLayout {
   const usable = raw.filter((p) => p.panelId !== CONTROLLER_PANEL_ID)

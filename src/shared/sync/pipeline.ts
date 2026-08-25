@@ -7,18 +7,18 @@ import { toSrgb, type Frame, type LinearColor, type Rect } from './srgb'
 import type { SyncSettings } from './settings'
 import type { Color, PanelLayout } from '../types'
 
-/** Nombre de clusters demandés en mode palette. */
+/** How many clusters palette mode asks for. */
 const CLUSTERS = 5
 
 /**
- * Transforme une frame d'écran en une couleur par panneau.
+ * Turns a frame of the screen into one colour per panel.
  *
- * L'ordre est imposé par la spec et n'est pas interchangeable : le letterbox
- * doit tomber avant la moyenne, sinon les bandes noires tirent tout vers le
- * bas ; la correction vient après le mapping, sinon on sature du bruit ; et
- * le lissage ferme la marche, en linéaire, avant le retour en sRGB.
+ * The order comes from the spec and is not interchangeable: letterbox
+ * detection has to happen before averaging, or the black bars drag
+ * everything down; correction comes after mapping, or it saturates noise;
+ * and smoothing closes the march, in linear space, before the return to sRGB.
  *
- * Seul le lisseur a une mémoire : le reste est fonction pure de la frame.
+ * Only the smoother carries state — the rest is a pure function of the frame.
  */
 export class SyncPipeline {
   private smoother: Smoother
@@ -30,12 +30,12 @@ export class SyncPipeline {
     this.smoother = new Smoother(settings.attack, settings.release)
   }
 
-  /** Applique de nouveaux réglages sans perdre l'historique de lissage. */
+  /** Applies new settings without losing the smoothing history. */
   update(settings: SyncSettings): void {
-    const rythmeChange =
+    const rateChanged =
       settings.attack !== this.settings.attack || settings.release !== this.settings.release
     this.settings = settings
-    if (rythmeChange) this.smoother = new Smoother(settings.attack, settings.release)
+    if (rateChanged) this.smoother = new Smoother(settings.attack, settings.release)
   }
 
   reset(): void {
@@ -46,22 +46,22 @@ export class SyncPipeline {
     if (this.layout.panels.length === 0) return []
 
     const rect = detectLetterbox(frame)
-    const brut = this.mapper(frame, rect)
-    const corrige = brut.map((color) => applyCorrection(color, this.settings))
+    const raw = this.map(frame, rect)
+    const corrected = raw.map((color) => applyCorrection(color, this.settings))
 
-    return this.smoother.push(corrige).map((color) => ({
+    return this.smoother.push(corrected).map((color) => ({
       r: toSrgb(color.r),
       g: toSrgb(color.g),
       b: toSrgb(color.b),
     }))
   }
 
-  private mapper(frame: Frame, rect: Rect): LinearColor[] {
+  private map(frame: Frame, rect: Rect): LinearColor[] {
     const count = this.layout.panels.length
 
     if (this.settings.mode === 'dominant') {
-      const couleur = dominantColor(frame, rect)
-      return Array.from({ length: count }, () => couleur)
+      const colour = dominantColor(frame, rect)
+      return Array.from({ length: count }, () => colour)
     }
 
     if (this.settings.mode === 'palette') {

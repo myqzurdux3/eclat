@@ -25,7 +25,7 @@ const emit = (payload: Buffer): Promise<void> =>
   })
 
 describe('FakeStreamReceiver', () => {
-  it('décode une trame émise', async () => {
+  it('decodes a frame that was sent', async () => {
     await emit(encodeFrameV2([{ panelId: 7, color: { r: 10, g: 20, b: 30 } }], 1))
 
     const [frame] = await receiver.waitForFrames(1)
@@ -36,7 +36,7 @@ describe('FakeStreamReceiver', () => {
     })
   })
 
-  it('accumule les trames dans l ordre', async () => {
+  it('accumulates frames in order', async () => {
     await emit(encodeFrameV2([{ panelId: 1, color: { r: 1, g: 0, b: 0 } }]))
     await emit(encodeFrameV2([{ panelId: 2, color: { r: 2, g: 0, b: 0 } }]))
 
@@ -45,7 +45,7 @@ describe('FakeStreamReceiver', () => {
     expect(frames.map((f) => f.panels[0]!.panelId)).toEqual([1, 2])
   })
 
-  it('décode une trame vide', async () => {
+  it('decodes an empty frame', async () => {
     await emit(encodeFrameV2([]))
 
     const [frame] = await receiver.waitForFrames(1)
@@ -53,7 +53,7 @@ describe('FakeStreamReceiver', () => {
     expect(frame!.panels).toEqual([])
   })
 
-  it('ignore un datagramme tronqué', async () => {
+  it('ignores a truncated datagram', async () => {
     await emit(Buffer.from([0x00, 0x02, 0x00, 0x01]))
     await emit(encodeFrameV2([{ panelId: 9, color: { r: 0, g: 0, b: 0 } }]))
 
@@ -63,7 +63,7 @@ describe('FakeStreamReceiver', () => {
     expect(frames[0]!.panels[0]!.panelId).toBe(9)
   })
 
-  it('rejette si le compte attendu n arrive pas', async () => {
-    await expect(receiver.waitForFrames(1, 50)).rejects.toThrow(/trame/i)
+  it('rejects when the expected count never arrives', async () => {
+    await expect(receiver.waitForFrames(1, 50)).rejects.toThrow(/frame/i)
   })
 })

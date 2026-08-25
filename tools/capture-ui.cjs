@@ -1,16 +1,16 @@
-// Outil de vérification visuelle.
+// Visual verification tool.
 //
-// Lance l'application, la laisse se peupler avec le vrai device, capture la
-// fenêtre en PNG puis quitte. GNOME refuse la capture d'écran aux clients
-// non approuvés et le poste n'a pas d'outil en ligne de commande : passer
-// par `capturePage()` de la fenêtre elle-même est le seul moyen de regarder
-// le rendu réel sans intervention humaine.
+// Launches the application, lets it populate from the real device, captures
+// the window as a PNG and quits. GNOME refuses screenshots to unapproved
+// clients and this machine has no command-line tool, so going through the
+// window's own `capturePage()` is the only way to look at the real rendering
+// without a human present.
 //
 //   npm run build
 //   CAPTURE_OUT=/tmp/ui.png npx electron tools/capture-ui.cjs
 //
-// Variables : CAPTURE_OUT (obligatoire), CAPTURE_WAIT (ms avant capture),
-// CAPTURE_TAB=scenes, CAPTURE_ROTATION='90°'.
+// Variables: CAPTURE_OUT (required), CAPTURE_WAIT (ms before capture),
+// CAPTURE_TAB=scenes, CAPTURE_ROTATION=90, CAPTURE_LOCALE=en.
 const { app, BrowserWindow, ipcMain } = require('electron')
 const { join } = require('node:path')
 const { writeFileSync } = require('node:fs')
@@ -19,10 +19,10 @@ const { DeviceService, registerIpc } = require('../dist/main/main/ipc')
 const { ConfigStore, defaultConfigPath, legacyConfigPath } = require('../dist/main/main/store')
 const { createMdnsFactory } = require('../dist/main/main/device/mdns')
 
-const SORTIE = process.env.CAPTURE_OUT
-const ATTENTE = Number(process.env.CAPTURE_WAIT ?? 6000)
-const ONGLET = process.env.CAPTURE_TAB ?? 'controle'
-// Quarts de tour, tels que stockés par l'application.
+const OUTPUT = process.env.CAPTURE_OUT
+const WAIT = Number(process.env.CAPTURE_WAIT ?? 6000)
+const TAB = process.env.CAPTURE_TAB ?? 'controle'
+// Rotation in degrees, as the application stores it.
 const ROTATION = process.env.CAPTURE_ROTATION
 
 app.whenReady().then(async () => {
@@ -50,19 +50,19 @@ app.whenReady().then(async () => {
     console.log('[renderer]', event.level, event.message)
   })
   window.webContents.on('render-process-gone', (_e, details) => {
-    console.log('[renderer mort]', JSON.stringify(details))
+    console.log('[renderer gone]', JSON.stringify(details))
   })
 
-  // L'onglet est choisi avant le premier rendu : Chromium cesse de repeindre
-  // une fenêtre occultée, et `capturePage` rendrait sinon une frame périmée.
+  // The tab is chosen before the first render: Chromium stops repainting an
+  // occluded window, and `capturePage` would otherwise return a stale frame.
   await window.loadFile(join(__dirname, '../dist/renderer/index.html'))
   await window.webContents.executeJavaScript(
-    `localStorage.setItem('nanoleaf.onglet', ${JSON.stringify(ONGLET)})`,
+    `localStorage.setItem('eclat.tab', ${JSON.stringify(TAB)})`,
   )
-  const LANGUE = process.env.CAPTURE_LOCALE
-  if (LANGUE !== undefined) {
+  const LOCALE = process.env.CAPTURE_LOCALE
+  if (LOCALE !== undefined) {
     await window.webContents.executeJavaScript(
-      `localStorage.setItem('nanoleaf.langue', ${JSON.stringify(LANGUE)})`,
+      `localStorage.setItem('eclat.locale', ${JSON.stringify(LOCALE)})`,
     )
   }
   if (ROTATION !== undefined) {
@@ -71,11 +71,11 @@ app.whenReady().then(async () => {
     )
   }
   window.reload()
-  await new Promise((resolve) => setTimeout(resolve, ATTENTE))
+  await new Promise((resolve) => setTimeout(resolve, WAIT))
 
   const image = await window.webContents.capturePage()
-  writeFileSync(SORTIE, image.toPNG())
-  console.log('capture écrite:', SORTIE)
+  writeFileSync(OUTPUT, image.toPNG())
+  console.log('capture written:', OUTPUT)
 
   await service.shutdown()
   app.exit(0)

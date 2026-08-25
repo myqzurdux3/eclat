@@ -1,18 +1,19 @@
 import { fr } from './fr'
 import type { MessageKey, Translate } from './index'
 
-/** `[error.deviceUnpaired] Device non appairé : Shapes` → la clé. */
+/** `[error.deviceUnpaired] Device not paired: Shapes` yields the key. */
 const CLE = /\[(error\.[A-Za-z]+)\]/
 
 const EXISTE = (cle: string): cle is MessageKey => cle in fr
 
 /**
- * Traduit une erreur remontée par le processus main.
+ * Translates an error raised by the main process.
  *
- * Electron aplatit les objets `Error` qui traversent l'IPC : le renderer ne
- * reçoit qu'un message, préfixé du nom de la méthode invoquée. La clé de
- * traduction y est encodée entre crochets ; à défaut, le message brut est
- * rendu tel quel — mieux vaut un texte non traduit qu'une erreur avalée.
+ * Electron flattens `Error` objects that cross the IPC boundary: the
+ * renderer only receives a message, prefixed with the name of the invoked
+ * method. The translation key is encoded in it between brackets; failing
+ * that, the raw message is shown as it is — an untranslated string beats a
+ * swallowed error.
  */
 export function translateError(raw: string, t: Translate): string {
   const trouve = CLE.exec(raw)

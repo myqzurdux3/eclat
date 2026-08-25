@@ -20,7 +20,7 @@ describe('normalizeLayout', () => {
     expect(layout.sideLength).toBe(67)
   })
 
-  it('étale deux panneaux horizontaux sur toute la largeur et les centre verticalement', () => {
+  it('spreads two horizontal panels across the full width and centres them vertically', () => {
     const layout = normalizeLayout([panel(1, 0, 50), panel(2, 100, 50)], 67)
     expect(layout.panels[0]!.nx).toBeCloseTo(0)
     expect(layout.panels[1]!.nx).toBeCloseTo(1)
@@ -28,39 +28,39 @@ describe('normalizeLayout', () => {
     expect(layout.panels[1]!.ny).toBeCloseTo(0.5)
   })
 
-  it('inverse l axe vertical : un y device élevé donne un ny faible', () => {
+  it('flips the vertical axis: a high device y yields a low ny', () => {
     const layout = normalizeLayout([panel(1, 0, 0), panel(2, 0, 100)], 67)
     expect(layout.panels[0]!.ny).toBeCloseTo(1)
     expect(layout.panels[1]!.ny).toBeCloseTo(0)
   })
 
-  it('préserve le rapport d aspect : une disposition large ne remplit pas la hauteur', () => {
+  it('preserves the aspect ratio: a wide arrangement does not fill the height', () => {
     const layout = normalizeLayout(
       [panel(1, 0, 0), panel(2, 200, 0), panel(3, 100, 50)],
       67,
     )
     // aspect = (width + sideLength) / (height + sideLength) = (200+67)/(50+67) = 267/117
     expect(layout.aspect).toBeCloseTo(267 / 117)
-    // hauteur totale 50 sur une échelle de 200 : la bande occupée fait 0.25,
-    // donc centrée entre 0.375 et 0.625
+    // Total height 50 on a scale of 200: the occupied band is 0.25, hence
+    // centred between 0.375 and 0.625.
     expect(layout.panels[0]!.ny).toBeCloseTo(0.625)
     expect(layout.panels[2]!.ny).toBeCloseTo(0.375)
   })
 
-  it('calcule un aspect fini pour une rangée horizontale colinéaire (hauteur nulle)', () => {
+  it('computes a finite aspect for a collinear horizontal row (zero height)', () => {
     const layout = normalizeLayout([panel(1, 0, 0), panel(2, 100, 0)], 67)
     expect(Number.isFinite(layout.aspect)).toBe(true)
     expect(layout.aspect).toBeCloseTo(167 / 67)
   })
 
-  it('calcule un aspect fini pour une colonne verticale colinéaire (largeur nulle)', () => {
+  it('computes a finite aspect for a collinear vertical column (zero width)', () => {
     const layout = normalizeLayout([panel(1, 0, 0), panel(2, 0, 100)], 67)
     expect(Number.isFinite(layout.aspect)).toBe(true)
     expect(layout.aspect).toBeGreaterThan(0)
     expect(layout.aspect).toBeCloseTo(67 / 167)
   })
 
-  it('écarte le panneau contrôleur (panelId 0) présent sur Lines et Elements', () => {
+  it('discards the controller panel (panelId 0) found on Lines and Elements', () => {
     const layout = normalizeLayout([panel(0, 999, 999, 12), panel(1, 0, 0), panel(2, 100, 0)], 67)
     expect(layout.panels.map((p) => p.panelId)).toEqual([1, 2])
     expect(layout.panels[1]!.nx).toBeCloseTo(1)
@@ -73,8 +73,8 @@ describe('normalizeLayout', () => {
   })
 })
 
-describe('normalizeLayout — côté normalisé', () => {
-  it('exprime le côté dans la même échelle que nx et ny', () => {
+describe('normalizeLayout — normalised side length', () => {
+  it('expresses the side in the same scale as nx and ny', () => {
     const layout = normalizeLayout(
       [
         { panelId: 1, x: 0, y: 0, o: 0, shapeType: 8 },
@@ -86,13 +86,13 @@ describe('normalizeLayout — côté normalisé', () => {
     expect(layout.nSideLength).toBeCloseTo(0.5, 6)
   })
 
-  it('remplit le carré quand un seul panneau est présent', () => {
+  it('fills the square when a single panel is present', () => {
     const layout = normalizeLayout([{ panelId: 1, x: 5, y: 5, o: 0, shapeType: 8 }], 100)
 
     expect(layout.nSideLength).toBe(1)
   })
 
-  it('renvoie un côté nul quand aucun panneau n est éclairable', () => {
+  it('returns a zero side when no panel is lightable', () => {
     expect(normalizeLayout([{ panelId: 0, x: 0, y: 0, o: 0, shapeType: 12 }], 100).nSideLength)
       .toBe(0)
   })

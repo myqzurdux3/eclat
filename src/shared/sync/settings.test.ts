@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { clampSettings, DEFAULT_SYNC_SETTINGS } from './settings'
 
 describe('DEFAULT_SYNC_SETTINGS', () => {
-  it('reprend les valeurs de la spec', () => {
+  it('matches the values from the spec', () => {
     expect(DEFAULT_SYNC_SETTINGS).toEqual({
       mode: 'spatial',
       radius: 0.18,
@@ -16,14 +16,14 @@ describe('DEFAULT_SYNC_SETTINGS', () => {
 })
 
 describe('clampSettings', () => {
-  it('complète les réglages manquants par le défaut', () => {
+  it('fills missing settings from the defaults', () => {
     expect(clampSettings({ saturation: 1.5 })).toEqual({
       ...DEFAULT_SYNC_SETTINGS,
       saturation: 1.5,
     })
   })
 
-  it('borne chaque réglage par le haut', () => {
+  it('bounds every setting from above', () => {
     expect(
       clampSettings({
         radius: 9,
@@ -44,7 +44,7 @@ describe('clampSettings', () => {
     })
   })
 
-  it('borne chaque réglage par le bas', () => {
+  it('bounds every setting from below', () => {
     expect(
       clampSettings({
         radius: -1,
@@ -65,13 +65,13 @@ describe('clampSettings', () => {
     })
   })
 
-  it('accepte les trois modes et refuse le reste', () => {
+  it('accepts the three modes and refuses anything else', () => {
     expect(clampSettings({ mode: 'dominant' }).mode).toBe('dominant')
     expect(clampSettings({ mode: 'palette' }).mode).toBe('palette')
-    expect(clampSettings({ mode: 'inconnu' as never }).mode).toBe('spatial')
+    expect(clampSettings({ mode: 'nonsense' as never }).mode).toBe('spatial')
   })
 
-  it('ignore les valeurs non numériques', () => {
+  it('ignores non-numeric values', () => {
     expect(clampSettings({ radius: Number.NaN }).radius).toBe(DEFAULT_SYNC_SETTINGS.radius)
   })
 })

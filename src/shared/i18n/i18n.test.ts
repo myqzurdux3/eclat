@@ -2,65 +2,65 @@ import { describe, expect, it } from 'vitest'
 import { createTranslate, en, fr, matchLocale, type MessageKey } from './index'
 import { translateError } from './errors'
 
-describe('dictionnaires', () => {
-  it('couvrent exactement les mêmes clés', () => {
+describe('dictionaries', () => {
+  it('cover exactly the same keys', () => {
     expect(Object.keys(en).sort()).toEqual(Object.keys(fr).sort())
   })
 
-  it('ne laissent aucune traduction vide', () => {
-    for (const [cle, valeur] of Object.entries(en)) {
-      expect(valeur.trim(), `en.${cle}`).not.toBe('')
+  it('leave no translation empty', () => {
+    for (const [key, value] of Object.entries(en)) {
+      expect(value.trim(), `en.${key}`).not.toBe('')
     }
-    for (const [cle, valeur] of Object.entries(fr)) {
-      expect(valeur.trim(), `fr.${cle}`).not.toBe('')
+    for (const [key, value] of Object.entries(fr)) {
+      expect(value.trim(), `fr.${key}`).not.toBe('')
     }
   })
 
-  it('emploient les mêmes paramètres de part et d autre', () => {
-    const parametres = (texte: string) => (texte.match(/\{(\w+)\}/g) ?? []).sort()
+  it('use the same parameters on both sides', () => {
+    const parameters = (text: string) => (text.match(/\{(\w+)\}/g) ?? []).sort()
 
-    for (const cle of Object.keys(fr) as MessageKey[]) {
-      expect(parametres(en[cle]), `clé ${cle}`).toEqual(parametres(fr[cle]))
+    for (const key of Object.keys(fr) as MessageKey[]) {
+      expect(parameters(en[key]), `key ${key}`).toEqual(parameters(fr[key]))
     }
   })
 })
 
 describe('createTranslate', () => {
-  it('rend la chaîne de la langue demandée', () => {
+  it('returns the string for the requested locale', () => {
     expect(createTranslate('en')('control.discover')).toBe('Discover')
     expect(createTranslate('fr')('control.discover')).toBe('Découvrir')
   })
 
-  it('substitue les paramètres nommés', () => {
+  it('substitutes named parameters', () => {
     expect(createTranslate('en')('control.panels', { count: 9 })).toBe('9 panels')
   })
 
-  it('substitue toutes les occurrences d un paramètre', () => {
-    const traduire = createTranslate('fr')
+  it('substitutes every occurrence of a parameter', () => {
+    const translate = createTranslate('fr')
 
-    expect(traduire('control.found.title', { name: 'Shapes' })).toBe('Shapes trouvé')
+    expect(translate('control.found.title', { name: 'Shapes' })).toBe('Shapes trouvé')
   })
 
-  it('laisse le modèle intact sans paramètres', () => {
+  it('leaves the template intact without parameters', () => {
     expect(createTranslate('en')('control.panels')).toBe('{count} panels')
   })
 
-  it('rend la clé telle quelle si elle est inconnue', () => {
-    expect(createTranslate('en')('clé.inexistante' as MessageKey)).toBe('clé.inexistante')
+  it('returns the key as-is when it is unknown', () => {
+    expect(createTranslate('en')('no.such.key' as MessageKey)).toBe('no.such.key')
   })
 })
 
 describe('matchLocale', () => {
-  it('reconnaît une préférence régionale', () => {
+  it('recognises a regional preference', () => {
     expect(matchLocale(['fr-FR'])).toBe('fr')
     expect(matchLocale(['en-GB'])).toBe('en')
   })
 
-  it('retient la première préférence connue', () => {
+  it('keeps the first known preference', () => {
     expect(matchLocale(['de-DE', 'en-US', 'fr-FR'])).toBe('en')
   })
 
-  it('retombe sur le français faute de mieux', () => {
+  it('falls back to French for want of better', () => {
     expect(matchLocale(['de', 'it'])).toBe('fr')
     expect(matchLocale([])).toBe('fr')
   })
@@ -69,24 +69,24 @@ describe('matchLocale', () => {
 describe('translateError', () => {
   const t = createTranslate('en')
 
-  it('traduit une erreur porteuse de clé', () => {
+  it('translates an error that carries a key', () => {
     expect(translateError('[error.deviceUnpaired] Device non appairé : Shapes', t)).toBe(
       'Device not paired: start pairing.',
     )
   })
 
-  it('retrouve la clé même après le préambule d Electron', () => {
-    const brut =
+  it('finds the key even behind Electron’s preamble', () => {
+    const raw =
       "Error invoking remote method 'devices:getState': NanoleafError: [error.unreachable] Device injoignable"
 
-    expect(translateError(brut, t)).toBe('Device unreachable on the network.')
+    expect(translateError(raw, t)).toBe('Device unreachable on the network.')
   })
 
-  it('rend le message brut quand aucune clé n est présente', () => {
+  it('returns the raw message when no key is present', () => {
     expect(translateError('Quelque chose a cassé', t)).toBe('Quelque chose a cassé')
   })
 
-  it('rend le message brut quand la clé est inconnue', () => {
+  it('returns the raw message when the key is unknown', () => {
     expect(translateError('[error.inventee] Bidule', t)).toBe('[error.inventee] Bidule')
   })
 })

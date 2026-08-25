@@ -202,16 +202,11 @@ Des choses que la documentation ne dit pas, trouvées à la mesure :
 | 5 — Sync audio : capture monitor PipeWire, analyse | à faire |
 | 6 — Empaquetage avec electron-builder | à faire |
 
-## Documentation du projet
-
-Les notes de conception et les plans d'implémentation sont dans
-`docs/superpowers/`. Ils sont en français, comme les commentaires du code.
-
 ## Contribuer
 
-Les tickets et les pull requests sont les bienvenus. Les notes de conception et
-les plans d'implémentation sont dans `docs/superpowers/`, en français comme les
-commentaires du code.
+Les tickets et les pull requests sont les bienvenus. Le code, ses commentaires
+et les tests sont en anglais. Les notes de conception et les plans
+d'implémentation sont dans `docs/superpowers/`, en français.
 
 Avant d'ouvrir une pull request :
 

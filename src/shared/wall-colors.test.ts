@@ -33,92 +33,92 @@ const palettes: EffectPalette[] = [
   },
 ]
 
-const rien = new Map<number, Color>()
+const nothing = new Map<number, Color>()
 
 describe('wallColors', () => {
-  it('donne une couleur à chaque panneau', () => {
-    expect([...wallColors(layout.panels, state(), palettes, rien).keys()]).toEqual([1, 2, 3])
+  it('gives every panel a colour', () => {
+    expect([...wallColors(layout.panels, state(), palettes, nothing).keys()]).toEqual([1, 2, 3])
   })
 
-  it('la peinture manuelle prime sur tout le reste', () => {
-    const peint = new Map([[2, { r: 1, g: 2, b: 3 }]])
+  it('manual painting wins over everything else', () => {
+    const painted = new Map([[2, { r: 1, g: 2, b: 3 }]])
 
-    expect(wallColors(layout.panels, state(), palettes, peint).get(2)).toEqual({
+    expect(wallColors(layout.panels, state(), palettes, painted).get(2)).toEqual({
       r: 1,
       g: 2,
       b: 3,
     })
   })
 
-  it('reprend la teinte et la saturation hors mode effet', () => {
-    const colors = wallColors(layout.panels, state({ hue: 120, sat: 100 }), palettes, rien)
+  it('uses hue and saturation outside effect mode', () => {
+    const colors = wallColors(layout.panels, state({ hue: 120, sat: 100 }), palettes, nothing)
 
     expect(colors.get(1)).toEqual({ r: 0, g: 255, b: 0 })
   })
 
-  it('étale la palette de l effet courant sur les panneaux', () => {
-    const courant = state({ colorMode: 'effect', effect: 'Blaze' })
-    const colors = wallColors(layout.panels, courant, palettes, rien)
+  it('spreads the current effect palette over the panels', () => {
+    const current = state({ colorMode: 'effect', effect: 'Blaze' })
+    const colors = wallColors(layout.panels, current, palettes, nothing)
 
     expect(colors.get(1)).toEqual({ r: 200, g: 100, b: 0 })
     expect(colors.get(2)).toEqual({ r: 100, g: 50, b: 0 })
-    // La palette est cyclée quand il y a plus de panneaux que de couleurs.
+    // The palette cycles when there are more panels than colours.
     expect(colors.get(3)).toEqual({ r: 200, g: 100, b: 0 })
   })
 
-  it('atténue selon la luminosité du device', () => {
-    const courant = state({ colorMode: 'effect', effect: 'Blaze', brightness: 50 })
+  it('dims according to the device brightness', () => {
+    const current = state({ colorMode: 'effect', effect: 'Blaze', brightness: 50 })
 
-    expect(wallColors(layout.panels, courant, palettes, rien).get(1)).toEqual({
+    expect(wallColors(layout.panels, current, palettes, nothing).get(1)).toEqual({
       r: 100,
       g: 50,
       b: 0,
     })
   })
 
-  it('éteint les panneaux quand le device est éteint', () => {
-    const colors = wallColors(layout.panels, state({ on: false }), palettes, rien)
+  it('switches the panels off when the device is off', () => {
+    const colors = wallColors(layout.panels, state({ on: false }), palettes, nothing)
 
     expect(colors.get(1)).toEqual({ r: 0, g: 0, b: 0 })
   })
 
-  it('reste neutre quand la palette de l effet est inconnue', () => {
-    // En mode effet, teinte et saturation sont périmées : le device ne les
-    // met plus à jour. Les lire donnerait du blanc franc, ce qui ferait
-    // croire à un mur allumé en blanc alors qu'on ne sait simplement pas.
-    const courant = state({ colorMode: 'effect', effect: 'Inconnu', hue: 0, sat: 0 })
-    const couleur = wallColors(layout.panels, courant, palettes, rien).get(1)!
+  it('stays neutral when the effect palette is unknown', () => {
+    // In effect mode hue and saturation are stale: the device stops
+    // updating them. Reading them would give pure white, suggesting a wall
+    // lit white when in truth we simply do not know.
+    const current = state({ colorMode: 'effect', effect: 'Inconnu', hue: 0, sat: 0 })
+    const colour = wallColors(layout.panels, current, palettes, nothing).get(1)!
 
-    const canaux = [couleur.r, couleur.g, couleur.b]
+    const channels = [colour.r, colour.g, colour.b]
 
-    expect(couleur).not.toEqual({ r: 255, g: 255, b: 255 })
-    expect(Math.max(...canaux)).toBeLessThan(120)
-    // Sourd, donc à peine coloré : rien n'est affirmé sur la teinte réelle.
-    expect(Math.max(...canaux) - Math.min(...canaux)).toBeLessThan(24)
+    expect(colour).not.toEqual({ r: 255, g: 255, b: 255 })
+    expect(Math.max(...channels)).toBeLessThan(120)
+    // Muted, so barely coloured: nothing is claimed about the real hue.
+    expect(Math.max(...channels) - Math.min(...channels)).toBeLessThan(24)
   })
 
-  it('rend du blanc en mode couleur unie désaturée', () => {
-    // Là, en revanche, le device dit bien qu'il éclaire en blanc.
-    const courant = state({ colorMode: 'hs', hue: 0, sat: 0 })
+  it('returns white in desaturated solid-colour mode', () => {
+    // Here, by contrast, the device really does say it is lighting white.
+    const current = state({ colorMode: 'hs', hue: 0, sat: 0 })
 
-    expect(wallColors(layout.panels, courant, palettes, rien).get(1)).toEqual({
+    expect(wallColors(layout.panels, current, palettes, nothing).get(1)).toEqual({
       r: 255,
       g: 255,
       b: 255,
     })
   })
 
-  it('rend une teinte neutre sans état connu', () => {
-    const colors = wallColors(layout.panels, null, palettes, rien)
+  it('returns a neutral tint with no known state', () => {
+    const colors = wallColors(layout.panels, null, palettes, nothing)
 
     expect(colors.get(1)).toBeDefined()
     expect(colors.get(1)).not.toEqual({ r: 0, g: 0, b: 0 })
   })
 
-  it('garde la peinture visible même device éteint', () => {
-    const peint = new Map([[1, { r: 255, g: 255, b: 255 }]])
+  it('keeps painting visible even with the device off', () => {
+    const painted = new Map([[1, { r: 255, g: 255, b: 255 }]])
 
-    expect(wallColors(layout.panels, state({ on: false }), palettes, peint).get(1)).toEqual({
+    expect(wallColors(layout.panels, state({ on: false }), palettes, painted).get(1)).toEqual({
       r: 255,
       g: 255,
       b: 255,

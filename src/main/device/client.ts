@@ -42,7 +42,7 @@ interface LayoutResponse {
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value))
 
-/** Client REST du contrôleur Nanoleaf (port 16021, API v1). */
+/** REST client for the Nanoleaf controller (port 16021, API v1). */
 export class NanoleafClient {
   private readonly ip: string
   private readonly token: string
@@ -98,9 +98,9 @@ export class NanoleafClient {
   }
 
   /**
-   * Teinte et saturation en une seule écriture. Le device accepte les deux
-   * champs dans le même `PUT /state`, ce qui évite d'enchaîner deux
-   * allers-retours de 60 à 340 ms pendant qu'un curseur glisse.
+   * Hue and saturation in a single write. The device accepts both fields in
+   * the same `PUT /state`, which avoids chaining two 60-to-340 ms round
+   * trips while a slider is being dragged.
    */
   async setHueSat(hue: number, sat: number): Promise<void> {
     await this.request('PUT', '/state', {
@@ -122,9 +122,9 @@ export class NanoleafClient {
   }
 
   /**
-   * Récupère toutes les palettes d'un coup. `requestAll` est un `PUT` qui ne
-   * modifie rien : c'est la seule route qui expose les couleurs réelles des
-   * effets, `effectsList` n'en donne que les noms.
+   * Fetches every palette in one go. `requestAll` is a `PUT` that changes
+   * nothing: it is the only route exposing the effects' real colours, since
+   * `effectsList` only gives their names.
    */
   async getEffectPalettes(): Promise<EffectPalette[]> {
     const body = await this.request<AnimationsResponse>('PUT', '/effects', {
@@ -141,9 +141,9 @@ export class NanoleafClient {
   }
 
   /**
-   * Bascule le contrôleur en mode External Control v2. Il écoute ensuite en
-   * UDP sur le port 60222. Toute autre commande (app mobile, bouton
-   * physique) révoque ce mode : il faut le sonder et le réarmer.
+   * Switches the controller into External Control v2. It then listens on UDP
+   * port 60222. Any other command (mobile app, physical button) revokes the
+   * mode, so it has to be probed and re-armed.
    */
   async enableExternalControl(): Promise<void> {
     await this.request('PUT', '/effects', {
@@ -169,14 +169,14 @@ export class NanoleafClient {
       })
     } catch (cause) {
       throw new NanoleafError(
-        `Device injoignable : ${this.ip}:${this.port} (${String(cause)})`,
+        `Device unreachable: ${this.ip}:${this.port} (${String(cause)})`,
         0,
         'error.unreachable',
       )
     }
 
     if (!response.ok) {
-      throw new NanoleafError(`${method} ${route} a répondu ${response.status}`, response.status)
+      throw new NanoleafError(`${method} ${route} answered ${response.status}`, response.status)
     }
 
     if (response.status === 204) return undefined as T

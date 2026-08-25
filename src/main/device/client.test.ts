@@ -17,7 +17,7 @@ afterEach(async () => {
 })
 
 describe('NanoleafClient', () => {
-  it('lit l état et l aplatit', async () => {
+  it('reads the state and flattens it', async () => {
     const state = await client.getState()
 
     expect(state).toEqual({
@@ -31,7 +31,7 @@ describe('NanoleafClient', () => {
     })
   })
 
-  it('lit les informations du device', async () => {
+  it('reads the device information', async () => {
     const info = await client.getInfo()
 
     expect(info).toEqual({
@@ -42,27 +42,27 @@ describe('NanoleafClient', () => {
     })
   })
 
-  it('éteint le device', async () => {
+  it('switches the device off', async () => {
     await client.setOn(false)
 
     expect(device.state.on).toBe(false)
     expect(device.requests.at(-1)!.body).toEqual({ on: { value: false } })
   })
 
-  it('règle la luminosité avec une durée de transition', async () => {
+  it('sets brightness with a transition duration', async () => {
     await client.setBrightness(80, 2)
 
     expect(device.state.brightness).toBe(80)
     expect(device.requests.at(-1)!.body).toEqual({ brightness: { value: 80, duration: 2 } })
   })
 
-  it('borne la luminosité dans [0,100]', async () => {
+  it('bounds brightness within [0,100]', async () => {
     await client.setBrightness(150)
 
     expect(device.state.brightness).toBe(100)
   })
 
-  it('règle teinte, saturation et température', async () => {
+  it('sets hue, saturation and temperature', async () => {
     await client.setHue(200)
     await client.setSat(65)
     await client.setColorTemp(3000)
@@ -72,7 +72,7 @@ describe('NanoleafClient', () => {
     expect(device.state.ct).toBe(3000)
   })
 
-  it('liste et sélectionne un effet', async () => {
+  it('lists and selects an effect', async () => {
     const effects = await client.getEffects()
     expect(effects).toContain('Northern Lights')
 
@@ -80,7 +80,7 @@ describe('NanoleafClient', () => {
     expect(device.state.effect).toBe('Northern Lights')
   })
 
-  it('renvoie une layout normalisée', async () => {
+  it('returns a normalised layout', async () => {
     const layout = await client.getLayout()
 
     expect(layout.sideLength).toBe(67)
@@ -93,7 +93,7 @@ describe('NanoleafClient', () => {
     }
   })
 
-  it('lève une NanoleafError sur token invalide', async () => {
+  it('raises a NanoleafError on an invalid token', async () => {
     const wrong = new NanoleafClient({ ip: '127.0.0.1', token: 'faux', port: device.port })
 
     await expect(wrong.getState()).rejects.toBeInstanceOf(NanoleafError)

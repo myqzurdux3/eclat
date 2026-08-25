@@ -2,19 +2,19 @@ export type MappingMode = 'spatial' | 'dominant' | 'palette'
 
 export interface SyncSettings {
   mode: MappingMode
-  /** Écart-type de la pondération gaussienne, en fraction du mur. */
+  /** Standard deviation of the Gaussian weighting, as a fraction of the wall. */
   radius: number
   saturation: number
-  /** En dessous de ce seuil le device coupe : autant écraser à zéro. */
+  /** Below this threshold the device cuts out anyway, so clamp to zero. */
   blackFloor: number
-  /** Coefficient d'EMA quand la valeur monte. */
+  /** EMA coefficient while a value is rising. */
   attack: number
-  /** Coefficient d'EMA quand la valeur descend. */
+  /** EMA coefficient while a value is falling. */
   release: number
   hz: number
 }
 
-/** Valeurs de la spec, section 6.4. */
+/** The spec's values, section 6.4. */
 export const DEFAULT_SYNC_SETTINGS: SyncSettings = {
   mode: 'spatial',
   radius: 0.18,
@@ -27,7 +27,7 @@ export const DEFAULT_SYNC_SETTINGS: SyncSettings = {
 
 const MODES: MappingMode[] = ['spatial', 'dominant', 'palette']
 
-const PLAGES: Record<Exclude<keyof SyncSettings, 'mode'>, [number, number]> = {
+const RANGES: Record<Exclude<keyof SyncSettings, 'mode'>, [number, number]> = {
   radius: [0.05, 0.5],
   saturation: [0.5, 2],
   blackFloor: [0, 0.2],
@@ -36,28 +36,28 @@ const PLAGES: Record<Exclude<keyof SyncSettings, 'mode'>, [number, number]> = {
   hz: [10, 30],
 }
 
-const borner = (value: unknown, [min, max]: [number, number], defaut: number): number => {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return defaut
+const bound = (value: unknown, [min, max]: [number, number], fallback: number): number => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
   return Math.min(max, Math.max(min, value))
 }
 
 /**
- * Complète et borne des réglages partiels.
+ * Completes and bounds a partial set of settings.
  *
- * Les réglages traversent l'IPC et le stockage local : rien ne garantit
- * qu'ils sont dans les clous, et une cadence négative ou un rayon nul
- * feraient diverger le pipeline.
+ * Settings cross the IPC boundary and come back from local storage: nothing
+ * guarantees they are in range, and a negative frame rate or a zero radius
+ * would make the pipeline diverge.
  */
 export function clampSettings(partial: Partial<SyncSettings>): SyncSettings {
   return {
     mode: MODES.includes(partial.mode as MappingMode)
       ? (partial.mode as MappingMode)
       : DEFAULT_SYNC_SETTINGS.mode,
-    radius: borner(partial.radius, PLAGES.radius, DEFAULT_SYNC_SETTINGS.radius),
-    saturation: borner(partial.saturation, PLAGES.saturation, DEFAULT_SYNC_SETTINGS.saturation),
-    blackFloor: borner(partial.blackFloor, PLAGES.blackFloor, DEFAULT_SYNC_SETTINGS.blackFloor),
-    attack: borner(partial.attack, PLAGES.attack, DEFAULT_SYNC_SETTINGS.attack),
-    release: borner(partial.release, PLAGES.release, DEFAULT_SYNC_SETTINGS.release),
-    hz: borner(partial.hz, PLAGES.hz, DEFAULT_SYNC_SETTINGS.hz),
+    radius: bound(partial.radius, RANGES.radius, DEFAULT_SYNC_SETTINGS.radius),
+    saturation: bound(partial.saturation, RANGES.saturation, DEFAULT_SYNC_SETTINGS.saturation),
+    blackFloor: bound(partial.blackFloor, RANGES.blackFloor, DEFAULT_SYNC_SETTINGS.blackFloor),
+    attack: bound(partial.attack, RANGES.attack, DEFAULT_SYNC_SETTINGS.attack),
+    release: bound(partial.release, RANGES.release, DEFAULT_SYNC_SETTINGS.release),
+    hz: bound(partial.hz, RANGES.hz, DEFAULT_SYNC_SETTINGS.hz),
   }
 }

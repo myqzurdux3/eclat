@@ -3,12 +3,12 @@ import os from 'node:os'
 import dnsPacket from 'dns-packet'
 import type { MdnsBrowser, MdnsFactory, MdnsService } from './discovery'
 
-/** Type de service annoncé par les contrôleurs Shapes, Elements et Lines. */
+/** The service type advertised by Shapes, Elements and Lines controllers. */
 export const SERVICE_TYPE = '_nanoleafapi._tcp.local'
 
 const MULTICAST_ADDR = '224.0.0.251'
 const MULTICAST_PORT = 5353
-/** Bit QU : demande une réponse unicast plutôt que multicast (RFC 6762 §5.4). */
+/** The QU bit: asks for a unicast answer rather than a multicast one (RFC 6762 §5.4). */
 const UNICAST_RESPONSE = 0x8000
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/
 
@@ -24,12 +24,12 @@ interface Packet {
 }
 
 /**
- * Construit une requête PTR avec le bit QU armé.
+ * Builds a PTR query with the QU bit set.
  *
- * Le port 5353 est déjà occupé par avahi-daemon sur la plupart des postes
- * Linux, et le noyau ne délivre la réponse multicast qu'à un seul des
- * processus qui y sont liés. En demandant une réponse unicast on la reçoit
- * sur notre propre port éphémère, sans concurrence.
+ * Port 5353 is already held by avahi-daemon on most Linux desktops, and the
+ * kernel delivers the multicast answer to only one of the processes bound to
+ * it. Asking for a unicast answer brings it back on our own ephemeral port,
+ * with no competition.
  */
 export function buildQuery(serviceType: string): Buffer {
   const query = dnsPacket.encode({
@@ -56,7 +56,7 @@ const parseTxt = (data: unknown): Record<string, string> => {
   return entries
 }
 
-/** Recompose les services annoncés à partir d'une réponse mDNS décodée. */
+/** Rebuilds the advertised services from a decoded mDNS answer. */
 export function servicesFromPacket(packet: Packet, serviceType: string): MdnsService[] {
   const answers = Array.isArray(packet.answers) ? packet.answers : []
   const additionals = Array.isArray(packet.additionals) ? packet.additionals : []
@@ -92,7 +92,7 @@ export function servicesFromPacket(packet: Packet, serviceType: string): MdnsSer
   return services
 }
 
-/** Adresses IPv4 locales par lesquelles émettre la requête. */
+/** The local IPv4 addresses to send the query from. */
 function outboundAddresses(): string[] {
   return Object.values(os.networkInterfaces())
     .flatMap((entries) => entries ?? [])
@@ -102,18 +102,18 @@ function outboundAddresses(): string[] {
 
 export interface MdnsFactoryOptions {
   serviceType?: string
-  /** Adresses locales d'émission ; par défaut toutes les IPv4 non internes. */
+  /** Local sending addresses; by default every non-internal IPv4. */
   interfaces?: string[]
 }
 
 /**
- * Fabrique réelle, adossée à `node:dgram`. Non couverte par les tests.
+ * The real factory, built on `node:dgram`. Not covered by tests.
  *
- * Une socket est ouverte par interface IPv4 de la machine, chacune émettant
- * sa requête par la sienne. Un VPN actif porte la route par défaut sans mener
- * au réseau local : n'interroger que l'interface par défaut ne trouverait
- * rien, et réutiliser une seule socket pour toutes les interfaces fait perdre
- * les réponses des envois précédents.
+ * One socket is opened per IPv4 interface on the machine, each sending its
+ * own query through its own interface. An active VPN owns the default route
+ * without reaching the LAN, so querying only the default interface would
+ * find nothing — and reusing a single socket across interfaces loses the
+ * answers to the earlier sends.
  */
 export function createMdnsFactory(options: MdnsFactoryOptions = {}): MdnsFactory {
   const serviceType = options.serviceType ?? SERVICE_TYPE
@@ -146,7 +146,7 @@ export function createMdnsFactory(options: MdnsFactoryOptions = {}): MdnsFactory
             socket.setMulticastInterface(address)
             socket.send(query, MULTICAST_PORT, MULTICAST_ADDR)
           } catch {
-            // Interface inutilisable pour le multicast : les autres suffiront.
+            // Interface unusable for multicast: the others will do.
           }
         })
 
@@ -164,7 +164,7 @@ export function createMdnsFactory(options: MdnsFactoryOptions = {}): MdnsFactory
             try {
               socket.close()
             } catch {
-              // Socket déjà fermée.
+              // Socket already closed.
             }
           }
         },

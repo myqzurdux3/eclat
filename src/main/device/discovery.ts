@@ -28,8 +28,8 @@ const defaultSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
- * Collecte les contrôleurs Nanoleaf annoncés en mDNS pendant la fenêtre
- * indiquée, puis arrête le browser.
+ * Collects the Nanoleaf controllers announced over mDNS during the given
+ * window, then stops the browser.
  */
 export async function discoverDevices(
   factory: MdnsFactory,

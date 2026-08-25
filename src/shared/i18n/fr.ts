@@ -1,9 +1,9 @@
 /**
- * Traductions françaises.
+ * French translations.
  *
- * Ce fichier fait référence : les autres langues en reprennent les clés, et
- * le type `Dictionary` en est dérivé, si bien qu'une clé oubliée ailleurs
- * devient une erreur de compilation.
+ * This file is the reference: other locales reuse its keys, and the
+ * `Dictionary` type is derived from it, so a key forgotten elsewhere becomes
+ * a compile error.
  */
 export const fr = {
   'app.tab.control': 'Contrôle',
@@ -33,6 +33,7 @@ export const fr = {
   'control.turnOff': 'Éteindre',
   'control.brightness': 'Luminosité',
   'control.colour': 'Couleur',
+  'control.externalControl': 'Piloté de l’extérieur',
   'control.colour.underScene':
     "Une scène est en cours : le device ne rapporte plus de teinte. Choisir une couleur la remplacera.",
   'control.orientation': 'Orientation du mur',

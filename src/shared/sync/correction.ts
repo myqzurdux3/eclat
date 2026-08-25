@@ -1,29 +1,30 @@
 import { luminance, type LinearColor } from './srgb'
 import type { SyncSettings } from './settings'
 
-const borner = (value: number): number => Math.min(1, Math.max(0, value))
+const bound = (value: number): number => Math.min(1, Math.max(0, value))
 
 /**
- * Pousse la saturation et applique le plancher de noir.
+ * Boosts saturation and applies the black floor.
  *
- * La saturation est étirée autour de la luminance : chaque canal s'écarte
- * du gris de même luminosité, ce qui vivifie sans déplacer la luminance
- * perçue — un simple facteur multiplicatif éclaircirait l'image au passage.
+ * Saturation is stretched around the luminance: each channel moves away from
+ * the grey of the same brightness, which livens the colour without shifting
+ * perceived luminance — a plain multiplication would brighten the image on
+ * the way.
  *
- * Le plancher écrase à zéro ce qui passe en dessous : le device coupe de
- * toute façon sous un certain seuil, et laisser traîner des valeurs
- * résiduelles fait scintiller les panneaux dans les scènes sombres.
+ * The floor clamps anything below it to zero: the device cuts out below a
+ * certain level anyway, and leaving residual values there makes the panels
+ * flicker in dark scenes.
  */
 export function applyCorrection(color: LinearColor, settings: SyncSettings): LinearColor {
-  const gris = luminance(color)
+  const grey = luminance(color)
 
-  const sature: LinearColor = {
-    r: borner(gris + (color.r - gris) * settings.saturation),
-    g: borner(gris + (color.g - gris) * settings.saturation),
-    b: borner(gris + (color.b - gris) * settings.saturation),
+  const saturated: LinearColor = {
+    r: bound(grey + (color.r - grey) * settings.saturation),
+    g: bound(grey + (color.g - grey) * settings.saturation),
+    b: bound(grey + (color.b - grey) * settings.saturation),
   }
 
-  if (luminance(sature) < settings.blackFloor) return { r: 0, g: 0, b: 0 }
+  if (luminance(saturated) < settings.blackFloor) return { r: 0, g: 0, b: 0 }
 
-  return sature
+  return saturated
 }

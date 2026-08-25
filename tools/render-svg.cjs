@@ -1,27 +1,27 @@
-// Rend un SVG en PNG.
+// Renders an SVG to a PNG.
 //
-// Le poste n'a ni rsvg-convert, ni cairosvg, ni Inkscape ; Electron embarque
-// un moteur de rendu parfaitement capable de le faire. Le dessin passe par un
-// canvas en mémoire plutôt que par `capturePage` : une fenêtre masquée ou
-// transparente n'est pas composée, et sa capture rendrait une image vide.
+// This machine has neither rsvg-convert, nor cairosvg, nor Inkscape; Electron
+// ships a rendering engine perfectly able to do it. The drawing goes through
+// an in-memory canvas rather than `capturePage`: a hidden or transparent
+// window is not composited, and capturing it would yield an empty image.
 //
 //   npx electron tools/render-svg.cjs assets/logo.svg assets/logo.png 512
 const { app, BrowserWindow } = require('electron')
 const { readFileSync, writeFileSync } = require('node:fs')
 const { resolve } = require('node:path')
 
-const [entree, sortie, largeurBrute] = process.argv.slice(2)
-const largeur = Number(largeurBrute ?? 512)
+const [input, output, rawWidth] = process.argv.slice(2)
+const width = Number(rawWidth ?? 512)
 
 app.whenReady().then(async () => {
-  const svg = readFileSync(resolve(entree), 'utf8')
+  const svg = readFileSync(resolve(input), 'utf8')
   const viewBox = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg)
   if (viewBox === null) {
-    console.error('viewBox introuvable dans le SVG')
+    console.error('viewBox not found in the SVG')
     app.exit(1)
     return
   }
-  const hauteur = Math.round((largeur * Number(viewBox[2])) / Number(viewBox[1]))
+  const height = Math.round((width * Number(viewBox[2])) / Number(viewBox[1]))
 
   const window = new BrowserWindow({ show: false, width: 200, height: 200 })
   await window.loadURL('data:text/html,<meta charset="utf-8">')
@@ -34,19 +34,19 @@ app.whenReady().then(async () => {
       const image = new Image()
       await new Promise((resolve, reject) => {
         image.onload = resolve
-        image.onerror = () => reject(new Error('SVG illisible'))
+        image.onerror = () => reject(new Error('Unreadable SVG'))
         image.src = url
       })
       const canvas = document.createElement('canvas')
-      canvas.width = ${largeur}
-      canvas.height = ${hauteur}
-      canvas.getContext('2d').drawImage(image, 0, 0, ${largeur}, ${hauteur})
+      canvas.width = ${width}
+      canvas.height = ${height}
+      canvas.getContext('2d').drawImage(image, 0, 0, ${width}, ${height})
       URL.revokeObjectURL(url)
       return canvas.toDataURL('image/png')
     })()
   `)
 
-  writeFileSync(resolve(sortie), Buffer.from(dataUrl.split(',')[1], 'base64'))
-  console.log(`${sortie} — ${largeur}×${hauteur}`)
+  writeFileSync(resolve(output), Buffer.from(dataUrl.split(',')[1], 'base64'))
+  console.log(`${output} — ${width}x${height}`)
   app.exit(0)
 })

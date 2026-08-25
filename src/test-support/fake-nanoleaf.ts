@@ -14,16 +14,16 @@ const DEFAULT_POSITION_DATA: RawPanel[] = [
 ]
 
 /**
- * Double de test du contrôleur Nanoleaf : reproduit les routes REST utilisées
- * par l'application, sans matériel ni réseau externe.
+ * A test double of the Nanoleaf controller: it reproduces the REST routes
+ * the application uses, with no hardware and no external network.
  */
 export class FakeNanoleaf {
   readonly token: string
   pairingMode = false
-  /** Version d'External Control armée, `null` tant que le mode est inactif. */
+  /** The armed External Control version; `null` while the mode is off. */
   extControlVersion: string | null = null
   effects: string[] = ['Nemo', 'Northern Lights', 'Forest']
-  /** Palettes HSB renvoyées par `requestAll`, indexées par nom d'effet. */
+  /** HSB palettes returned by `requestAll`, keyed by effect name. */
   palettes: Record<string, Array<{ hue: number; saturation: number; brightness: number }>> = {
     Nemo: [
       { hue: 200, saturation: 90, brightness: 80 },
@@ -46,7 +46,7 @@ export class FakeNanoleaf {
   get port(): number {
     const address = this.server?.address()
     if (!address || typeof address === 'string') {
-      throw new Error('FakeNanoleaf non démarré')
+      throw new Error('FakeNanoleaf not started')
     }
     return (address as AddressInfo).port
   }

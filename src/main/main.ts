@@ -7,24 +7,41 @@ import { IPC_CHANNELS } from '../shared/ipc-contract'
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
 
+/** Beyond this, assume enumerating the sources will never answer. */
+const REPLI_CAPTURE_MS = 4000
+
 /**
- * Ouvre la capture d'écran au renderer.
+ * Opens screen capture to the renderer.
  *
- * Sous Wayland, Chromium délègue la sélection au portail
- * xdg-desktop-portal : c'est le sélecteur GNOME qui s'ouvre, et
- * `desktopCapturer.getSources()` ne renvoie pas la liste réelle des
- * fenêtres. Le repli ci-dessous ne sert donc qu'aux sessions X11.
+ * On Wayland, Chromium delegates the choice to xdg-desktop-portal: the GNOME
+ * picker opens, and `desktopCapturer.getSources()` does not return the real
+ * list of windows. The fallback below therefore only serves X11 sessions.
  */
 function autoriserCaptureEcran(): void {
   session.defaultSession.setDisplayMediaRequestHandler(
     (_request, callback) => {
+      // On Wayland the system picker answers in our stead and this handler
+      // is not called. If it is called anyway, `getSources()` never returns —
+      // it waits on a portal that will not come — and the request would hang
+      // forever, leaving the interface stuck on "Selecting…". Better to
+      // refuse outright.
+      if (process.env.XDG_SESSION_TYPE === 'wayland') {
+        callback({})
+        return
+      }
+
+      const minuterie = setTimeout(() => callback({}), REPLI_CAPTURE_MS)
       void desktopCapturer
         .getSources({ types: ['screen', 'window'] })
         .then((sources) => {
+          clearTimeout(minuterie)
           const premiere = sources[0]
           callback(premiere === undefined ? {} : { video: premiere })
         })
-        .catch(() => callback({}))
+        .catch(() => {
+          clearTimeout(minuterie)
+          callback({})
+        })
     },
     { useSystemPicker: true },
   )
@@ -90,8 +107,8 @@ app.whenReady().then(() => {
   })
 })
 
-// Sans cette restauration, les panneaux resteraient figés sur la dernière
-// trame diffusée.
+// Without this restore, the panels would stay frozen on the last frame
+// broadcast.
 app.on('before-quit', (event) => {
   if (quitting) return
   event.preventDefault()

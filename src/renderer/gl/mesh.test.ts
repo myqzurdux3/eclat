@@ -16,15 +16,15 @@ const triangles = (count: number): PanelLayout =>
   )
 
 describe('buildPanelMesh', () => {
-  it('triangule chaque panneau en éventail', () => {
+  it('triangulates each panel as a fan', () => {
     const mesh = buildPanelMesh(triangles(2))
 
-    // Deux triangles : (3 - 2) triangles par panneau, 3 sommets chacun.
+    // Two triangles: (3 - 2) triangles per panel, three vertices each.
     expect(mesh.vertexCount).toBe(2 * 3)
     expect(mesh.positions).toHaveLength(2 * 3 * 2)
   })
 
-  it('produit six sommets par hexagone', () => {
+  it('produces six vertices per hexagon', () => {
     const layout = normalizeLayout(
       [
         { panelId: 1, x: 0, y: 0, o: 0, shapeType: 7 },
@@ -33,24 +33,24 @@ describe('buildPanelMesh', () => {
       100,
     )
 
-    // (6 - 2) triangles, 3 sommets chacun.
+    // (6 - 2) triangles, three vertices each.
     expect(buildPanelMesh(layout).vertexCount).toBe(2 * 12)
   })
 
-  it('associe chaque sommet à l indice de son panneau', () => {
+  it('tags every vertex with its panel index', () => {
     const mesh = buildPanelMesh(triangles(2))
 
     expect([...mesh.panelIndices]).toEqual([0, 0, 0, 1, 1, 1])
   })
 
-  it('rend un maillage vide sans panneau', () => {
+  it('returns an empty mesh with no panels', () => {
     const mesh = buildPanelMesh(normalizeLayout([], 100))
 
     expect(mesh.vertexCount).toBe(0)
     expect(mesh.positions).toHaveLength(0)
   })
 
-  it('garde les sommets dans le carré normalisé, marges comprises', () => {
+  it('keeps vertices inside the normalised square, margins included', () => {
     const mesh = buildPanelMesh(triangles(3))
 
     for (const value of mesh.positions) {
@@ -61,13 +61,13 @@ describe('buildPanelMesh', () => {
 })
 
 describe('buildHaloMesh', () => {
-  it('rend deux triangles par panneau', () => {
+  it('returns two triangles per panel', () => {
     const mesh = buildHaloMesh(triangles(2))
 
     expect(mesh.vertexCount).toBe(2 * 6)
   })
 
-  it('porte un décalage unitaire par sommet pour la décroissance radiale', () => {
+  it('carries a unit offset per vertex for the radial falloff', () => {
     const mesh = buildHaloMesh(triangles(1))
 
     expect(mesh.offsets).toHaveLength(6 * 2)
@@ -76,12 +76,12 @@ describe('buildHaloMesh', () => {
     }
   })
 
-  it('déborde du panneau proportionnellement à l étalement', () => {
-    const serre = buildHaloMesh(triangles(1), 1)
-    const large = buildHaloMesh(triangles(1), 3)
-    const etendue = (m: { positions: Float32Array }) =>
+  it('overflows the panel in proportion to the spread', () => {
+    const tight = buildHaloMesh(triangles(1), 1)
+    const wide = buildHaloMesh(triangles(1), 3)
+    const extent = (m: { positions: Float32Array }) =>
       Math.max(...m.positions) - Math.min(...m.positions)
 
-    expect(etendue(large)).toBeGreaterThan(etendue(serre))
+    expect(extent(wide)).toBeGreaterThan(extent(tight))
   })
 })

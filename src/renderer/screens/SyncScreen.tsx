@@ -6,47 +6,47 @@ import { useT } from '../i18n'
 import { translateError } from '../../shared/i18n/errors'
 import type { MessageKey } from '../../shared/i18n'
 
-const MODES: Array<{ value: MappingMode; cle: MessageKey }> = [
-  { value: 'spatial', cle: 'sync.mode.spatial' },
-  { value: 'dominant', cle: 'sync.mode.dominant' },
-  { value: 'palette', cle: 'sync.mode.palette' },
+const MODES: Array<{ value: MappingMode; key: MessageKey }> = [
+  { value: 'spatial', key: 'sync.mode.spatial' },
+  { value: 'dominant', key: 'sync.mode.dominant' },
+  { value: 'palette', key: 'sync.mode.palette' },
 ]
 
-const REGLAGES = [
-  { cle: 'radius', libelle: 'sync.radius', min: 0.05, max: 0.5, pas: 0.01, unite: '' },
-  { cle: 'saturation', libelle: 'sync.saturation', min: 0.5, max: 2, pas: 0.05, unite: '×' },
-  { cle: 'blackFloor', libelle: 'sync.blackFloor', min: 0, max: 0.2, pas: 0.01, unite: '' },
-  { cle: 'attack', libelle: 'sync.attack', min: 0.1, max: 1, pas: 0.05, unite: '' },
-  { cle: 'release', libelle: 'sync.release', min: 0.02, max: 0.5, pas: 0.01, unite: '' },
-  { cle: 'hz', libelle: 'sync.hz', min: 10, max: 30, pas: 1, unite: ' Hz' },
-] as const satisfies ReadonlyArray<{ libelle: MessageKey; [k: string]: unknown }>
+const SETTINGS = [
+  { key: 'radius', label: 'sync.radius', min: 0.05, max: 0.5, step: 0.01, unit: '' },
+  { key: 'saturation', label: 'sync.saturation', min: 0.5, max: 2, step: 0.05, unit: '×' },
+  { key: 'blackFloor', label: 'sync.blackFloor', min: 0, max: 0.2, step: 0.01, unit: '' },
+  { key: 'attack', label: 'sync.attack', min: 0.1, max: 1, step: 0.05, unit: '' },
+  { key: 'release', label: 'sync.release', min: 0.02, max: 0.5, step: 0.01, unit: '' },
+  { key: 'hz', label: 'sync.hz', min: 10, max: 30, step: 1, unit: ' Hz' },
+] as const satisfies ReadonlyArray<{ label: MessageKey; [k: string]: unknown }>
 
-/** Rend l'image analysée, telle que le pipeline la voit : 64×36 pixels. */
-function Apercu({ sync }: { sync: ScreenSync }) {
+/** Draws the analysed image exactly as the pipeline sees it: 64x36 pixels. */
+function PreviewCanvas({ sync }: { sync: ScreenSync }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const t = useT()
 
   useEffect(() => {
     const canvas = canvasRef.current
-    const apercu = sync.apercu
-    if (canvas === null || apercu === null) return
+    const preview = sync.preview
+    if (canvas === null || preview === null) return
     const context = canvas.getContext('2d')
     if (context === null) return
 
-    canvas.width = apercu.width
-    canvas.height = apercu.height
-    context.putImageData(new ImageData(apercu.data, apercu.width, apercu.height), 0, 0)
-  }, [sync.apercu])
+    canvas.width = preview.width
+    canvas.height = preview.height
+    context.putImageData(new ImageData(preview.data, preview.width, preview.height), 0, 0)
+  }, [sync.preview])
 
-  if (sync.apercu === null) {
+  if (sync.preview === null) {
     return (
-      <div className="apercu-vide">
-        <p className="aide">{t('sync.preview.empty')}</p>
+      <div className="preview-empty">
+        <p className="hint">{t('sync.preview.empty')}</p>
       </div>
     )
   }
 
-  return <canvas ref={canvasRef} className="apercu" />
+  return <canvas ref={canvasRef} className="preview" />
 }
 
 export function SyncScreen({
@@ -60,14 +60,14 @@ export function SyncScreen({
 
   if (session.device === undefined || !session.device.paired) {
     return (
-      <section className="grille-scenes">
-        <p className="etat-vide">{t('sync.unpaired')}</p>
+      <section className="stage-grid">
+        <p className="empty-state">{t('sync.unpaired')}</p>
       </section>
     )
   }
 
-  const basculer = (): void => {
-    if (sync.actif) {
+  const toggle = (): void => {
+    if (sync.active) {
       sync.stop()
       void session.disarmScreen()
       return
@@ -76,12 +76,12 @@ export function SyncScreen({
   }
 
   return (
-    <section className="controle">
-      <div className="scene apercu-cadre">
-        <Apercu sync={sync} />
+    <section className="control">
+      <div className="stage preview-frame">
+        <PreviewCanvas sync={sync} />
         {sync.colors !== null &&
           [...sync.colors].map(([deviceId, couleurs]) => (
-            <div className="bande-couleurs" key={deviceId} title={deviceId}>
+            <div className="colour-strip" key={deviceId} title={deviceId}>
               {[...couleurs.values()].map((color, index) => (
                 <span
                   key={index}
@@ -92,55 +92,55 @@ export function SyncScreen({
           ))}
       </div>
 
-      <aside className="verre panneau-lateral">
-        <div className="titre-device">
+      <aside className="glass sidebar">
+        <div className="device-title">
           <strong>{t('sync.title')}</strong>
-          <span>{sync.actif ? t('sync.running') : t('sync.stopped')}</span>
+          <span>{sync.active ? t('sync.running') : t('sync.stopped')}</span>
         </div>
 
-        <button className="bouton" data-actif={sync.actif} disabled={sync.demarrage} onClick={basculer}>
-          {sync.demarrage ? t('sync.choosing') : sync.actif ? t('sync.stop') : t('sync.choose')}
+        <button className="button" data-actif={sync.active} disabled={sync.starting} onClick={toggle}>
+          {sync.starting ? t('sync.choosing') : sync.active ? t('sync.stop') : t('sync.choose')}
         </button>
 
-        <div className="groupe">
-          <div className="etiquette">{t('sync.mode')}</div>
+        <div className="group">
+          <div className="label">{t('sync.mode')}</div>
           <div className="segments">
-            {MODES.map(({ value, cle }) => (
+            {MODES.map(({ value, key: modeKey }) => (
               <button
                 key={value}
                 aria-pressed={sync.settings.mode === value}
                 onClick={() => sync.setSettings({ mode: value })}
               >
-                {t(cle)}
+                {t(modeKey)}
               </button>
             ))}
           </div>
         </div>
 
-        {REGLAGES.map(({ cle, libelle, min, max, pas, unite }) => (
-          <div className="groupe" key={cle}>
-            <div className="etiquette">
-              {t(libelle)}
+        {SETTINGS.map(({ key, label, min, max, step, unit }) => (
+          <div className="group" key={key}>
+            <div className="label">
+              {t(label)}
               <b>
-                {cle === 'hz' ? sync.settings[cle] : sync.settings[cle].toFixed(2)}
-                {unite}
+                {key === 'hz' ? sync.settings[key] : sync.settings[key].toFixed(2)}
+                {unit}
               </b>
             </div>
             <input
               type="range"
               min={min}
               max={max}
-              step={pas}
-              value={sync.settings[cle]}
-              disabled={cle === 'radius' && sync.settings.mode !== 'spatial'}
-              onChange={(event) => sync.setSettings({ [cle]: Number(event.target.value) })}
+              step={step}
+              value={sync.settings[key]}
+              disabled={key === 'radius' && sync.settings.mode !== 'spatial'}
+              onChange={(event) => sync.setSettings({ [key]: Number(event.target.value) })}
             />
           </div>
         ))}
 
-        <p className="aide">{t('sync.wayland.help')}</p>
+        <p className="hint">{t('sync.wayland.help')}</p>
 
-        {sync.error !== null && <p className="erreur">{translateError(sync.error, t)}</p>}
+        {sync.error !== null && <p className="error">{translateError(sync.error, t)}</p>}
       </aside>
     </section>
   )

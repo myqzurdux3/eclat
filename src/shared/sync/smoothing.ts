@@ -1,55 +1,54 @@
 import type { LinearColor } from './srgb'
 
 /**
- * Lissage temporel asymétrique.
+ * Asymmetric temporal smoothing.
  *
- * Un EMA symétrique oblige à choisir entre deux défauts : rapide, il fait
- * clignoter les panneaux à chaque coupe de plan ; lent, il rend la
- * synchronisation molle. Monter vite et redescendre lentement donne la
- * réactivité sans le strobe — l'œil pardonne une extinction traînante, pas
- * un allumage en retard.
+ * A symmetric EMA forces a choice between two faults: fast, it makes the
+ * panels strobe on every cut; slow, it makes the sync feel sluggish. Rising
+ * quickly and falling slowly gives responsiveness without the strobe — the
+ * eye forgives a lingering fade, not a late flash.
  *
- * Le lissage porte sur des valeurs linéaires, avant retour en sRGB : lisser
- * du gamma fait respirer les basses lumières de travers.
+ * Smoothing works on linear values, before the return to sRGB: smoothing
+ * gamma-encoded numbers makes the low end breathe wrong.
  */
 export class Smoother {
-  private precedent: LinearColor[] | null = null
+  private previous: LinearColor[] | null = null
 
   constructor(
     private readonly attack: number,
     private readonly release: number,
   ) {}
 
-  /** Lisse une frame et rend le résultat. */
+  /** Smooths one frame and returns the result. */
   push(colors: LinearColor[]): LinearColor[] {
-    const precedent = this.precedent
+    const previous = this.previous
 
-    // Première frame, ou mur dont le nombre de panneaux a changé : on prend
-    // la valeur telle quelle plutôt que de la faire monter depuis le noir.
-    if (precedent === null || precedent.length !== colors.length) {
-      this.precedent = colors.map((color) => ({ ...color }))
-      return this.precedent.map((color) => ({ ...color }))
+    // First frame, or a wall whose panel count changed: take the value as it
+    // is rather than fading up from black.
+    if (previous === null || previous.length !== colors.length) {
+      this.previous = colors.map((color) => ({ ...color }))
+      return this.previous.map((color) => ({ ...color }))
     }
 
-    const lisse = colors.map((cible, index) => {
-      const avant = precedent[index]!
+    const smoothed = colors.map((target, index) => {
+      const before = previous[index]!
       return {
-        r: this.canal(avant.r, cible.r),
-        g: this.canal(avant.g, cible.g),
-        b: this.canal(avant.b, cible.b),
+        r: this.channel(before.r, target.r),
+        g: this.channel(before.g, target.g),
+        b: this.channel(before.b, target.b),
       }
     })
 
-    this.precedent = lisse
-    return lisse.map((color) => ({ ...color }))
+    this.previous = smoothed
+    return smoothed.map((color) => ({ ...color }))
   }
 
   reset(): void {
-    this.precedent = null
+    this.previous = null
   }
 
-  private canal(avant: number, cible: number): number {
-    const coefficient = cible > avant ? this.attack : this.release
-    return avant + coefficient * (cible - avant)
+  private channel(before: number, target: number): number {
+    const coefficient = target > before ? this.attack : this.release
+    return before + coefficient * (target - before)
   }
 }

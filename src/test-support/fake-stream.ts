@@ -8,8 +8,8 @@ export interface DecodedFrame {
 }
 
 /**
- * Double de test du port de streaming : décode les trames External Control
- * v2 reçues en UDP, pour couvrir en CI le chemin complet sans matériel.
+ * A test double of the streaming port: it decodes the External Control v2
+ * frames received over UDP, so CI can cover the whole path without hardware.
  */
 export class FakeStreamReceiver {
   readonly frames: DecodedFrame[] = []
@@ -20,7 +20,7 @@ export class FakeStreamReceiver {
   get port(): number {
     const address = this.socket?.address()
     if (!address || typeof address === 'string') {
-      throw new Error('FakeStreamReceiver non démarré')
+      throw new Error('FakeStreamReceiver not started')
     }
     return (address as AddressInfo).port
   }
@@ -43,14 +43,14 @@ export class FakeStreamReceiver {
     this.socket = undefined
   }
 
-  /** Attend d'avoir reçu au moins `count` trames, puis les renvoie toutes. */
+  /** Waits until at least `count` frames have arrived, then returns them all. */
   async waitForFrames(count: number, timeoutMs = 1000): Promise<DecodedFrame[]> {
     const deadline = Date.now() + timeoutMs
 
     while (this.frames.length < count) {
       const remaining = deadline - Date.now()
       if (remaining <= 0) {
-        throw new Error(`Seulement ${this.frames.length} trame(s) reçue(s) sur ${count} attendue(s)`)
+        throw new Error(`Only ${this.frames.length} frame(s) received out of ${count} expected`)
       }
       await new Promise<void>((resolve) => {
         const timer = setTimeout(resolve, remaining)
@@ -65,7 +65,7 @@ export class FakeStreamReceiver {
   }
 }
 
-/** Inverse de `encodeFrameV2`. Renvoie `null` si le datagramme est malformé. */
+/** The inverse of `encodeFrameV2`. Returns `null` on a malformed datagram. */
 function decodeFrame(message: Buffer): DecodedFrame | null {
   if (message.length < FRAME_HEADER_BYTES) return null
 

@@ -2,10 +2,10 @@ import type { SourceId } from '../../shared/types'
 
 export type { SourceId }
 
-/** Durée pendant laquelle une peinture manuelle garde la main. */
+/** How long a manual stroke keeps control. */
 export const MANUAL_HOLD_MS = 3000
 
-/** Plus le rang est bas, plus la source est prioritaire. */
+/** The lower the rank, the higher the priority. */
 const RANK: Record<Exclude<SourceId, 'manual'>, number> = {
   screen: 1,
   audio: 2,
@@ -17,11 +17,11 @@ export interface ArbiterOptions {
 }
 
 /**
- * Décide quelle source a le droit d'écrire. Ne touche jamais au réseau :
- * `stream.ts` reste le seul writer de la socket.
+ * Decides which source may write. Never touches the network: `stream.ts`
+ * remains the only writer of the socket.
  *
- * Le mode combiné écran + audio n'apparaît pas ici : la spec en fait un
- * producteur unique lisant deux entrées, pas deux writers concurrents.
+ * The combined screen + audio mode does not appear here: the spec makes it a
+ * single producer reading two inputs, not two competing writers.
  */
 export class SourceArbiter {
   private readonly now: () => number
@@ -50,12 +50,12 @@ export class SourceArbiter {
     this.active.delete(source)
   }
 
-  /** Signale une peinture manuelle : prend la main pour `manualHoldMs`. */
+  /** Signals a manual stroke: takes control for `manualHoldMs`. */
   touchManual(): void {
     this.manualUntil = this.now() + this.manualHoldMs
   }
 
-  /** Source autorisée à écrire, ou `null` si le device garde son effet. */
+  /** The source allowed to write, or `null` if the device keeps its effect. */
   current(): SourceId | null {
     if (this.now() < this.manualUntil) return 'manual'
 

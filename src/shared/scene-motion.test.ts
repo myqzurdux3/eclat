@@ -9,84 +9,84 @@ const palette: Color[] = [
 ]
 
 describe('sceneMotion', () => {
-  it('rend une couleur par panneau', () => {
+  it('returns one colour per panel', () => {
     expect(sceneMotion(palette, 5, 0)).toHaveLength(5)
   })
 
-  it('rend du noir sans palette', () => {
+  it('returns black with no palette', () => {
     expect(sceneMotion([], 2, 0)).toEqual([
       { r: 0, g: 0, b: 0 },
       { r: 0, g: 0, b: 0 },
     ])
   })
 
-  it('rend un tableau vide sans panneau', () => {
+  it('returns an empty array with no panels', () => {
     expect(sceneMotion(palette, 0, 0)).toEqual([])
   })
 
-  it('tient la couleur unique d une palette à une seule entrée', () => {
-    const unique = [{ r: 10, g: 20, b: 30 }]
+  it('holds the single colour of a one-entry palette', () => {
+    const single = [{ r: 10, g: 20, b: 30 }]
 
-    for (const couleur of sceneMotion(unique, 4, 1234)) {
-      expect(couleur).toEqual({ r: 10, g: 20, b: 30 })
+    for (const colour of sceneMotion(single, 4, 1234)) {
+      expect(colour).toEqual({ r: 10, g: 20, b: 30 })
     }
   })
 
-  it('avance dans le temps', () => {
-    const debut = sceneMotion(palette, 6, 0)
-    const plusTard = sceneMotion(palette, 6, 1500)
+  it('moves forward in time', () => {
+    const start = sceneMotion(palette, 6, 0)
+    const later = sceneMotion(palette, 6, 1500)
 
-    expect(plusTard).not.toEqual(debut)
+    expect(later).not.toEqual(start)
   })
 
-  it('boucle sur la période sans saut', () => {
-    const periode = 3 * 4000
-    const apres = sceneMotion(palette, 6, periode)
-    const debut = sceneMotion(palette, 6, 0)
+  it('loops over its period without a jump', () => {
+    const period = 3 * 4000
+    const after = sceneMotion(palette, 6, period)
+    const start = sceneMotion(palette, 6, 0)
 
-    // À un niveau près : `3 + 1.05` et `1.05` n'ont pas la même mantisse.
-    apres.forEach((couleur, index) => {
-      expect(Math.abs(couleur.r - debut[index]!.r)).toBeLessThanOrEqual(1)
-      expect(Math.abs(couleur.g - debut[index]!.g)).toBeLessThanOrEqual(1)
-      expect(Math.abs(couleur.b - debut[index]!.b)).toBeLessThanOrEqual(1)
+    // Within one level: `3 + 1.05` and `1.05` do not share a mantissa.
+    after.forEach((colour, index) => {
+      expect(Math.abs(colour.r - start[index]!.r)).toBeLessThanOrEqual(1)
+      expect(Math.abs(colour.g - start[index]!.g)).toBeLessThanOrEqual(1)
+      expect(Math.abs(colour.b - start[index]!.b)).toBeLessThanOrEqual(1)
     })
   })
 
-  it('décale les panneaux les uns par rapport aux autres', () => {
-    const couleurs = sceneMotion(palette, 6, 0)
+  it('offsets the panels from one another', () => {
+    const colours = sceneMotion(palette, 6, 0)
 
-    expect(couleurs[0]).not.toEqual(couleurs[3])
+    expect(colours[0]).not.toEqual(colours[3])
   })
 
-  it('interpole entre deux entrées de la palette', () => {
-    // À mi-chemin entre le rouge et le vert, les deux canaux sont présents.
-    const milieu = sceneMotion([palette[0]!, palette[1]!], 1, 2000, { dureeMs: 4000 })[0]!
+  it('interpolates between two palette entries', () => {
+    // Halfway between red and green, both channels are present.
+    const middle = sceneMotion([palette[0]!, palette[1]!], 1, 2000, { durationMs: 4000 })[0]!
 
-    expect(milieu.r).toBeGreaterThan(0)
-    expect(milieu.g).toBeGreaterThan(0)
+    expect(middle.r).toBeGreaterThan(0)
+    expect(middle.g).toBeGreaterThan(0)
   })
 
-  it('reste dans les bornes RGB', () => {
+  it('stays within the RGB bounds', () => {
     for (const t of [0, 137, 999, 5000, 123456]) {
-      for (const couleur of sceneMotion(palette, 9, t)) {
-        for (const canal of [couleur.r, couleur.g, couleur.b]) {
-          expect(canal).toBeGreaterThanOrEqual(0)
-          expect(canal).toBeLessThanOrEqual(255)
-          expect(Number.isInteger(canal)).toBe(true)
+      for (const colour of sceneMotion(palette, 9, t)) {
+        for (const channel of [colour.r, colour.g, colour.b]) {
+          expect(channel).toBeGreaterThanOrEqual(0)
+          expect(channel).toBeLessThanOrEqual(255)
+          expect(Number.isInteger(channel)).toBe(true)
         }
       }
     }
   })
 
-  it('resserre ou étale la vague selon l étalement demandé', () => {
-    const serre = sceneMotion(palette, 6, 0, { etalement: 0 })
-    const etale = sceneMotion(palette, 6, 0, { etalement: 1 })
+  it('tightens or spreads the wave as asked', () => {
+    const tight = sceneMotion(palette, 6, 0, { spread: 0 })
+    const wide = sceneMotion(palette, 6, 0, { spread: 1 })
 
-    // Sans étalement, tous les panneaux partagent la même couleur.
-    expect(serre.every((couleur) => couleur === serre[0] || sameColour(couleur, serre[0]!))).toBe(
+    // With no spread, every panel shares the same colour.
+    expect(tight.every((colour) => colour === tight[0] || sameColour(colour, tight[0]!))).toBe(
       true,
     )
-    expect(sameColour(etale[0]!, etale[3]!)).toBe(false)
+    expect(sameColour(wide[0]!, wide[3]!)).toBe(false)
   })
 })
 

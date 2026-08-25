@@ -35,7 +35,7 @@ beforeEach(async () => {
     store: new ConfigStore(join(dir, 'config.json')),
     mdnsFactory: fakeFactory([
       {
-        name: 'Shapes Salon',
+        name: 'Shapes Lounge',
         host: 'shapes.local',
         addresses: ['127.0.0.1'],
         port: device.port,
@@ -53,13 +53,13 @@ beforeEach(async () => {
 })
 
 describe('DeviceService', () => {
-  it('découvre un device non appairé', async () => {
+  it('discovers an unpaired device', async () => {
     const devices = await service.discover()
 
     expect(devices).toEqual([
       {
-        id: 'Shapes Salon',
-        name: 'Shapes Salon',
+        id: 'Shapes Lounge',
+        name: 'Shapes Lounge',
         ip: '127.0.0.1',
         port: device.port,
         model: 'NL42',
@@ -73,55 +73,55 @@ describe('DeviceService', () => {
     device.pairingMode = true
     await service.discover()
 
-    const paired = await service.pair('Shapes Salon')
+    const paired = await service.pair('Shapes Lounge')
 
     expect(paired.paired).toBe(true)
     expect(JSON.stringify(paired)).not.toContain('tok')
   })
 
-  it('appaire puis lit l état', async () => {
+  it('pairs, then reads the state', async () => {
     device.pairingMode = true
     await service.discover()
-    await service.pair('Shapes Salon')
+    await service.pair('Shapes Lounge')
 
-    const state = await service.getState('Shapes Salon')
+    const state = await service.getState('Shapes Lounge')
 
     expect(state.brightness).toBe(50)
     expect(state.on).toBe(true)
   })
 
-  it('pilote on/off et luminosité après appairage', async () => {
+  it('drives on/off and brightness after pairing', async () => {
     device.pairingMode = true
     await service.discover()
-    await service.pair('Shapes Salon')
+    await service.pair('Shapes Lounge')
 
-    await service.setOn('Shapes Salon', false)
-    await service.setBrightness('Shapes Salon', 30)
+    await service.setOn('Shapes Lounge', false)
+    await service.setBrightness('Shapes Lounge', 30)
 
     expect(device.state.on).toBe(false)
     expect(device.state.brightness).toBe(30)
   })
 
-  it('renvoie une layout normalisée', async () => {
+  it('returns a normalised layout', async () => {
     device.pairingMode = true
     await service.discover()
-    await service.pair('Shapes Salon')
+    await service.pair('Shapes Lounge')
 
-    const layout = await service.getLayout('Shapes Salon')
+    const layout = await service.getLayout('Shapes Lounge')
 
     expect(layout.panels).toHaveLength(3)
   })
 
-  it('refuse une opération sur un device non appairé', async () => {
+  it('refuses an operation on an unpaired device', async () => {
     await service.discover()
 
-    await expect(service.getState('Shapes Salon')).rejects.toThrow(/non appairé/i)
+    await expect(service.getState('Shapes Lounge')).rejects.toThrow(/not paired/i)
   })
 
-  it('liste les devices persistés au démarrage suivant', async () => {
+  it('lists the persisted devices on the next start', async () => {
     device.pairingMode = true
     await service.discover()
-    await service.pair('Shapes Salon')
+    await service.pair('Shapes Lounge')
 
     const listed = await service.listDevices()
 
@@ -136,8 +136,8 @@ describe('DeviceService — streaming', () => {
   async function paired(): Promise<string> {
     device.pairingMode = true
     await service.discover()
-    await service.pair('Shapes Salon')
-    return 'Shapes Salon'
+    await service.pair('Shapes Lounge')
+    return 'Shapes Lounge'
   }
 
   beforeEach(async () => {
@@ -149,7 +149,7 @@ describe('DeviceService — streaming', () => {
       store: new ConfigStore(join(dir, 'config.json')),
       mdnsFactory: fakeFactory([
         {
-          name: 'Shapes Salon',
+          name: 'Shapes Lounge',
           host: 'shapes.local',
           addresses: ['127.0.0.1'],
           port: device.port,
@@ -159,8 +159,8 @@ describe('DeviceService — streaming', () => {
       discoverTimeoutMs: 0,
       sleep: () => Promise.resolve(),
       pairAttempts: 2,
-      // La sonde de réarmement est neutralisée : ces tests ne la couvrent pas,
-      // c'est le rôle de `stream.test.ts`.
+      // The re-arm probe is neutralised: these tests do not cover it, that
+      // is `stream.test.ts`'s job.
       streamFactory: ({ client }) =>
         new PanelStream({
           client,
@@ -176,7 +176,7 @@ describe('DeviceService — streaming', () => {
     }
   })
 
-  it('arme le device au démarrage du stream', async () => {
+  it('arms the device when the stream starts', async () => {
     const id = await paired()
 
     await service.startStream(id, 'screen')
@@ -185,7 +185,7 @@ describe('DeviceService — streaming', () => {
     expect(device.state.effect).toBe(EXT_CONTROL_EFFECT)
   })
 
-  it('émet une trame couvrant tous les panneaux du layout', async () => {
+  it('sends a frame covering every panel in the layout', async () => {
     const id = await paired()
     await service.startStream(id, 'screen')
 
@@ -196,7 +196,7 @@ describe('DeviceService — streaming', () => {
     expect(frame!.panels[2]!.color).toEqual({ r: 255, g: 0, b: 0 })
   })
 
-  it('refuse la trame d une source non élue', async () => {
+  it('refuses a frame from a source that was not elected', async () => {
     const id = await paired()
     await service.startStream(id, 'screen')
     await service.startStream(id, 'audio')
@@ -204,7 +204,7 @@ describe('DeviceService — streaming', () => {
     expect(await service.sendFrame(id, 'audio', [{ r: 1, g: 1, b: 1 }])).toBe(false)
   })
 
-  it('donne la main à la peinture manuelle', async () => {
+  it('gives control to manual painting', async () => {
     const id = await paired()
     await service.startStream(id, 'screen')
 
@@ -212,13 +212,13 @@ describe('DeviceService — streaming', () => {
     expect(await service.sendFrame(id, 'screen', [{ r: 255, g: 0, b: 0 }])).toBe(false)
   })
 
-  it('refuse une trame sans stream armé', async () => {
+  it('refuses a frame with no stream armed', async () => {
     const id = await paired()
 
     expect(await service.sendFrame(id, 'screen', [{ r: 1, g: 1, b: 1 }])).toBe(false)
   })
 
-  it('restaure l effet à l arrêt du stream', async () => {
+  it('restores the effect when the stream stops', async () => {
     const id = await paired()
     device.state.effect = 'Forest'
     await service.startStream(id, 'screen')
@@ -228,7 +228,7 @@ describe('DeviceService — streaming', () => {
     expect(device.state.effect).toBe('Forest')
   })
 
-  it('garde le stream armé tant qu une autre source écrit', async () => {
+  it('keeps the stream armed while another source is writing', async () => {
     const id = await paired()
     device.state.effect = 'Forest'
     await service.startStream(id, 'screen')
@@ -240,7 +240,7 @@ describe('DeviceService — streaming', () => {
     expect(await service.sendFrame(id, 'audio', [{ r: 1, g: 1, b: 1 }])).toBe(true)
   })
 
-  it('restaure tout à l extinction de l application', async () => {
+  it('restores everything when the application exits', async () => {
     const id = await paired()
     device.state.effect = 'Forest'
     await service.startStream(id, 'screen')
@@ -252,12 +252,12 @@ describe('DeviceService — streaming', () => {
 })
 
 describe('DeviceService — palettes', () => {
-  it('renvoie les palettes converties en RGB', async () => {
+  it('returns the palettes converted to RGB', async () => {
     device.pairingMode = true
     await service.discover()
-    await service.pair('Shapes Salon')
+    await service.pair('Shapes Lounge')
 
-    const palettes = await service.getEffectPalettes('Shapes Salon')
+    const palettes = await service.getEffectPalettes('Shapes Lounge')
 
     expect(palettes).toHaveLength(3)
     expect(palettes[1]).toEqual({
@@ -266,20 +266,20 @@ describe('DeviceService — palettes', () => {
     })
   })
 
-  it('tolère un effet sans palette', async () => {
+  it('tolerates an effect with no palette', async () => {
     device.pairingMode = true
     device.effects = ['Vide']
     device.palettes = {}
     await service.discover()
-    await service.pair('Shapes Salon')
+    await service.pair('Shapes Lounge')
 
-    expect(await service.getEffectPalettes('Shapes Salon')).toEqual([
+    expect(await service.getEffectPalettes('Shapes Lounge')).toEqual([
       { name: 'Vide', colors: [] },
     ])
   })
 })
 
-describe('DeviceService — peinture manuelle', () => {
+describe('DeviceService — manual painting', () => {
   let receiver: FakeStreamReceiver
 
   beforeEach(async () => {
@@ -291,7 +291,7 @@ describe('DeviceService — peinture manuelle', () => {
       store: new ConfigStore(join(dir, 'config.json')),
       mdnsFactory: fakeFactory([
         {
-          name: 'Shapes Salon',
+          name: 'Shapes Lounge',
           host: 'shapes.local',
           addresses: ['127.0.0.1'],
           port: device.port,
@@ -312,7 +312,7 @@ describe('DeviceService — peinture manuelle', () => {
 
     device.pairingMode = true
     await service.discover()
-    await service.pair('Shapes Salon')
+    await service.pair('Shapes Lounge')
 
     return async () => {
       await service.shutdown()
@@ -320,14 +320,14 @@ describe('DeviceService — peinture manuelle', () => {
     }
   })
 
-  it('arme le stream toute seule au premier clic', async () => {
-    expect(await service.paintPanel('Shapes Salon', 2, { r: 255, g: 0, b: 0 })).toBe(true)
+  it('arms the stream by itself on the first click', async () => {
+    expect(await service.paintPanel('Shapes Lounge', 2, { r: 255, g: 0, b: 0 })).toBe(true)
 
     expect(device.extControlVersion).toBe('v2')
   })
 
-  it('ne peint que le panneau visé, les autres restent éteints', async () => {
-    await service.paintPanel('Shapes Salon', 2, { r: 255, g: 0, b: 0 })
+  it('paints only the targeted panel, the others stay off', async () => {
+    await service.paintPanel('Shapes Lounge', 2, { r: 255, g: 0, b: 0 })
 
     const [frame] = await receiver.waitForFrames(1)
     expect(frame!.panels).toEqual([
@@ -337,48 +337,48 @@ describe('DeviceService — peinture manuelle', () => {
     ])
   })
 
-  it('conserve les panneaux déjà peints', async () => {
-    await service.paintPanel('Shapes Salon', 1, { r: 255, g: 0, b: 0 })
+  it('keeps the panels already painted', async () => {
+    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
     await new Promise((resolve) => setTimeout(resolve, 40))
-    await service.paintPanel('Shapes Salon', 3, { r: 0, g: 0, b: 255 })
+    await service.paintPanel('Shapes Lounge', 3, { r: 0, g: 0, b: 255 })
 
     const frames = await receiver.waitForFrames(2)
     expect(frames[1]!.panels[0]!.color).toEqual({ r: 255, g: 0, b: 0 })
     expect(frames[1]!.panels[2]!.color).toEqual({ r: 0, g: 0, b: 255 })
   })
 
-  it('oublie la peinture à l extinction', async () => {
-    await service.paintPanel('Shapes Salon', 1, { r: 255, g: 0, b: 0 })
+  it('forgets the painting on shutdown', async () => {
+    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
 
     await service.shutdown()
 
     expect(device.state.effect).toBe('Nemo')
   })
 
-  it('règle teinte et saturation par le REST', async () => {
-    await service.setColor('Shapes Salon', 200, 80)
+  it('sets hue and saturation over REST', async () => {
+    await service.setColor('Shapes Lounge', 200, 80)
 
     expect(device.state.hue).toBe(200)
     expect(device.state.sat).toBe(80)
   })
 })
 
-describe('DeviceService — relâche du mode externe', () => {
+describe('DeviceService — releasing external control', () => {
   let receiver: FakeStreamReceiver
-  /** Minuteries manuelles : la relâche se déclenche à la demande. */
-  let echeances: Array<() => void>
+  /** Manual timers: the release fires on demand. */
+  let deadlines: Array<() => void>
 
   beforeEach(async () => {
     receiver = new FakeStreamReceiver()
     await receiver.start()
-    echeances = []
+    deadlines = []
 
     const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-release-'))
     service = new DeviceService({
       store: new ConfigStore(join(dir, 'config.json')),
       mdnsFactory: fakeFactory([
         {
-          name: 'Shapes Salon',
+          name: 'Shapes Lounge',
           host: 'shapes.local',
           addresses: ['127.0.0.1'],
           port: device.port,
@@ -390,12 +390,12 @@ describe('DeviceService — relâche du mode externe', () => {
       pairAttempts: 2,
       timers: {
         setTimeout: (fn) => {
-          echeances.push(fn)
-          return echeances.length
+          deadlines.push(fn)
+          return deadlines.length
         },
         clearTimeout: (handle) => {
           const index = (handle as number) - 1
-          if (index >= 0) echeances[index] = () => undefined
+          if (index >= 0) deadlines[index] = () => undefined
         },
       },
       streamFactory: ({ client }) =>
@@ -409,7 +409,7 @@ describe('DeviceService — relâche du mode externe', () => {
 
     device.pairingMode = true
     await service.discover()
-    await service.pair('Shapes Salon')
+    await service.pair('Shapes Lounge')
 
     return async () => {
       await service.shutdown()
@@ -417,63 +417,63 @@ describe('DeviceService — relâche du mode externe', () => {
     }
   })
 
-  /** Déclenche toutes les relâches en attente et laisse les promesses filer. */
-  async function echoir(): Promise<void> {
-    const enCours = echeances.splice(0)
-    for (const fn of enCours) fn()
+  /** Fires every pending release and lets the promises settle. */
+  async function fire(): Promise<void> {
+    const pending = deadlines.splice(0)
+    for (const fn of pending) fn()
     await new Promise((resolve) => setTimeout(resolve, 30))
   }
 
-  it('rend son effet au device quand la peinture expire', async () => {
+  it('gives the device its effect back when the painting expires', async () => {
     device.state.effect = 'Forest'
-    await service.paintPanel('Shapes Salon', 1, { r: 255, g: 0, b: 0 })
+    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
     expect(device.state.effect).toBe(EXT_CONTROL_EFFECT)
 
-    await echoir()
+    await fire()
 
     expect(device.state.effect).toBe('Forest')
   })
 
-  it('prolonge la relâche à chaque nouvelle peinture', async () => {
-    await service.paintPanel('Shapes Salon', 1, { r: 255, g: 0, b: 0 })
+  it('postpones the release on every new stroke', async () => {
+    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
     await new Promise((resolve) => setTimeout(resolve, 40))
-    await service.paintPanel('Shapes Salon', 2, { r: 0, g: 255, b: 0 })
+    await service.paintPanel('Shapes Lounge', 2, { r: 0, g: 255, b: 0 })
 
-    // La première échéance a été annulée : seule la seconde relâche.
-    expect(echeances.filter((fn) => fn.toString() !== '() => undefined')).toHaveLength(1)
+    // The first deadline was cancelled: only the second releases.
+    expect(deadlines.filter((fn) => fn.toString() !== '() => undefined')).toHaveLength(1)
   })
 
-  it('ne relâche pas tant qu un sync écran tourne', async () => {
+  it('does not release while a screen sync is running', async () => {
     device.state.effect = 'Forest'
-    await service.startStream('Shapes Salon', 'screen')
-    await service.paintPanel('Shapes Salon', 1, { r: 255, g: 0, b: 0 })
+    await service.startStream('Shapes Lounge', 'screen')
+    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
 
-    await echoir()
+    await fire()
 
     expect(device.state.effect).toBe(EXT_CONTROL_EFFECT)
   })
 
-  it('rend la main au device quand on choisit une scène', async () => {
-    await service.paintPanel('Shapes Salon', 1, { r: 255, g: 0, b: 0 })
+  it('hands control back to the device when a scene is chosen', async () => {
+    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
     expect(device.extControlVersion).toBe('v2')
 
-    await service.selectEffect('Shapes Salon', 'Northern Lights')
+    await service.selectEffect('Shapes Lounge', 'Northern Lights')
 
     expect(device.state.effect).toBe('Northern Lights')
     expect(device.extControlVersion).toBeNull()
   })
 
-  it('coupe aussi un sync écran quand on choisit une scène', async () => {
-    await service.startStream('Shapes Salon', 'screen')
+  it('also cuts a screen sync when a scene is chosen', async () => {
+    await service.startStream('Shapes Lounge', 'screen')
 
-    await service.selectEffect('Shapes Salon', 'Forest')
+    await service.selectEffect('Shapes Lounge', 'Forest')
 
     expect(device.state.effect).toBe('Forest')
-    expect(await service.sendFrame('Shapes Salon', 'screen', [{ r: 1, g: 1, b: 1 }])).toBe(false)
+    expect(await service.sendFrame('Shapes Lounge', 'screen', [{ r: 1, g: 1, b: 1 }])).toBe(false)
   })
 })
 
-describe('DeviceService — plusieurs devices', () => {
+describe('DeviceService — several devices', () => {
   let second: FakeNanoleaf
   let receiver: FakeStreamReceiver
 
@@ -490,15 +490,15 @@ describe('DeviceService — plusieurs devices', () => {
       store: new ConfigStore(join(dir, 'config.json')),
       mdnsFactory: fakeFactory([
         {
-          name: 'Salon',
-          host: 'salon.local',
+          name: 'Lounge',
+          host: 'lounge.local',
           addresses: ['127.0.0.1'],
           port: device.port,
           txt: { md: 'NL42' },
         },
         {
-          name: 'Bureau',
-          host: 'bureau.local',
+          name: 'Study',
+          host: 'study.local',
           addresses: ['127.0.0.1'],
           port: second.port,
           txt: { md: 'NL42' },
@@ -526,53 +526,53 @@ describe('DeviceService — plusieurs devices', () => {
     }
   })
 
-  it('découvre les deux', async () => {
-    expect((await service.listDevices()).map((d) => d.id).sort()).toEqual(['Bureau', 'Salon'])
+  it('discovers both', async () => {
+    expect((await service.listDevices()).map((d) => d.id).sort()).toEqual(['Lounge', 'Study'])
   })
 
-  it('appaire les deux et retient les deux tokens', async () => {
-    await service.pair('Salon')
-    await service.pair('Bureau')
+  it('pairs both and keeps both tokens', async () => {
+    await service.pair('Lounge')
+    await service.pair('Study')
 
     const listes = await service.listDevices()
 
     expect(listes.filter((d) => d.paired)).toHaveLength(2)
   })
 
-  it('arbitre chaque device séparément', async () => {
-    await service.pair('Salon')
-    await service.pair('Bureau')
-    await service.startStream('Salon', 'screen')
-    await service.startStream('Bureau', 'screen')
+  it('arbitrates each device separately', async () => {
+    await service.pair('Lounge')
+    await service.pair('Study')
+    await service.startStream('Lounge', 'screen')
+    await service.startStream('Study', 'screen')
 
-    // Peindre sur le Salon prend la main là-bas, sans museler le Bureau.
-    await service.paintPanel('Salon', 1, { r: 255, g: 0, b: 0 })
+    // Painting in the Lounge takes control there, without muzzling the Study.
+    await service.paintPanel('Lounge', 1, { r: 255, g: 0, b: 0 })
 
-    expect(await service.sendFrame('Salon', 'screen', [{ r: 1, g: 1, b: 1 }])).toBe(false)
-    expect(await service.sendFrame('Bureau', 'screen', [{ r: 1, g: 1, b: 1 }])).toBe(true)
+    expect(await service.sendFrame('Lounge', 'screen', [{ r: 1, g: 1, b: 1 }])).toBe(false)
+    expect(await service.sendFrame('Study', 'screen', [{ r: 1, g: 1, b: 1 }])).toBe(true)
   })
 
-  it('arrête un device sans toucher à l autre', async () => {
-    await service.pair('Salon')
-    await service.pair('Bureau')
+  it('stops one device without touching the other', async () => {
+    await service.pair('Lounge')
+    await service.pair('Study')
     device.state.effect = 'Forest'
     second.state.effect = 'Jungle'
-    await service.startStream('Salon', 'screen')
-    await service.startStream('Bureau', 'screen')
+    await service.startStream('Lounge', 'screen')
+    await service.startStream('Study', 'screen')
 
-    await service.stopStream('Salon', 'screen')
+    await service.stopStream('Lounge', 'screen')
 
     expect(device.state.effect).toBe('Forest')
     expect(second.state.effect).toBe(EXT_CONTROL_EFFECT)
   })
 
-  it('rend son effet à chaque device à l extinction', async () => {
-    await service.pair('Salon')
-    await service.pair('Bureau')
+  it('gives every device its effect back on shutdown', async () => {
+    await service.pair('Lounge')
+    await service.pair('Study')
     device.state.effect = 'Forest'
     second.state.effect = 'Jungle'
-    await service.startStream('Salon', 'screen')
-    await service.startStream('Bureau', 'screen')
+    await service.startStream('Lounge', 'screen')
+    await service.startStream('Study', 'screen')
 
     await service.shutdown()
 

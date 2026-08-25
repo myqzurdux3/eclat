@@ -3,7 +3,7 @@ import { NanoleafError } from './errors'
 export interface PairOptions {
   ip: string
   port?: number
-  /** Nombre de tentatives ; 15 tentatives à 2 s couvrent la fenêtre de 30 s. */
+  /** Attempt count; 15 attempts at 2 s cover the 30 s window. */
   attempts?: number
   intervalMs?: number
   sleep?: (ms: number) => Promise<void>
@@ -14,11 +14,11 @@ const defaultSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
- * Sollicite le device jusqu'à obtention d'un token.
+ * Polls the device until it hands over a token.
  *
- * Le contrôleur n'accepte `POST /api/v1/new` que pendant les quelques
- * secondes qui suivent un appui long sur le bouton power ; il répond 403 le
- * reste du temps. La boucle est donc inoffensive hors fenêtre d'appairage.
+ * The controller only accepts `POST /api/v1/new` during the few seconds that
+ * follow a long press on the power button; it answers 403 the rest of the
+ * time. The loop is therefore harmless outside the pairing window.
  */
 export async function pairDevice(options: PairOptions): Promise<string> {
   const port = options.port ?? 16021
@@ -30,7 +30,7 @@ export async function pairDevice(options: PairOptions): Promise<string> {
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     if (options.signal?.aborted) {
-      throw new NanoleafError('Appairage annulé', 0, 'error.pairingCancelled')
+      throw new NanoleafError('Pairing cancelled', 0, 'error.pairingCancelled')
     }
 
     try {
@@ -49,11 +49,11 @@ export async function pairDevice(options: PairOptions): Promise<string> {
         if (typeof body.auth_token === 'string' && body.auth_token.length > 0) {
           return body.auth_token
         }
-        throw new NanoleafError('Réponse d appairage sans auth_token', response.status)
+        throw new NanoleafError('Pairing response without auth_token', response.status)
       }
     } catch (error) {
       if (error instanceof NanoleafError) throw error
-      // Device injoignable sur cette tentative : on retente.
+      // Device unreachable on this attempt: try again.
     }
 
     if (attempt < attempts - 1) {
@@ -62,7 +62,7 @@ export async function pairDevice(options: PairOptions): Promise<string> {
   }
 
   throw new NanoleafError(
-    'Appairage échoué : maintiens le bouton power 5-7 s jusqu au clignotement, puis réessaie',
+    'Pairing failed: hold the power button for 5-7 s until it blinks, then try again',
     lastStatus,
     'error.pairingRefused',
   )

@@ -4,8 +4,8 @@ import { DEFAULT_SYNC_SETTINGS } from './settings'
 import { normalizeLayout } from '../../main/device/layout'
 import type { Frame } from './srgb'
 
-/** Trois panneaux en colonne : haut, milieu, bas. */
-const colonne = normalizeLayout(
+/** Three panels stacked: top, middle, bottom. */
+const column = normalizeLayout(
   [
     { panelId: 1, x: 0, y: 400, o: 0, shapeType: 8 },
     { panelId: 2, x: 0, y: 200, o: 0, shapeType: 8 },
@@ -20,7 +20,7 @@ function frame(width = 64, height = 36): Frame {
   return { width, height, data }
 }
 
-function remplir(
+function fill(
   f: Frame,
   y0: number,
   y1: number,
@@ -36,31 +36,31 @@ function remplir(
   }
 }
 
-const rougeUni = (): Frame => {
+const flatRed = (): Frame => {
   const f = frame()
-  remplir(f, 0, f.height, [255, 0, 0])
+  fill(f, 0, f.height, [255, 0, 0])
   return f
 }
 
-/** Pousse la même frame jusqu'à ce que le lissage ait convergé. */
-function stabiliser(pipeline: SyncPipeline, f: Frame, tours = 80) {
-  let dernier = pipeline.process(f)
-  for (let i = 0; i < tours; i += 1) dernier = pipeline.process(f)
-  return dernier
+/** Pushes the same frame until the smoothing has converged. */
+function settle(pipeline: SyncPipeline, f: Frame, rounds = 80) {
+  let last = pipeline.process(f)
+  for (let i = 0; i < rounds; i += 1) last = pipeline.process(f)
+  return last
 }
 
 describe('SyncPipeline', () => {
-  it('rend exactement une couleur par panneau', () => {
-    const pipeline = new SyncPipeline(colonne, DEFAULT_SYNC_SETTINGS)
+  it('returns exactly one colour per panel', () => {
+    const pipeline = new SyncPipeline(column, DEFAULT_SYNC_SETTINGS)
 
-    expect(pipeline.process(rougeUni())).toHaveLength(3)
+    expect(pipeline.process(flatRed())).toHaveLength(3)
   })
 
-  it('rend du rouge sur une image rouge, dans les trois modes', () => {
+  it('returns red on a red image, in all three modes', () => {
     for (const mode of ['spatial', 'dominant', 'palette'] as const) {
-      const pipeline = new SyncPipeline(colonne, { ...DEFAULT_SYNC_SETTINGS, mode })
+      const pipeline = new SyncPipeline(column, { ...DEFAULT_SYNC_SETTINGS, mode })
 
-      for (const color of stabiliser(pipeline, rougeUni())) {
+      for (const color of settle(pipeline, flatRed())) {
         expect(color.r).toBeGreaterThan(200)
         expect(color.g).toBeLessThan(60)
         expect(color.b).toBeLessThan(60)
@@ -68,83 +68,83 @@ describe('SyncPipeline', () => {
     }
   })
 
-  it('n éteint pas les panneaux hauts et bas sur une image en letterbox', () => {
+  it('does not switch off the top and bottom panels on a letterboxed image', () => {
     const f = frame()
-    remplir(f, 0, 8, [0, 0, 0])
-    remplir(f, 8, 28, [0, 200, 0])
-    remplir(f, 28, 36, [0, 0, 0])
+    fill(f, 0, 8, [0, 0, 0])
+    fill(f, 8, 28, [0, 200, 0])
+    fill(f, 28, 36, [0, 0, 0])
 
-    const pipeline = new SyncPipeline(colonne, DEFAULT_SYNC_SETTINGS)
+    const pipeline = new SyncPipeline(column, DEFAULT_SYNC_SETTINGS)
 
-    for (const color of stabiliser(pipeline, f)) {
+    for (const color of settle(pipeline, f)) {
       expect(color.g).toBeGreaterThan(120)
     }
   })
 
-  it('suit la position des panneaux en mode spatial', () => {
+  it('follows panel positions in spatial mode', () => {
     const f = frame()
-    remplir(f, 0, 18, [255, 0, 0])
-    remplir(f, 18, 36, [0, 0, 255])
+    fill(f, 0, 18, [255, 0, 0])
+    fill(f, 18, 36, [0, 0, 255])
 
-    const pipeline = new SyncPipeline(colonne, {
+    const pipeline = new SyncPipeline(column, {
       ...DEFAULT_SYNC_SETTINGS,
       radius: 0.08,
       saturation: 1,
     })
-    const couleurs = stabiliser(pipeline, f)
+    const colours = settle(pipeline, f)
 
-    // `normalizeLayout` inverse l'axe Y : le panneau le plus haut côté
-    // device (y = 400) se retrouve en haut de l'écran, donc en tête.
-    const haut = couleurs[0]!
-    const bas = couleurs[2]!
-    expect(haut.r).toBeGreaterThan(haut.b)
-    expect(bas.b).toBeGreaterThan(bas.r)
+    // `normalizeLayout` flips the Y axis: the panel highest on the device
+    // (y = 400) ends up at the top of the screen, hence first.
+    const top = colours[0]!
+    const bottom = colours[2]!
+    expect(top.r).toBeGreaterThan(top.b)
+    expect(bottom.b).toBeGreaterThan(bottom.r)
   })
 
-  it('donne la même couleur à tous les panneaux en mode dominant', () => {
+  it('gives every panel the same colour in dominant mode', () => {
     const f = frame()
-    remplir(f, 0, 18, [255, 0, 0])
-    remplir(f, 18, 36, [0, 0, 255])
+    fill(f, 0, 18, [255, 0, 0])
+    fill(f, 18, 36, [0, 0, 255])
 
-    const pipeline = new SyncPipeline(colonne, { ...DEFAULT_SYNC_SETTINGS, mode: 'dominant' })
-    const [a, b, c] = stabiliser(pipeline, f)
+    const pipeline = new SyncPipeline(column, { ...DEFAULT_SYNC_SETTINGS, mode: 'dominant' })
+    const [a, b, c] = settle(pipeline, f)
 
     expect(a).toEqual(b)
     expect(b).toEqual(c)
   })
 
-  it('rend du noir sur une image noire, sans NaN', () => {
-    const pipeline = new SyncPipeline(colonne, DEFAULT_SYNC_SETTINGS)
+  it('returns black on a black image, with no NaN', () => {
+    const pipeline = new SyncPipeline(column, DEFAULT_SYNC_SETTINGS)
 
-    for (const color of stabiliser(pipeline, frame())) {
+    for (const color of settle(pipeline, frame())) {
       expect(color).toEqual({ r: 0, g: 0, b: 0 })
     }
   })
 
-  it('encaisse un changement de mode en cours de route', () => {
-    const pipeline = new SyncPipeline(colonne, DEFAULT_SYNC_SETTINGS)
-    pipeline.process(rougeUni())
+  it('survives a mode change mid-flight', () => {
+    const pipeline = new SyncPipeline(column, DEFAULT_SYNC_SETTINGS)
+    pipeline.process(flatRed())
 
     pipeline.update({ ...DEFAULT_SYNC_SETTINGS, mode: 'dominant' })
-    const couleurs = pipeline.process(rougeUni())
+    const colours = pipeline.process(flatRed())
 
-    expect(couleurs).toHaveLength(3)
-    expect(Number.isFinite(couleurs[0]!.r)).toBe(true)
+    expect(colours).toHaveLength(3)
+    expect(Number.isFinite(colours[0]!.r)).toBe(true)
   })
 
-  it('remonte progressivement, sans sauter à la valeur cible', () => {
-    const pipeline = new SyncPipeline(colonne, { ...DEFAULT_SYNC_SETTINGS, saturation: 1 })
+  it('ramps up gradually instead of jumping to the target', () => {
+    const pipeline = new SyncPipeline(column, { ...DEFAULT_SYNC_SETTINGS, saturation: 1 })
     pipeline.process(frame())
 
-    const apresUnPas = pipeline.process(rougeUni())[0]!.r
-    const stabilise = stabiliser(pipeline, rougeUni())[0]!.r
+    const afterOneStep = pipeline.process(flatRed())[0]!.r
+    const settled = settle(pipeline, flatRed())[0]!.r
 
-    expect(apresUnPas).toBeLessThan(stabilise)
+    expect(afterOneStep).toBeLessThan(settled)
   })
 
-  it('repart de zéro après un reset', () => {
-    const pipeline = new SyncPipeline(colonne, DEFAULT_SYNC_SETTINGS)
-    stabiliser(pipeline, rougeUni())
+  it('starts over after a reset', () => {
+    const pipeline = new SyncPipeline(column, DEFAULT_SYNC_SETTINGS)
+    settle(pipeline, flatRed())
 
     pipeline.reset()
 
@@ -155,9 +155,9 @@ describe('SyncPipeline', () => {
     ])
   })
 
-  it('rend un tableau vide pour un mur sans panneau', () => {
+  it('returns an empty array for a wall with no panels', () => {
     const pipeline = new SyncPipeline(normalizeLayout([], 100), DEFAULT_SYNC_SETTINGS)
 
-    expect(pipeline.process(rougeUni())).toEqual([])
+    expect(pipeline.process(flatRed())).toEqual([])
   })
 })

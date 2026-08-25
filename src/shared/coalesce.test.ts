@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { createCoalescer } from './coalesce'
 
-/** Émetteur manuel : chaque envoi reste en vol jusqu'à ce qu'on le résolve. */
+/** A manual sender: each send stays in flight until it is resolved. */
 function manualSender() {
-  const envoyes: number[] = []
-  const enAttente: Array<() => void> = []
+  const sent: number[] = []
+  const waiting: Array<() => void> = []
   return {
-    envoyes,
-    resoudreSuivant() {
-      enAttente.shift()?.()
+    sent,
+    resolveNext() {
+      waiting.shift()?.()
     },
-    enVol: () => enAttente.length,
+    inFlight: () => waiting.length,
     send(value: number): Promise<void> {
-      envoyes.push(value)
-      return new Promise<void>((resolve) => enAttente.push(resolve))
+      sent.push(value)
+      return new Promise<void>((resolve) => waiting.push(resolve))
     },
   }
 }
@@ -21,17 +21,17 @@ function manualSender() {
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 describe('createCoalescer', () => {
-  it('envoie la première valeur tout de suite', async () => {
+  it('sends the first value straight away', async () => {
     const sender = manualSender()
     const push = createCoalescer(sender.send)
 
     push(1)
     await tick()
 
-    expect(sender.envoyes).toEqual([1])
+    expect(sender.sent).toEqual([1])
   })
 
-  it('ne garde qu une requête en vol', async () => {
+  it('keeps only one request in flight', async () => {
     const sender = manualSender()
     const push = createCoalescer(sender.send)
 
@@ -41,11 +41,11 @@ describe('createCoalescer', () => {
     push(3)
     await tick()
 
-    expect(sender.envoyes).toEqual([1])
-    expect(sender.enVol()).toBe(1)
+    expect(sender.sent).toEqual([1])
+    expect(sender.inFlight()).toBe(1)
   })
 
-  it('envoie la dernière valeur en attente, pas les intermédiaires', async () => {
+  it('sends the last pending value, not the ones in between', async () => {
     const sender = manualSender()
     const push = createCoalescer(sender.send)
 
@@ -54,29 +54,29 @@ describe('createCoalescer', () => {
     push(2)
     push(3)
     push(4)
-    sender.resoudreSuivant()
+    sender.resolveNext()
     await tick()
 
-    expect(sender.envoyes).toEqual([1, 4])
+    expect(sender.sent).toEqual([1, 4])
   })
 
-  it('se tait quand plus rien n est en attente', async () => {
+  it('goes quiet once nothing is pending', async () => {
     const sender = manualSender()
     const push = createCoalescer(sender.send)
 
     push(1)
     await tick()
-    sender.resoudreSuivant()
+    sender.resolveNext()
     await tick()
 
-    expect(sender.envoyes).toEqual([1])
+    expect(sender.sent).toEqual([1])
   })
 
-  it('reprend après un envoi en échec', async () => {
-    const echecs: number[] = []
+  it('carries on after a failed send', async () => {
+    const failures: number[] = []
     const push = createCoalescer<number>((value) => {
-      echecs.push(value)
-      return Promise.reject(new Error('boum'))
+      failures.push(value)
+      return Promise.reject(new Error('boom'))
     })
 
     push(1)
@@ -85,22 +85,22 @@ describe('createCoalescer', () => {
     await tick()
     await tick()
 
-    expect(echecs).toEqual([1, 2])
+    expect(failures).toEqual([1, 2])
   })
 
-  it('enchaîne les valeurs tant qu il en arrive', async () => {
+  it('chains values for as long as they keep arriving', async () => {
     const sender = manualSender()
     const push = createCoalescer(sender.send)
 
     push(1)
     await tick()
     push(2)
-    sender.resoudreSuivant()
+    sender.resolveNext()
     await tick()
     push(3)
-    sender.resoudreSuivant()
+    sender.resolveNext()
     await tick()
 
-    expect(sender.envoyes).toEqual([1, 2, 3])
+    expect(sender.sent).toEqual([1, 2, 3])
   })
 })

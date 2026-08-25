@@ -17,33 +17,33 @@ const panel = (over: Partial<NormalizedPanel> = {}): NormalizedPanel => ({
 const near = (value: number, expected: number) => expect(value).toBeCloseTo(expected, 6)
 
 describe('circumradius', () => {
-  it('vaut le côté divisé par racine de trois pour un triangle', () => {
+  it('equals the side over the square root of three for a triangle', () => {
     near(circumradius(3, 1), 1 / Math.sqrt(3))
   })
 
-  it('vaut le côté pour un hexagone', () => {
+  it('equals the side for a hexagon', () => {
     near(circumradius(6, 1), 1)
   })
 })
 
 describe('panelPolygon', () => {
-  it('rend trois sommets pour un triangle Shapes', () => {
+  it('returns three vertices for a Shapes triangle', () => {
     expect(panelPolygon(panel({ shapeType: 8 }), 0.2)).toHaveLength(3)
   })
 
-  it('rend six sommets pour un hexagone Shapes', () => {
+  it('returns six vertices for a Shapes hexagon', () => {
     expect(panelPolygon(panel({ shapeType: 7 }), 0.2)).toHaveLength(6)
   })
 
-  it('rend quatre sommets pour un carré Canvas', () => {
+  it('returns four vertices for a Canvas square', () => {
     expect(panelPolygon(panel({ shapeType: 2 }), 0.2)).toHaveLength(4)
   })
 
-  it('retombe sur un carré pour une forme inconnue', () => {
+  it('falls back to a square for an unknown shape', () => {
     expect(panelPolygon(panel({ shapeType: 999 }), 0.2)).toHaveLength(4)
   })
 
-  it('place chaque sommet à la distance du rayon circonscrit', () => {
+  it('places every vertex at the circumradius', () => {
     const points = panelPolygon(panel(), 0.3)
 
     for (const point of points) {
@@ -51,28 +51,28 @@ describe('panelPolygon', () => {
     }
   })
 
-  it('pointe un sommet vers le haut à orientation nulle', () => {
+  it('points a vertex up at zero orientation', () => {
     const [first] = panelPolygon(panel({ o: 0 }), 0.3)
 
     near(first!.x, 0.5)
     expect(first!.y).toBeLessThan(0.5)
   })
 
-  it('retourne le triangle à 180 degrés', () => {
+  it('flips the triangle at 180 degrees', () => {
     const [first] = panelPolygon(panel({ o: 180 }), 0.3)
 
     near(first!.x, 0.5)
     expect(first!.y).toBeGreaterThan(0.5)
   })
 
-  it('tourne dans le sens des aiguilles, l axe Y étant inversé à l écran', () => {
+  it('turns clockwise, the Y axis being flipped on screen', () => {
     const [first] = panelPolygon(panel({ o: 90 }), 0.3)
 
     near(first!.y, 0.5)
     expect(first!.x).toBeLessThan(0.5)
   })
 
-  it('centre le polygone sur la position normalisée du panneau', () => {
+  it('centres the polygon on the panel’s normalised position', () => {
     const points = panelPolygon(panel({ nx: 0.25, ny: 0.75 }), 0.3)
     const cx = points.reduce((sum, p) => sum + p.x, 0) / points.length
     const cy = points.reduce((sum, p) => sum + p.y, 0) / points.length
@@ -83,22 +83,22 @@ describe('panelPolygon', () => {
 })
 
 describe('pointInPolygon', () => {
-  const carre = [
+  const square = [
     { x: 0, y: 0 },
     { x: 1, y: 0 },
     { x: 1, y: 1 },
     { x: 0, y: 1 },
   ]
 
-  it('accepte un point intérieur', () => {
-    expect(pointInPolygon({ x: 0.5, y: 0.5 }, carre)).toBe(true)
+  it('accepts an interior point', () => {
+    expect(pointInPolygon({ x: 0.5, y: 0.5 }, square)).toBe(true)
   })
 
-  it('refuse un point extérieur', () => {
-    expect(pointInPolygon({ x: 1.5, y: 0.5 }, carre)).toBe(false)
+  it('rejects an exterior point', () => {
+    expect(pointInPolygon({ x: 1.5, y: 0.5 }, square)).toBe(false)
   })
 
-  it('refuse un polygone dégénéré', () => {
+  it('rejects a degenerate polygon', () => {
     expect(pointInPolygon({ x: 0, y: 0 }, [{ x: 0, y: 0 }])).toBe(false)
   })
 })
@@ -112,13 +112,13 @@ describe('panelAt', () => {
     100,
   )
 
-  it('désigne le panneau sous le point', () => {
-    const cible = layout.panels[1]!
+  it('picks the panel under the point', () => {
+    const target = layout.panels[1]!
 
-    expect(panelAt(layout, { x: cible.nx, y: cible.ny })?.panelId).toBe(22)
+    expect(panelAt(layout, { x: target.nx, y: target.ny })?.panelId).toBe(22)
   })
 
-  it('ne désigne rien dans le vide', () => {
+  it('picks nothing in empty space', () => {
     expect(panelAt(layout, { x: 0.5, y: 0.02 })).toBeNull()
   })
 })
@@ -132,22 +132,22 @@ describe('rotateLayout', () => {
     100,
   )
 
-  it('ne touche à rien pour un angle nul', () => {
+  it('changes nothing at a zero angle', () => {
     expect(rotateLayout(layout, 0)).toEqual(layout)
   })
 
-  it('amène le haut à droite pour un quart de tour', () => {
-    const haut = layout.panels.reduce((a, b) => (a.ny < b.ny ? a : b))
-    const droite = rotateLayout(layout, 90).panels.reduce((a, b) => (a.nx > b.nx ? a : b))
+  it('brings the top to the right for a quarter turn', () => {
+    const top = layout.panels.reduce((a, b) => (a.ny < b.ny ? a : b))
+    const right = rotateLayout(layout, 90).panels.reduce((a, b) => (a.nx > b.nx ? a : b))
 
-    expect(droite.panelId).toBe(haut.panelId)
+    expect(right.panelId).toBe(top.panelId)
   })
 
-  it('retranche l angle à l orientation de chaque panneau', () => {
+  it('subtracts the angle from every panel’s orientation', () => {
     expect(rotateLayout(layout, 37).panels[0]!.o).toBe(layout.panels[0]!.o - 37)
   })
 
-  it('accepte un angle qui n est pas un multiple de 90', () => {
+  it('accepts an angle that is not a multiple of 90', () => {
     const oblique = rotateLayout(layout, 37)
 
     for (const panel of oblique.panels) {
@@ -157,49 +157,49 @@ describe('rotateLayout', () => {
     expect(oblique.panels[0]!.nx).not.toBeCloseTo(layout.panels[0]!.nx, 3)
   })
 
-  it('conserve les distances entre panneaux', () => {
-    const ecart = (l: typeof layout) =>
+  it('preserves the distances between panels', () => {
+    const gap = (l: typeof layout) =>
       Math.hypot(
         l.panels[0]!.nx - l.panels[1]!.nx,
         l.panels[0]!.ny - l.panels[1]!.ny,
       )
 
-    expect(ecart(rotateLayout(layout, 37))).toBeCloseTo(ecart(layout), 6)
+    expect(gap(rotateLayout(layout, 37))).toBeCloseTo(gap(layout), 6)
   })
 
-  it('fait revenir un tour complet au point de départ', () => {
-    const retour = rotateLayout(layout, 360)
+  it('brings a full turn back to the start', () => {
+    const back = rotateLayout(layout, 360)
 
-    retour.panels.forEach((panel, index) => {
+    back.panels.forEach((panel, index) => {
       expect(panel.nx).toBeCloseTo(layout.panels[index]!.nx, 6)
       expect(panel.ny).toBeCloseTo(layout.panels[index]!.ny, 6)
     })
   })
 
-  it('tourne aussi les polygones, pas seulement les centres', () => {
-    const avant = panelPolygon(layout.panels[0]!, layout.nSideLength)
-    const tourne = rotateLayout(layout, 90)
-    const apres = panelPolygon(tourne.panels[0]!, tourne.nSideLength)
+  it('rotates the polygons too, not just the centres', () => {
+    const before = panelPolygon(layout.panels[0]!, layout.nSideLength)
+    const rotated = rotateLayout(layout, 90)
+    const after = panelPolygon(rotated.panels[0]!, rotated.nSideLength)
 
-    // Un sommet pointé vers le haut se retrouve pointé vers la droite.
-    expect(avant[0]!.y).toBeLessThan(layout.panels[0]!.ny)
-    expect(apres[0]!.x).toBeGreaterThan(tourne.panels[0]!.nx)
+    // A vertex pointing up ends up pointing right.
+    expect(before[0]!.y).toBeLessThan(layout.panels[0]!.ny)
+    expect(after[0]!.x).toBeGreaterThan(rotated.panels[0]!.nx)
   })
 
-  it('accepte un angle négatif', () => {
+  it('accepts a negative angle', () => {
     expect(rotateLayout(layout, -90).panels[0]!.nx).toBeCloseTo(
       rotateLayout(layout, 270).panels[0]!.nx,
       6,
     )
   })
 
-  it('recalcule le rapport d aspect depuis la géométrie tournée', () => {
-    const tourne = rotateLayout(layout, 90)
+  it('recomputes the aspect ratio from the rotated geometry', () => {
+    const rotated = rotateLayout(layout, 90)
 
-    // Un quart de tour inverse le rapport, à ceci près que la valeur tournée
-    // mesure l'étendue réelle des sommets là où `normalizeLayout` approxime
-    // depuis les seuls centres : les deux ne coïncident pas exactement.
-    expect(tourne.aspect).toBeGreaterThan(1)
-    expect(Math.abs(tourne.aspect * layout.aspect - 1)).toBeLessThan(0.1)
+    // A quarter turn inverts the ratio, except that the rotated value
+    // measures the real extent of the vertices where `normalizeLayout`
+    // approximates from the centres alone: the two do not coincide exactly.
+    expect(rotated.aspect).toBeGreaterThan(1)
+    expect(Math.abs(rotated.aspect * layout.aspect - 1)).toBeLessThan(0.1)
   })
 })

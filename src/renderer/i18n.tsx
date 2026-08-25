@@ -6,55 +6,55 @@ import {
   type Translate,
 } from '../shared/i18n'
 
-const CLE_LANGUE = 'nanoleaf.langue'
+const LOCALE_KEY = 'eclat.locale'
 
-interface Contexte {
+interface LocaleContextValue {
   locale: Locale
   setLocale: (locale: Locale) => void
   t: Translate
 }
 
-const LangueContext = createContext<Contexte | null>(null)
+const LocaleContext = createContext<LocaleContextValue | null>(null)
 
-/** Langue retenue, sinon celle du système, sinon le français. */
-function lireLangue(): Locale {
+/** The remembered locale, else the system's, else French. */
+function readLocale(): Locale {
   try {
-    const stocke = localStorage.getItem(CLE_LANGUE)
-    if (stocke === 'fr' || stocke === 'en') return stocke
+    const stored = localStorage.getItem(LOCALE_KEY)
+    if (stored === 'fr' || stored === 'en') return stored
   } catch {
-    // Stockage indisponible : on retombe sur la préférence système.
+    // Storage unavailable: fall back on the system preference.
   }
   return matchLocale(typeof navigator === 'undefined' ? [] : navigator.languages)
 }
 
-export function LangueProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(lireLangue)
+export function LocaleProvider({ children }: { children: ReactNode }) {
+  const [locale, setLocaleState] = useState<Locale>(readLocale)
 
-  const setLocale = useCallback((suivante: Locale) => {
-    setLocaleState(suivante)
+  const setLocale = useCallback((next: Locale) => {
+    setLocaleState(next)
     try {
-      localStorage.setItem(CLE_LANGUE, suivante)
+      localStorage.setItem(LOCALE_KEY, next)
     } catch {
-      // Stockage indisponible : le choix vaut pour cette session.
+      // Storage unavailable: the choice holds for this session only.
     }
-    document.documentElement.lang = suivante
+    document.documentElement.lang = next
   }, [])
 
-  const valeur = useMemo<Contexte>(
+  const value = useMemo<LocaleContextValue>(
     () => ({ locale, setLocale, t: createTranslate(locale) }),
     [locale, setLocale],
   )
 
-  return <LangueContext.Provider value={valeur}>{children}</LangueContext.Provider>
+  return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>
 }
 
-export function useLangue(): Contexte {
-  const contexte = useContext(LangueContext)
-  if (contexte === null) throw new Error('useLangue hors de LangueProvider')
-  return contexte
+export function useLocale(): LocaleContextValue {
+  const context = useContext(LocaleContext)
+  if (context === null) throw new Error('useLocale used outside LocaleProvider')
+  return context
 }
 
-/** Raccourci pour les composants qui n'ont besoin que de traduire. */
+/** A shortcut for components that only need to translate. */
 export function useT(): Translate {
-  return useLangue().t
+  return useLocale().t
 }

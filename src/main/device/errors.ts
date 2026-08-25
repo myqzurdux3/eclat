@@ -1,18 +1,17 @@
 import type { MessageKey } from '../../shared/i18n'
 
 /**
- * Clés d'erreur destinées à l'utilisateur, par opposition aux messages
- * purement diagnostiques.
+ * Error keys meant for the user, as opposed to purely diagnostic messages.
  */
 export type ErrorKey = Extract<MessageKey, `error.${string}`>
 
 /**
- * Erreur renvoyée par le contrôleur Nanoleaf, porteuse du code HTTP.
+ * An error returned by the Nanoleaf controller, carrying the HTTP status.
  *
- * Quand l'erreur a de quoi être montrée à l'utilisateur, sa clé de
- * traduction est encodée entre crochets en tête du message. Electron aplatit
- * les objets `Error` qui traversent l'IPC — seul le message survit — donc y
- * glisser la clé est le seul moyen de la faire arriver jusqu'au renderer.
+ * When the error is worth showing to the user, its translation key is
+ * encoded between brackets at the head of the message. Electron flattens
+ * `Error` objects crossing the IPC boundary — only the message survives — so
+ * slipping the key in there is the only way to get it to the renderer.
  */
 export class NanoleafError extends Error {
   readonly key: ErrorKey | undefined

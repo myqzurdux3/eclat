@@ -1,44 +1,45 @@
 import { ColorWheel } from '../components/ColorWheel'
 import { WallCanvas } from '../components/WallCanvas'
 import { hsbToRgb } from '../../shared/color'
+import { EXT_CONTROL_EFFECT } from '../../shared/types'
 import { SOLIDE, type NanoleafSession } from '../useNanoleaf'
 import type { Color } from '../../shared/types'
 import { useT } from '../i18n'
 import { translateError } from '../../shared/i18n/errors'
 
-/** Repères pour retomber d'un clic sur un angle droit. */
-const ANGLES_DROITS = [0, 90, 180, 270]
+/** Shortcuts for snapping back to a right angle in one click. */
+const RIGHT_ANGLES = [0, 90, 180, 270]
 
-function Accueil({ session }: { session: NanoleafSession }) {
+function Welcome({ session }: { session: NanoleafSession }) {
   const { device } = session
   const t = useT()
 
   return (
-    <section className="controle" style={{ gridTemplateColumns: 'minmax(0, 1fr)' }}>
+    <section className="control" style={{ gridTemplateColumns: 'minmax(0, 1fr)' }}>
       <div
-        className="verre"
+        className="glass"
         style={{ display: 'grid', gap: 14, placeContent: 'center', textAlign: 'center' }}
       >
         {device === undefined ? (
           <>
             <strong style={{ fontSize: 17 }}>{t('control.noDevice.title')}</strong>
-            <p className="aide">{t('control.noDevice.body')}</p>
-            <button className="bouton" disabled={session.busy} onClick={session.discover}>
+            <p className="hint">{t('control.noDevice.body')}</p>
+            <button className="button" disabled={session.busy} onClick={session.discover}>
               {t('control.discover')}
             </button>
           </>
         ) : (
           <>
             <strong style={{ fontSize: 17 }}>{t('control.found.title', { name: device.name })}</strong>
-            <p className="aide" style={{ maxWidth: 320 }}>
+            <p className="hint" style={{ maxWidth: 320 }}>
               {t('control.found.body')}
             </p>
-            <button className="bouton" disabled={session.busy} onClick={() => session.pair()}>
+            <button className="button" disabled={session.busy} onClick={() => session.pair()}>
               {t('control.pair')}
             </button>
           </>
         )}
-        {session.error !== null && <p className="erreur">{translateError(session.error, t)}</p>}
+        {session.error !== null && <p className="error">{translateError(session.error, t)}</p>}
       </div>
     </section>
   )
@@ -54,40 +55,40 @@ export function ControlScreen({
   const { device, state, layout } = session
   const t = useT()
 
-  if (device === undefined || !device.paired) return <Accueil session={session} />
+  if (device === undefined || !device.paired) return <Welcome session={session} />
 
-  // Sous une scène, le device cesse de tenir `hue` et `sat` à jour : les
-  // afficher laisserait croire que le mur éclaire en blanc.
-  const sousScene =
+  // Under a scene the device stops keeping `hue` and `sat` current:
+  // showing them would suggest the wall is lit white.
+  const underScene =
     state !== null && state.colorMode === 'effect' && state.effect !== SOLIDE
-  const pinceau = hsbToRgb(state?.hue ?? 0, state?.sat ?? 100, 100)
+  const brush = hsbToRgb(state?.hue ?? 0, state?.sat ?? 100, 100)
 
-  // Le mur n'est animé que lorsqu'une scène du device tourne et qu'aucune
-  // source de l'application n'écrit dessus : dans ce dernier cas les
-  // couleurs affichées sont exactes, il n'y a rien à approcher.
+  // The wall is only animated while a device scene is running and no
+  // source of the application is writing to it: in that case the displayed
+  // colours are exact, so there is nothing to approximate.
   const palette = session.palettes.find((entry) => entry.name === state?.effect)?.colors
   const motion =
-    sousScene && palette !== undefined && palette.length > 0 && !session.live
+    underScene && palette !== undefined && palette.length > 0 && !session.live
       ? { palette, brightness: state?.brightness ?? 100 }
       : null
 
   return (
-    <section className="controle">
+    <section className="control">
       {layout === null ? (
-        <div className="scene" />
+        <div className="stage" />
       ) : (
         <WallCanvas
           layout={layout}
           colors={colors}
           motion={motion}
-          onPaint={(panelId) => session.paint(panelId, pinceau)}
+          onPaint={(panelId) => session.paint(panelId, brush)}
         />
       )}
 
-      <aside className="verre panneau-lateral">
-        <div className="rangee-murs">
+      <aside className="glass sidebar">
+        <div className="wall-row">
           {session.devices.length > 1 && (
-            <div className="segments murs">
+            <div className="segments walls">
               {session.devices.map((entry) => (
                 <button
                   key={entry.id}
@@ -101,7 +102,7 @@ export function ControlScreen({
             </div>
           )}
           <button
-            className="rechercher"
+            className="rescan"
             disabled={session.busy}
             onClick={session.discover}
             title={t('control.rescan')}
@@ -111,7 +112,7 @@ export function ControlScreen({
           </button>
         </div>
 
-        <div className="titre-device">
+        <div className="device-title">
           <strong>{device.name}</strong>
           <span>
             {t('control.panels', { count: layout?.panels.length ?? 0 })}
@@ -122,7 +123,7 @@ export function ControlScreen({
         </div>
 
         <button
-          className="bouton"
+          className="button"
           data-actif={state?.on === true}
           disabled={session.busy || state === null}
           onClick={() => session.setOn(!(state?.on ?? false))}
@@ -130,8 +131,8 @@ export function ControlScreen({
           {state?.on === true ? t('control.turnOff') : t('control.turnOn')}
         </button>
 
-        <div className="groupe">
-          <div className="etiquette">
+        <div className="group">
+          <div className="label">
             {t('control.brightness')} <b>{state?.brightness ?? 0} %</b>
           </div>
           <input
@@ -143,13 +144,15 @@ export function ControlScreen({
           />
         </div>
 
-        <div className="groupe">
-          <div className="etiquette">
+        <div className="group">
+          <div className="label">
             {t('control.colour')}
             <b>
-              {sousScene
-                ? state!.effect
-                : `${Math.round(state?.hue ?? 0)}° · ${Math.round(state?.sat ?? 0)} %`}
+              {!underScene
+                ? `${Math.round(state?.hue ?? 0)}° · ${Math.round(state?.sat ?? 0)} %`
+                : state!.effect === EXT_CONTROL_EFFECT
+                  ? t('control.externalControl')
+                  : state!.effect}
             </b>
           </div>
           <ColorWheel
@@ -158,12 +161,12 @@ export function ControlScreen({
             size={200}
             onPick={({ hue, sat }) => session.setColor(Math.round(hue), Math.round(sat))}
           />
-          {sousScene && <p className="aide">{t('control.colour.underScene')}</p>}
-          {motion !== null && <p className="aide">{t('control.motion.approximate')}</p>}
+          {underScene && <p className="hint">{t('control.colour.underScene')}</p>}
+          {motion !== null && <p className="hint">{t('control.motion.approximate')}</p>}
         </div>
 
-        <div className="groupe">
-          <div className="etiquette">
+        <div className="group">
+          <div className="label">
             {t('control.orientation')} <b>{session.rotation}°</b>
           </div>
           <input
@@ -175,7 +178,7 @@ export function ControlScreen({
             onChange={(event) => session.setRotation(Number(event.target.value))}
           />
           <div className="segments">
-            {ANGLES_DROITS.map((angle) => (
+            {RIGHT_ANGLES.map((angle) => (
               <button
                 key={angle}
                 aria-pressed={session.rotation === angle}
@@ -185,12 +188,12 @@ export function ControlScreen({
               </button>
             ))}
           </div>
-          <p className="aide">{t('control.orientation.help')}</p>
+          <p className="hint">{t('control.orientation.help')}</p>
         </div>
 
-        <p className="aide">{t('control.paint.help')}</p>
+        <p className="hint">{t('control.paint.help')}</p>
 
-        {session.error !== null && <p className="erreur">{translateError(session.error, t)}</p>}
+        {session.error !== null && <p className="error">{translateError(session.error, t)}</p>}
       </aside>
     </section>
   )

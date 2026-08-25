@@ -3,34 +3,34 @@ import { SyncPipeline } from '../../shared/sync/pipeline'
 import { clampSettings, type SyncSettings } from '../../shared/sync/settings'
 import type { Color, PanelLayout } from '../../shared/types'
 
-/** Taille d'analyse imposée par la spec : 2304 pixels, redimensionnés par le GPU. */
+/** Analysis size imposed by the spec: 2304 pixels, resized by the GPU. */
 const LARGEUR = 64
 const HAUTEUR = 36
-/** Une frame d'aperçu sur quatre suffit à l'œil et allège le canal. */
+/** One preview frame in four is enough for the eye and lightens the channel. */
 const PERIODE_APERCU = 4
 
-export interface DemarrerMessage {
+export interface StartMessage {
   type: 'start'
   /**
-   * Flux de `VideoFrame`, produit sur le thread principal par
-   * `MediaStreamTrackProcessor` et transféré ici.
+   * A stream of `VideoFrame`s, produced on the main thread by
+   * `MediaStreamTrackProcessor` and transferred here.
    *
-   * La piste elle-même n'est pas transférable dans cette version de
-   * Chromium — `postMessage` refusait « Value at index 0 does not have a
-   * transferable type ». Les flux, eux, le sont depuis longtemps.
+   * The track itself is not transferable in this build of Chromium —
+   * `postMessage` refused with "Value at index 0 does not have a
+   * transferable type". Streams, by contrast, have been for a long time.
    */
   readable: ReadableStream<VideoFrame>
-  /** Un mur par device : chacun a sa géométrie, donc son propre pipeline. */
+  /** One wall per device: each has its own geometry, hence its own pipeline. */
   targets: Array<{ deviceId: string; layout: PanelLayout }>
   settings: SyncSettings
 }
 
-export type VersWorker =
-  | DemarrerMessage
+export type ToWorker =
+  | StartMessage
   | { type: 'settings'; settings: SyncSettings }
   | { type: 'stop' }
 
-export type DepuisWorker =
+export type FromWorker =
   | { type: 'colors'; colors: Record<string, Color[]> }
   | { type: 'preview'; width: number; height: number; data: ArrayBuffer }
   | { type: 'error'; message: string }
@@ -44,15 +44,15 @@ let reglages: SyncSettings | null = null
 let arret = false
 
 /**
- * Consomme la piste vidéo image par image.
+ * Consumes the video track frame by frame.
  *
- * Chaque `VideoFrame` est dessinée réduite : le redimensionnement est fait
- * par le GPU, et l'analyse ne porte que sur 2304 pixels. La frame est
- * refermée aussitôt — en garder plusieurs ouvertes bloque le décodeur.
+ * Each `VideoFrame` is drawn scaled down: the GPU does the resizing, and the
+ * analysis only covers 2304 pixels. The frame is closed immediately —
+ * holding several open stalls the decoder.
  */
 async function boucle(readable: ReadableStream<VideoFrame>): Promise<void> {
   if (context === null) {
-    envoyer({ type: 'error', message: 'Contexte 2D indisponible dans le Worker' })
+    envoyer({ type: 'error', message: '2D context unavailable in the Worker' })
     return
   }
 
@@ -66,8 +66,8 @@ async function boucle(readable: ReadableStream<VideoFrame>): Promise<void> {
     if (done || frame === undefined) break
 
     try {
-      // Cadence plafonnée par les réglages : inutile d'analyser plus vite
-      // que ce que les panneaux peuvent afficher.
+      // The rate is capped by the settings: no point analysing faster than
+      // the panels can display.
       const intervalle = 1000 / (reglages?.hz ?? 25)
       const maintenant = performance.now()
       if (maintenant - dernierEnvoi < intervalle) continue
@@ -97,11 +97,11 @@ async function boucle(readable: ReadableStream<VideoFrame>): Promise<void> {
   envoyer({ type: 'ended' })
 }
 
-function envoyer(message: DepuisWorker, transfer: Transferable[] = []): void {
+function envoyer(message: FromWorker, transfer: Transferable[] = []): void {
   ;(self as unknown as DedicatedWorkerGlobalScope).postMessage(message, transfer)
 }
 
-self.onmessage = (event: MessageEvent<VersWorker>) => {
+self.onmessage = (event: MessageEvent<ToWorker>) => {
   const message = event.data
 
   if (message.type === 'start') {

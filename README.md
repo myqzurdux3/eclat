@@ -204,9 +204,9 @@ Things no documentation mentions, found by measuring:
 
 ## Contributing
 
-Issues and pull requests are welcome. Design notes and implementation plans
-live in `docs/superpowers/`; they are written in French, as are the code
-comments.
+Issues and pull requests are welcome. The code, its comments and the tests
+are in English. Design notes and implementation plans live in
+`docs/superpowers/` and are in French — see [docs/README.md](docs/README.md).
 
 Before opening a pull request:
 

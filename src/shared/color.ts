@@ -4,8 +4,8 @@ const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value))
 
 /**
- * Convertit le HSB du device en RGB. Le device exprime la teinte en degrés
- * et la saturation comme la luminosité en pourcentage.
+ * Converts the device's HSB to RGB. The device expresses hue in degrees, and
+ * both saturation and brightness as percentages.
  */
 export function hsbToRgb(hue: number, saturation: number, brightness: number): Color {
   const h = ((hue % 360) + 360) % 360
@@ -38,12 +38,12 @@ export interface WheelPosition {
 }
 
 /**
- * Position dans la roue vers teinte et saturation.
+ * From a position on the wheel to hue and saturation.
  *
- * `dx`/`dy` sont relatifs au centre, en pixels, axe Y vers le bas comme à
- * l'écran. Le rouge est à droite et la teinte croît dans le sens horaire,
- * ce qui correspond à l'ordre visuel du dégradé dessiné par `ColorWheel`.
- * Renvoie `null` hors du disque : le clic n'a pas visé la roue.
+ * `dx`/`dy` are relative to the centre, in pixels, with Y pointing down as
+ * on screen. Red sits on the right and hue increases clockwise, matching the
+ * visual order of the gradient `ColorWheel` draws. Returns `null` outside
+ * the disc: the click did not land on the wheel.
  */
 export function wheelToHsv(dx: number, dy: number, radius: number): WheelPosition | null {
   const distance = Math.hypot(dx, dy)
@@ -57,10 +57,10 @@ export function wheelToHsv(dx: number, dy: number, radius: number): WheelPositio
   }
 }
 
-/** Inverse de `wheelToHsv`, pour placer le curseur sur la roue. */
+/** The inverse of `wheelToHsv`, used to place the cursor on the wheel. */
 export function hsvToWheel(hue: number, sat: number, radius: number): { dx: number; dy: number } {
   const angle = (hue * Math.PI) / 180
   const distance = (clamp(sat, 0, 100) / 100) * radius
-  // `+ 0` ramène les -0 produits par un cosinus négatif à distance nulle.
+  // `+ 0` folds the -0 a negative cosine produces at zero distance.
   return { dx: distance * Math.cos(angle) + 0, dy: distance * Math.sin(angle) + 0 }
 }

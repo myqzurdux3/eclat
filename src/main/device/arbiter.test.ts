@@ -7,18 +7,18 @@ function clock() {
 }
 
 describe('SourceArbiter', () => {
-  it('ne désigne personne quand aucune source n est active', () => {
+  it('picks nobody when no source is active', () => {
     expect(new SourceArbiter().current()).toBeNull()
   })
 
-  it('désigne la seule source active', () => {
+  it('picks the only active source', () => {
     const arbiter = new SourceArbiter()
     arbiter.activate('audio')
 
     expect(arbiter.current()).toBe('audio')
   })
 
-  it('donne l écran devant l audio', () => {
+  it('puts screen ahead of audio', () => {
     const arbiter = new SourceArbiter()
     arbiter.activate('audio')
     arbiter.activate('screen')
@@ -26,7 +26,7 @@ describe('SourceArbiter', () => {
     expect(arbiter.current()).toBe('screen')
   })
 
-  it('rend la main à l audio quand l écran s arrête', () => {
+  it('hands back to audio when screen stops', () => {
     const arbiter = new SourceArbiter()
     arbiter.activate('audio')
     arbiter.activate('screen')
@@ -36,7 +36,7 @@ describe('SourceArbiter', () => {
     expect(arbiter.current()).toBe('audio')
   })
 
-  it('donne la priorité à la peinture manuelle pendant 3 s', () => {
+  it('gives manual painting priority for 3 s', () => {
     const time = clock()
     const arbiter = new SourceArbiter({ now: time.now })
     arbiter.activate('screen')
@@ -48,7 +48,7 @@ describe('SourceArbiter', () => {
     expect(arbiter.current()).toBe('manual')
   })
 
-  it('relâche l override manuel passé le délai', () => {
+  it('releases the manual override once the delay is past', () => {
     const time = clock()
     const arbiter = new SourceArbiter({ now: time.now })
     arbiter.activate('screen')
@@ -59,7 +59,7 @@ describe('SourceArbiter', () => {
     expect(arbiter.current()).toBe('screen')
   })
 
-  it('prolonge l override à chaque nouvelle peinture', () => {
+  it('extends the override on every new stroke', () => {
     const time = clock()
     const arbiter = new SourceArbiter({ now: time.now })
     arbiter.activate('screen')
@@ -72,7 +72,7 @@ describe('SourceArbiter', () => {
     expect(arbiter.current()).toBe('manual')
   })
 
-  it('laisse le device à son effet quand l override manuel expire seul', () => {
+  it('leaves the device to its effect when the manual override expires alone', () => {
     const time = clock()
     const arbiter = new SourceArbiter({ now: time.now })
     arbiter.touchManual()
@@ -82,7 +82,7 @@ describe('SourceArbiter', () => {
     expect(arbiter.current()).toBeNull()
   })
 
-  it('n accepte que la source élue', () => {
+  it('accepts only the elected source', () => {
     const arbiter = new SourceArbiter()
     arbiter.activate('screen')
     arbiter.activate('audio')
@@ -92,7 +92,7 @@ describe('SourceArbiter', () => {
     expect(arbiter.accepts('manual')).toBe(false)
   })
 
-  it('oublie tout après reset', () => {
+  it('forgets everything after a reset', () => {
     const arbiter = new SourceArbiter()
     arbiter.activate('screen')
     arbiter.touchManual()

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildQuery, servicesFromPacket, SERVICE_TYPE } from './mdns'
 
 describe('buildQuery', () => {
-  it('pose le bit QU pour obtenir une réponse unicast', () => {
+  it('sets the QU bit to get a unicast answer', () => {
     const query = buildQuery(SERVICE_TYPE)
     const qclass = query.readUInt16BE(query.length - 2)
 
@@ -10,7 +10,7 @@ describe('buildQuery', () => {
     expect(qclass & 0x7fff).toBe(1)
   })
 
-  it('interroge bien le type de service demandé', () => {
+  it('queries the requested service type', () => {
     expect(buildQuery(SERVICE_TYPE).includes(Buffer.from('_nanoleafapi'))).toBe(true)
   })
 })
@@ -35,7 +35,7 @@ const packet = (over: Record<string, unknown> = {}) => ({
 })
 
 describe('servicesFromPacket', () => {
-  it('recompose un service à partir des enregistrements PTR, SRV, TXT et A', () => {
+  it('rebuilds a service from its PTR, SRV, TXT and A records', () => {
     expect(servicesFromPacket(packet(), SERVICE_TYPE)).toEqual([
       {
         name: 'Shapes 83DC',
@@ -47,7 +47,7 @@ describe('servicesFromPacket', () => {
     ])
   })
 
-  it('lit aussi les enregistrements placés en section additionals', () => {
+  it('also reads records placed in the additionals section', () => {
     const split = packet({
       answers: packet().answers.slice(0, 1),
       additionals: packet().answers.slice(1),
@@ -56,7 +56,7 @@ describe('servicesFromPacket', () => {
     expect(servicesFromPacket(split, SERVICE_TYPE)[0]?.port).toBe(16021)
   })
 
-  it('ignore un PTR qui ne concerne pas le type de service', () => {
+  it('ignores a PTR that does not concern the service type', () => {
     const other = packet({
       answers: [{ name: '_hap._tcp.local', type: 'PTR', data: 'Autre._hap._tcp.local' }],
     })
@@ -64,7 +64,7 @@ describe('servicesFromPacket', () => {
     expect(servicesFromPacket(other, SERVICE_TYPE)).toEqual([])
   })
 
-  it('ignore une instance sans SRV, faute de port', () => {
+  it('ignores an instance without SRV, for want of a port', () => {
     const noSrv = packet({
       answers: packet().answers.filter((record) => record.type !== 'SRV'),
     })
@@ -72,7 +72,7 @@ describe('servicesFromPacket', () => {
     expect(servicesFromPacket(noSrv, SERVICE_TYPE)).toEqual([])
   })
 
-  it('tolère une instance sans TXT ni adresse', () => {
+  it('tolerates an instance with neither TXT nor address', () => {
     const bare = packet({
       answers: packet().answers.filter((record) => record.type === 'PTR' || record.type === 'SRV'),
     })

@@ -9,7 +9,7 @@ function frame(width: number, height: number): Frame {
   return { width, height, data }
 }
 
-function peindre(
+function paint(
   f: Frame,
   x0: number,
   x1: number,
@@ -25,8 +25,8 @@ function peindre(
   }
 }
 
-/** Deux panneaux, l'un à gauche, l'autre à droite. */
-const paire = normalizeLayout(
+/** Two panels, one on the left, one on the right. */
+const pair = normalizeLayout(
   [
     { panelId: 1, x: 0, y: 0, o: 0, shapeType: 8 },
     { panelId: 2, x: 300, y: 0, o: 0, shapeType: 8 },
@@ -34,44 +34,44 @@ const paire = normalizeLayout(
   100,
 )
 
-const rectEntier = (f: Frame) => ({ x: 0, y: 0, width: f.width, height: f.height })
+const wholeRect = (f: Frame) => ({ x: 0, y: 0, width: f.width, height: f.height })
 
-function moitieRougeBleue(): Frame {
+function halfRedHalfBlue(): Frame {
   const f = frame(64, 36)
-  peindre(f, 0, 32, [255, 0, 0])
-  peindre(f, 32, 64, [0, 0, 255])
+  paint(f, 0, 32, [255, 0, 0])
+  paint(f, 32, 64, [0, 0, 255])
   return f
 }
 
 describe('mapSpatial', () => {
-  it('rend une couleur par panneau', () => {
-    expect(mapSpatial(moitieRougeBleue(), rectEntier(moitieRougeBleue()), paire, 0.18)).toHaveLength(
+  it('returns one colour per panel', () => {
+    expect(mapSpatial(halfRedHalfBlue(), wholeRect(halfRedHalfBlue()), pair, 0.18)).toHaveLength(
       2,
     )
   })
 
-  it('donne au panneau de gauche la couleur de gauche', () => {
-    const f = moitieRougeBleue()
-    const [gauche, droite] = mapSpatial(f, rectEntier(f), paire, 0.12)
+  it('gives the left panel the colour on the left', () => {
+    const f = halfRedHalfBlue()
+    const [left, right] = mapSpatial(f, wholeRect(f), pair, 0.12)
 
-    expect(gauche!.r).toBeGreaterThan(gauche!.b)
-    expect(droite!.b).toBeGreaterThan(droite!.r)
+    expect(left!.r).toBeGreaterThan(left!.b)
+    expect(right!.b).toBeGreaterThan(right!.r)
   })
 
-  it('un rayon large rapproche les panneaux, un rayon étroit les sépare', () => {
-    const f = moitieRougeBleue()
-    const ecart = (radius: number) => {
-      const [a, b] = mapSpatial(f, rectEntier(f), paire, radius)
+  it('a wide radius brings panels together, a narrow one separates them', () => {
+    const f = halfRedHalfBlue()
+    const gap = (radius: number) => {
+      const [a, b] = mapSpatial(f, wholeRect(f), pair, radius)
       return Math.abs(a!.r - b!.r)
     }
 
-    expect(ecart(0.5)).toBeLessThan(ecart(0.05))
+    expect(gap(0.5)).toBeLessThan(gap(0.05))
   })
 
-  it('ne regarde que le rectangle utile', () => {
+  it('only looks at the useful rectangle', () => {
     const f = frame(64, 36)
-    // Bandes noires en haut et en bas, image rouge au milieu.
-    peindre(f, 0, 64, [0, 0, 0])
+    // Black bars top and bottom, red picture in the middle.
+    paint(f, 0, 64, [0, 0, 0])
     for (let y = 10; y < 26; y += 1) {
       for (let x = 0; x < 64; x += 1) {
         const at = (y * 64 + x) * 4
@@ -79,31 +79,31 @@ describe('mapSpatial', () => {
       }
     }
 
-    const rogne = mapSpatial(f, { x: 0, y: 10, width: 64, height: 16 }, paire, 0.18)
+    const cropped = mapSpatial(f, { x: 0, y: 10, width: 64, height: 16 }, pair, 0.18)
 
-    expect(rogne[0]!.r).toBeGreaterThan(0.9)
+    expect(cropped[0]!.r).toBeGreaterThan(0.9)
   })
 
-  it('rend un tableau vide pour un mur sans panneau', () => {
-    const f = moitieRougeBleue()
+  it('returns an empty array for a wall with no panels', () => {
+    const f = halfRedHalfBlue()
 
-    expect(mapSpatial(f, rectEntier(f), normalizeLayout([], 100), 0.18)).toEqual([])
+    expect(mapSpatial(f, wholeRect(f), normalizeLayout([], 100), 0.18)).toEqual([])
   })
 
-  it('ne rend jamais de NaN, même sur un rayon minuscule', () => {
-    const f = moitieRougeBleue()
+  it('never returns NaN, even at a tiny radius', () => {
+    const f = halfRedHalfBlue()
 
-    for (const color of mapSpatial(f, rectEntier(f), paire, 0.001)) {
+    for (const color of mapSpatial(f, wholeRect(f), pair, 0.001)) {
       expect(Number.isFinite(color.r)).toBe(true)
       expect(Number.isFinite(color.g)).toBe(true)
       expect(Number.isFinite(color.b)).toBe(true)
     }
   })
 
-  it('reste sur du noir quand l image est noire', () => {
+  it('stays black when the image is black', () => {
     const f = frame(64, 36)
 
-    for (const color of mapSpatial(f, rectEntier(f), paire, 0.18)) {
+    for (const color of mapSpatial(f, wholeRect(f), pair, 0.18)) {
       expect(color.r).toBeCloseTo(0, 6)
     }
   })

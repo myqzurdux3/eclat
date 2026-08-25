@@ -1,9 +1,9 @@
-// Vérifie de bout en bout le chemin capture → Worker → couleurs, avec le
-// Worker réellement embarqué dans l'application.
+// End-to-end check of the capture -> Worker -> colours path, using the very
+// Worker the application ships.
 //
-// `canvas.captureStream()` donne une piste vidéo sans passer par le portail
-// xdg-desktop-portal, donc sans clic humain : c'est le seul moyen de tester
-// le transfert et la lecture des VideoFrame sans intervention.
+// `canvas.captureStream()` yields a video track without going through
+// xdg-desktop-portal, hence without a human click: it is the only way to
+// test the transfer and the VideoFrame reading unattended.
 //
 //   npm run build && npx electron tools/probe-worker-transfer.cjs
 const { app, BrowserWindow, ipcMain } = require('electron')
@@ -16,15 +16,15 @@ const { createMdnsFactory } = require('../dist/main/main/device/mdns')
 
 const RACINE = join(__dirname, '../dist/renderer')
 
-function trouverWorker() {
+function findWorker() {
   const assets = readdirSync(join(RACINE, 'assets'))
-  const fichier = assets.find((nom) => nom.startsWith('capture.worker-') && nom.endsWith('.js'))
-  if (fichier === undefined) throw new Error('Worker introuvable : lance `npm run build`')
-  return `./assets/${fichier}`
+  const file = assets.find((nom) => nom.startsWith('capture.worker-') && nom.endsWith('.js'))
+  if (file === undefined) throw new Error('Worker not found: run `npm run build`')
+  return `./assets/${file}`
 }
 
 app.whenReady().then(async () => {
-  const worker = trouverWorker()
+  const worker = findWorker()
 
   const service = new DeviceService({
     store: new ConfigStore(defaultConfigPath(), legacyConfigPath()),
@@ -55,8 +55,8 @@ app.whenReady().then(async () => {
       canvas.height = 180
       const ctx = canvas.getContext('2d')
 
-      // Moitié gauche rouge, moitié droite bleue : le mapping spatial doit
-      // les séparer, et le mode dominante doit trancher.
+      // Left half red, right half blue: spatial mapping must separate them,
+      // and dominant mode must pick a side.
       ctx.fillStyle = 'rgb(255, 0, 0)'
       ctx.fillRect(0, 0, 160, 180)
       ctx.fillStyle = 'rgb(0, 0, 255)'
@@ -69,49 +69,49 @@ app.whenReady().then(async () => {
       }, 40)
 
       const piste = canvas.captureStream(25).getVideoTracks()[0]
-      if (piste === undefined) return { ok: false, raison: 'aucune piste' }
+      if (piste === undefined) return { ok: false, reason: 'no track' }
 
-      if (window.nanoleaf === undefined) return { ok: false, raison: 'pont IPC absent' }
+      if (window.nanoleaf === undefined) return { ok: false, reason: 'IPC bridge missing' }
       const devices = await window.nanoleaf.listDevices()
       const device = devices.find((d) => d.paired)
-      if (device === undefined) return { ok: false, raison: 'aucun device appairé' }
+      if (device === undefined) return { ok: false, reason: 'no paired device' }
       const layout = await window.nanoleaf.getLayout(device.id)
 
       const readable = new MediaStreamTrackProcessor({ track: piste }).readable
       const w = new Worker(${JSON.stringify(worker)}, { type: 'module' })
 
       return await new Promise((resolve) => {
-        const vues = []
-        const minuterie = setTimeout(
-          () => resolve({ ok: false, raison: 'aucune couleur en 8 s', vues }),
+        const seen = []
+        const timer = setTimeout(
+          () => resolve({ ok: false, reason: 'no colours within 8 s', seen }),
           8000,
         )
         w.onmessage = (event) => {
           if (event.data.type === 'error') {
-            clearTimeout(minuterie)
-            resolve({ ok: false, raison: 'worker: ' + event.data.message })
+            clearTimeout(timer)
+            resolve({ ok: false, reason: 'worker: ' + event.data.message })
             return
           }
           if (event.data.type !== 'colors') return
-          const parDevice = event.data.colors[device.id]
-          if (parDevice === undefined) return
-          vues.push(parDevice)
-          if (vues.length >= 25) {
-            clearTimeout(minuterie)
+          const perDevice = event.data.colors[device.id]
+          if (perDevice === undefined) return
+          seen.push(perDevice)
+          if (seen.length >= 25) {
+            clearTimeout(timer)
             w.postMessage({ type: 'stop' })
-            const derniere = vues[vues.length - 1]
+            const last = seen[seen.length - 1]
             resolve({
               ok: true,
-              frames: vues.length,
-              panneaux: derniere.length,
-              premier: derniere[0],
-              dernier: derniere[derniere.length - 1],
+              frames: seen.length,
+              panels: last.length,
+              first: last[0],
+              last: last[last.length - 1],
             })
           }
         }
         w.onerror = (event) => {
-          clearTimeout(minuterie)
-          resolve({ ok: false, raison: 'onerror: ' + event.message })
+          clearTimeout(timer)
+          resolve({ ok: false, reason: 'onerror: ' + event.message })
         }
         w.postMessage(
           {

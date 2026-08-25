@@ -29,6 +29,7 @@ export const en: Dictionary = {
   'control.turnOff': 'Turn off',
   'control.brightness': 'Brightness',
   'control.colour': 'Colour',
+  'control.externalControl': 'Driven externally',
   'control.colour.underScene':
     'A scene is running: the device no longer reports a hue. Picking a colour will replace it.',
   'control.orientation': 'Wall orientation',

@@ -10,17 +10,17 @@ interface WallCanvasProps {
   layout: PanelLayout
   colors: Map<number, Color>
   /**
-   * Palette à faire vivre sur le mur, quand une scène du device tourne.
-   * `null` fige l'affichage sur `colors`.
+   * The palette to bring to life on the wall while a device scene runs.
+   * `null` freezes the display on `colors`.
    */
   motion: { palette: Color[]; brightness: number } | null
   onPaint: (panelId: number) => void
 }
 
 /**
- * Rend le mur et traduit un clic en panneau. Le renderer est recréé quand la
- * géométrie change, jamais quand les couleurs changent : redessiner ne coûte
- * qu'un uniforme.
+ * Draws the wall and turns a click into a panel. The renderer is rebuilt
+ * when the geometry changes, never when the colours change: redrawing only
+ * costs a uniform.
  */
 export function WallCanvas({ layout, colors, motion, onPaint }: WallCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -29,7 +29,7 @@ export function WallCanvas({ layout, colors, motion, onPaint }: WallCanvasProps)
   colorsRef.current = colors
   const motionRef = useRef(motion)
   motionRef.current = motion
-  const [panne, setPanne] = useState<string | null>(null)
+  const [failure, setFailure] = useState<string | null>(null)
   const t = useT()
 
   useEffect(() => {
@@ -40,12 +40,12 @@ export function WallCanvas({ layout, colors, motion, onPaint }: WallCanvasProps)
     try {
       renderer = createWallRenderer(canvas, layout)
     } catch (cause) {
-      // Contexte GPU indisponible ou shader refusé : le dire, plutôt que de
-      // laisser une zone vide sans explication.
-      setPanne(cause instanceof Error ? cause.message : String(cause))
+      // GPU context unavailable or shader refused: say so, rather than
+      // leaving an empty area with no explanation.
+      setFailure(cause instanceof Error ? cause.message : String(cause))
       return
     }
-    setPanne(null)
+    setFailure(null)
     rendererRef.current = renderer
     renderer.resize()
     renderer.draw(colorsRef.current)
@@ -68,50 +68,50 @@ export function WallCanvas({ layout, colors, motion, onPaint }: WallCanvasProps)
   }, [colors])
 
   /**
-   * L'animation vit ici, pas dans React : redessiner le mur ne coûte qu'un
-   * uniforme, alors qu'un état React à 60 Hz repeindrait tout l'arbre.
+   * The animation lives here, not in React: redrawing the wall only costs a
+   * uniform, whereas React state at 60 Hz would repaint the whole tree.
    */
   useEffect(() => {
     if (motion === null) return
 
-    let image = 0
-    const debut = performance.now()
+    let frame = 0
+    const start = performance.now()
 
-    const boucle = (maintenant: number): void => {
-      const anime = motionRef.current
+    const loop = (now: number): void => {
+      const animation = motionRef.current
       const renderer = rendererRef.current
-      if (anime !== null && renderer !== null) {
-        const couleurs = sceneMotion(anime.palette, layout.panels.length, maintenant - debut)
-        const facteur = Math.max(0, Math.min(100, anime.brightness)) / 100
+      if (animation !== null && renderer !== null) {
+        const colours = sceneMotion(animation.palette, layout.panels.length, now - start)
+        const factor = Math.max(0, Math.min(100, animation.brightness)) / 100
         renderer.draw(
           new Map(
             layout.panels.map((panel, index) => {
-              const couleur = couleurs[index] ?? { r: 0, g: 0, b: 0 }
+              const colour = colours[index] ?? { r: 0, g: 0, b: 0 }
               return [
                 panel.panelId,
                 {
-                  r: Math.round(couleur.r * facteur),
-                  g: Math.round(couleur.g * facteur),
-                  b: Math.round(couleur.b * facteur),
+                  r: Math.round(colour.r * factor),
+                  g: Math.round(colour.g * factor),
+                  b: Math.round(colour.b * factor),
                 },
               ]
             }),
           ),
         )
       }
-      image = requestAnimationFrame(boucle)
+      frame = requestAnimationFrame(loop)
     }
 
-    image = requestAnimationFrame(boucle)
+    frame = requestAnimationFrame(loop)
     return () => {
-      cancelAnimationFrame(image)
+      cancelAnimationFrame(frame)
       rendererRef.current?.draw(colorsRef.current)
     }
-    // `motion` n'est lu que par la référence : seule sa présence relance la
-    // boucle, un changement de palette est pris au vol.
+    // `motion` is only read through the ref: only its presence restarts the
+    // loop, a palette change is picked up on the fly.
   }, [motion === null, layout])
 
-  /** Le cadrage du shader fait foi : on l'inverse pour situer le clic. */
+  /** The shader's framing is authoritative: invert it to locate the click. */
   const handleClick = (event: React.MouseEvent<HTMLCanvasElement>): void => {
     const renderer = rendererRef.current
     if (renderer === null) return
@@ -127,18 +127,18 @@ export function WallCanvas({ layout, colors, motion, onPaint }: WallCanvasProps)
     if (panel !== null) onPaint(panel.panelId)
   }
 
-  if (panne !== null) {
+  if (failure !== null) {
     return (
-      <div className="scene" style={{ display: 'grid', alignContent: 'center', padding: 24 }}>
+      <div className="stage" style={{ display: 'grid', alignContent: 'center', padding: 24 }}>
         <strong>{t('control.wallUnavailable')}</strong>
-        <p className="aide">{panne}</p>
+        <p className="hint">{failure}</p>
       </div>
     )
   }
 
   return (
-    <div className="scene">
-      <canvas ref={canvasRef} className="mur" onClick={handleClick} />
+    <div className="stage">
+      <canvas ref={canvasRef} className="wall" onClick={handleClick} />
     </div>
   )
 }

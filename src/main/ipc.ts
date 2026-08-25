@@ -15,53 +15,53 @@ export interface DeviceServiceOptions {
   discoverTimeoutMs?: number
   sleep?: (ms: number) => Promise<void>
   pairAttempts?: number
-  /** Fabrique d'arbitre, un par device : deux murs s'arbitrent séparément. */
+  /** Arbiter factory, one per device: two walls arbitrate separately. */
   arbiterFactory?: () => SourceArbiter
-  /** Injecté par les tests pour maîtriser l'échéance de relâche. */
+  /** Injected by tests to control the release deadline. */
   timers?: {
     setTimeout: (handler: () => void, ms: number) => unknown
     clearTimeout: (handle: unknown) => void
   }
-  /** Reçoit ce que le device signale de lui-même. */
+  /** Receives whatever the device reports of its own accord. */
   onDeviceEvent?: (event: DeviceEvent) => void
-  /** Injecté par les tests pour viser un récepteur UDP local. */
+  /** Injected by tests to aim at a local UDP receiver. */
   streamFactory?: (options: { client: NanoleafClient; ip: string }) => PanelStream
 }
 
 /**
- * Logique métier derrière les canaux IPC. Sans dépendance à Electron pour
- * rester testable hors application.
+ * The business logic behind the IPC channels. No dependency on Electron,
+ * so it stays testable outside the application.
  */
 export class DeviceService {
-  /** Devices vus en mDNS mais pas encore appairés, indexés par id. */
+  /** Devices seen over mDNS but not yet paired, keyed by id. */
   private readonly seen = new Map<string, { name: string; ip: string; port: number; model?: string; firmware?: string }>()
 
   private readonly streams = new Map<string, PanelStream>()
-  /** `panelId` dans l'ordre du layout, mémorisé à l'armement. */
+  /** `panelId` in layout order, remembered at arming time. */
   private readonly panelIds = new Map<string, number[]>()
-  /** Dernière couleur posée sur chaque panneau, par device. */
+  /** The last colour laid on each panel, per device. */
   private readonly painted = new Map<string, Map<number, Color>>()
   private readonly arbiters = new Map<string, SourceArbiter>()
-  private readonly abonnements = new Map<string, EventSubscription>()
-  /** Échéances de relâche du mode externe, par device. */
+  private readonly subscriptions = new Map<string, EventSubscription>()
+  /** External-control release deadlines, per device. */
   private readonly releases = new Map<string, unknown>()
 
   private readonly timers: NonNullable<DeviceServiceOptions['timers']>
 
   /**
-   * Arbitre d'un device, créé à la demande.
+   * A device's arbiter, created on demand.
    *
-   * Un arbitre partagé ferait qu'un sync écran sur un mur interdirait la
-   * peinture sur un autre : les priorités de la spec valent par device, pas
-   * pour l'application entière.
+   * A shared arbiter would mean a screen sync on one wall forbade painting
+   * on another: the spec's priorities hold per device, not for the whole
+   * application.
    */
   private arbiter(deviceId: string): SourceArbiter {
-    let arbitre = this.arbiters.get(deviceId)
-    if (arbitre === undefined) {
-      arbitre = this.options.arbiterFactory?.() ?? new SourceArbiter()
-      this.arbiters.set(deviceId, arbitre)
+    let arbiter = this.arbiters.get(deviceId)
+    if (arbiter === undefined) {
+      arbiter = this.options.arbiterFactory?.() ?? new SourceArbiter()
+      this.arbiters.set(deviceId, arbiter)
     }
-    return arbitre
+    return arbiter
   }
 
   constructor(private readonly options: DeviceServiceOptions) {
@@ -91,17 +91,17 @@ export class DeviceService {
   }
 
   /**
-   * S'abonne au flux d'un device appairé, une seule fois.
+   * Subscribes to a paired device's stream, exactly once.
    *
-   * Sans lui, une commande venue de l'app mobile ou du bouton physique
-   * passerait inaperçue et l'interface afficherait un état périmé.
+   * Without it, a command from the mobile app or the physical button
+   * would go unnoticed and the interface would show a stale state.
    */
-  private async suivre(deviceId: string): Promise<void> {
+  private async track(deviceId: string): Promise<void> {
     if (this.options.onDeviceEvent === undefined) return
-    if (this.abonnements.has(deviceId)) return
+    if (this.subscriptions.has(deviceId)) return
 
     const stored = await this.stored(deviceId)
-    this.abonnements.set(
+    this.subscriptions.set(
       deviceId,
       subscribeToEvents({
         ip: stored.ip,
@@ -139,7 +139,7 @@ export class DeviceService {
   async pair(deviceId: string): Promise<RendererDevice> {
     const candidate = this.seen.get(deviceId)
     if (candidate === undefined) {
-      throw new NanoleafError(`Device inconnu : ${deviceId}`, 404, 'error.deviceUnknown')
+      throw new NanoleafError(`Unknown device: ${deviceId}`, 404, 'error.deviceUnknown')
     }
 
     const token = await pairDevice({
@@ -157,7 +157,7 @@ export class DeviceService {
       token,
     }
     await this.options.store.upsertDevice(stored)
-    void this.suivre(deviceId).catch(() => undefined)
+    void this.track(deviceId).catch(() => undefined)
 
     return {
       id: stored.id,
@@ -195,16 +195,16 @@ export class DeviceService {
   }
 
   /**
-   * Choisir une scène rend explicitement la main au device : tout stream en
-   * cours est coupé d'abord, sinon la sonde de réarmement remettrait le mode
-   * externe dans les dix secondes et l'effet ne tiendrait pas.
+   * Choosing a scene explicitly hands control back to the device: any
+   * running stream is cut first, otherwise the re-arm probe would restore
+   * external control within ten seconds and the effect would not hold.
    */
   async selectEffect(deviceId: string, name: string): Promise<void> {
-    await this.relacher(deviceId, { restore: false })
+    await this.release(deviceId, { restore: false })
     await (await this.client(deviceId)).selectEffect(name)
   }
 
-  /** Arme le mode externe et déclare la source auprès de l'arbitre. */
+  /** Arms external control and declares the source to the arbiter. */
   async startStream(deviceId: string, source: SourceId): Promise<void> {
     const stored = await this.stored(deviceId)
     const client = new NanoleafClient({
@@ -233,19 +233,19 @@ export class DeviceService {
     this.arbiter(deviceId).activate(source)
   }
 
-  /** Retire la source ; ne désarme que si plus personne n'écrit. */
+  /** Removes the source; only disarms once nobody is writing. */
   async stopStream(deviceId: string, source: SourceId): Promise<void> {
     this.arbiter(deviceId).deactivate(source)
     if (this.arbiter(deviceId).current() !== null) return
 
-    await this.relacher(deviceId, { restore: true })
+    await this.release(deviceId, { restore: true })
   }
 
   /**
-   * Diffuse une frame produite par le renderer. Les couleurs sont réparties
-   * sur les panneaux dans l'ordre du layout ; une liste plus courte est
-   * cyclée. Renvoie `false` si la source n'a pas la main ou si la cadence
-   * maximale est déjà atteinte.
+   * Broadcasts a frame produced by the renderer. Colours are spread over
+   * the panels in layout order; a shorter list is cycled. Returns `false`
+   * when the source does not hold control or the maximum rate has already
+   * been reached.
    */
   async sendFrame(
     deviceId: string,
@@ -253,9 +253,9 @@ export class DeviceService {
     colors: Color[],
     transitionTime?: number,
   ): Promise<boolean> {
-    const arbitre = this.arbiter(deviceId)
-    if (source === 'manual') arbitre.touchManual()
-    if (!arbitre.accepts(source)) return false
+    const arbiter = this.arbiter(deviceId)
+    if (source === 'manual') arbiter.touchManual()
+    if (!arbiter.accepts(source)) return false
 
     const stream = this.streams.get(deviceId)
     const panelIds = this.panelIds.get(deviceId)
@@ -268,12 +268,12 @@ export class DeviceService {
   }
 
   /**
-   * Peint un panneau et rediffuse le mur entier : le protocole v2 n'a pas de
-   * trame partielle. Les panneaux jamais peints restent noirs — leur couleur
-   * d'avant l'armement n'est pas récupérable.
+   * Paints a panel and rebroadcasts the whole wall: the v2 protocol has no
+   * partial frame. Panels never painted stay black — their colour
+   * before arming cannot be recovered.
    *
-   * Arme le stream au besoin : cliquer un panneau doit suffire, sans avoir à
-   * démarrer un sync au préalable.
+   * Arms the stream when needed: clicking a panel must be enough, with no
+   * need to start a sync first.
    */
   async paintPanel(deviceId: string, panelId: number, color: Color): Promise<boolean> {
     if (!this.streams.has(deviceId)) {
@@ -289,7 +289,7 @@ export class DeviceService {
       this.painted.set(deviceId, painted)
     }
     painted.set(panelId, color)
-    this.programmerRelache(deviceId)
+    this.scheduleRelease(deviceId)
 
     return this.sendFrame(
       deviceId,
@@ -303,16 +303,16 @@ export class DeviceService {
   }
 
   /**
-   * Programme la fin de l'override manuel.
+   * Schedules the end of the manual override.
    *
-   * La spec donne trois secondes à une peinture, puis relâche : sans cette
-   * échéance le mode externe resterait armé indéfiniment, sa sonde
-   * réarmerait toutes les dix secondes, et le device ne pourrait plus jamais
-   * afficher un effet — les scènes sélectionnées seraient écrasées.
+   * The spec gives a stroke three seconds, then releases: without this
+   * deadline external control would stay armed indefinitely, its probe
+   * would re-arm every ten seconds, and the device could never display an
+   * effect again — every scene picked would be overwritten.
    */
-  private programmerRelache(deviceId: string): void {
-    const enCours = this.releases.get(deviceId)
-    if (enCours !== undefined) this.timers.clearTimeout(enCours)
+  private scheduleRelease(deviceId: string): void {
+    const pending = this.releases.get(deviceId)
+    if (pending !== undefined) this.timers.clearTimeout(pending)
 
     this.releases.set(
       deviceId,
@@ -323,11 +323,11 @@ export class DeviceService {
     )
   }
 
-  /** Coupe le stream d'un device, avec ou sans restauration de son effet. */
-  private async relacher(deviceId: string, options: { restore: boolean }): Promise<void> {
-    const enCours = this.releases.get(deviceId)
-    if (enCours !== undefined) {
-      this.timers.clearTimeout(enCours)
+  /** Cuts a device's stream, with or without restoring its effect. */
+  private async release(deviceId: string, options: { restore: boolean }): Promise<void> {
+    const pending = this.releases.get(deviceId)
+    if (pending !== undefined) {
+      this.timers.clearTimeout(pending)
       this.releases.delete(deviceId)
     }
 
@@ -341,18 +341,18 @@ export class DeviceService {
     await stream.stop(options)
   }
 
-  /** Rend son effet à chaque device. Appelé à la fermeture et sur signal. */
-  /** Ouvre le suivi d'événements de chaque device déjà appairé. */
+  /** Gives every device its effect back. Called on quit and on signal. */
+  /** Opens event tracking for every device already paired. */
   async watchPairedDevices(): Promise<void> {
     const config = await this.options.store.load()
     for (const stored of Object.values(config.devices)) {
-      await this.suivre(stored.id).catch(() => undefined)
+      await this.track(stored.id).catch(() => undefined)
     }
   }
 
   async shutdown(): Promise<void> {
-    for (const abonnement of this.abonnements.values()) abonnement.close()
-    this.abonnements.clear()
+    for (const subscription of this.subscriptions.values()) subscription.close()
+    this.subscriptions.clear()
 
     for (const handle of this.releases.values()) this.timers.clearTimeout(handle)
     this.releases.clear()
@@ -369,12 +369,12 @@ export class DeviceService {
     const config = await this.options.store.load()
     const stored = config.devices[deviceId]
     if (stored === undefined) {
-      throw new NanoleafError(`Device non appairé : ${deviceId}`, 401, 'error.deviceUnpaired')
+      throw new NanoleafError(`Device not paired: ${deviceId}`, 401, 'error.deviceUnpaired')
     }
     return stored
   }
 
-  /** Construit un client authentifié ; le token reste dans le processus main. */
+  /** Builds an authenticated client; the token stays in the main process. */
   private async client(deviceId: string): Promise<NanoleafClient> {
     const stored = await this.stored(deviceId)
     return new NanoleafClient({ ip: stored.ip, token: stored.token, port: stored.port })
@@ -382,9 +382,9 @@ export class DeviceService {
 }
 
 /**
- * Sous-ensemble d'`ipcMain` utilisé ici, pour enregistrer les canaux sans
- * dépendre d'Electron dans les tests. Les arguments d'un message IPC sont
- * typés `any` par Electron : la frontière est sérialisée, donc non vérifiable.
+ * The subset of `ipcMain` used here, so channels can be registered without
+ * depending on Electron in tests. Electron types IPC message arguments as
+ * `any`: the boundary is serialised, hence unverifiable.
  */
 export interface IpcMainLike {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

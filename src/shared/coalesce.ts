@@ -1,34 +1,34 @@
 /**
- * Sérialise des envois en n'en gardant qu'un en vol, la dernière valeur
- * poussée gagnant sur les précédentes.
+ * Serialises writes, keeping at most one in flight and letting the latest
+ * value win over the ones before it.
  *
- * Un curseur déplacé à la souris émet une soixantaine d'événements par
- * seconde, alors qu'une écriture REST sur le contrôleur prend 60 à 340 ms.
- * Étrangler à cadence fixe ne suffit pas : le retard s'accumulerait quand
- * même. Ici les valeurs intermédiaires sont simplement abandonnées, ce qui
- * n'enlève rien — seule la dernière position du curseur compte.
+ * A slider dragged with the mouse emits around sixty events per second,
+ * while a REST write to the controller takes 60 to 340 ms. Throttling at a
+ * fixed rate is not enough: the backlog would still pile up. Here the
+ * intermediate values are simply dropped, which costs nothing — only the
+ * last position of the slider matters.
  */
 export function createCoalescer<T>(send: (value: T) => Promise<unknown>): (value: T) => void {
-  let enVol = false
-  let enAttente: { value: T } | null = null
+  let inFlight = false
+  let pending: { value: T } | null = null
 
-  const vider = (): void => {
-    if (enAttente === null) {
-      enVol = false
+  const drain = (): void => {
+    if (pending === null) {
+      inFlight = false
       return
     }
 
-    const { value } = enAttente
-    enAttente = null
-    enVol = true
+    const { value } = pending
+    pending = null
+    inFlight = true
     void Promise.resolve(send(value))
-      // Une écriture perdue n'est pas rattrapable : la suivante corrige.
+      // A lost write is not worth retrying: the next one corrects it.
       .catch(() => undefined)
-      .then(vider)
+      .then(drain)
   }
 
   return (value: T): void => {
-    enAttente = { value }
-    if (!enVol) vider()
+    pending = { value }
+    if (!inFlight) drain()
   }
 }

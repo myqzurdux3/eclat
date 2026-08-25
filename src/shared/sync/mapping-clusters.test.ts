@@ -8,7 +8,7 @@ function frame(width: number, height: number): Frame {
   return { width, height, data }
 }
 
-/** Peint les `count` premiers pixels de l'image. */
+/** Paints the first `count` pixels of the image. */
 function pixels(f: Frame, from: number, count: number, [r, g, b]: [number, number, number]): void {
   for (let i = from; i < from + count; i += 1) {
     f.data[i * 4] = r
@@ -17,41 +17,41 @@ function pixels(f: Frame, from: number, count: number, [r, g, b]: [number, numbe
   }
 }
 
-const entier = (f: Frame) => ({ x: 0, y: 0, width: f.width, height: f.height })
+const whole = (f: Frame) => ({ x: 0, y: 0, width: f.width, height: f.height })
 
 describe('dominantColor', () => {
-  it('rend la couleur d une image unie', () => {
+  it('returns the colour of a flat image', () => {
     const f = frame(16, 16)
     pixels(f, 0, 256, [255, 0, 0])
 
-    const dominante = dominantColor(f, entier(f))
+    const dominant = dominantColor(f, whole(f))
 
-    expect(toSrgb(dominante.r)).toBeGreaterThan(200)
-    expect(toSrgb(dominante.b)).toBeLessThan(60)
+    expect(toSrgb(dominant.r)).toBeGreaterThan(200)
+    expect(toSrgb(dominant.b)).toBeLessThan(60)
   })
 
-  it('préfère une petite zone vive à un grand aplat gris', () => {
-    // 90 % de gris, 10 % de rouge vif : c'est le rouge qui doit sortir,
-    // la pondération par saturation étant faite pour ça.
+  it('prefers a small vivid area over a large flat grey', () => {
+    // 90 % grey, 10 % vivid red: red has to win — that is exactly what
+    // the saturation weighting is for.
     const f = frame(16, 16)
     pixels(f, 0, 230, [128, 128, 128])
     pixels(f, 230, 26, [255, 0, 0])
 
-    const dominante = dominantColor(f, entier(f))
+    const dominant = dominantColor(f, whole(f))
 
-    expect(dominante.r).toBeGreaterThan(dominante.g * 3)
+    expect(dominant.r).toBeGreaterThan(dominant.g * 3)
   })
 
-  it('rend du noir sur une image noire', () => {
+  it('returns black on a black image', () => {
     const f = frame(16, 16)
 
-    const dominante = dominantColor(f, entier(f))
+    const dominant = dominantColor(f, whole(f))
 
-    expect(dominante.r).toBeCloseTo(0, 6)
-    expect(dominante.g).toBeCloseTo(0, 6)
+    expect(dominant.r).toBeCloseTo(0, 6)
+    expect(dominant.g).toBeCloseTo(0, 6)
   })
 
-  it('rend du noir sur un rectangle vide', () => {
+  it('returns black for an empty rectangle', () => {
     const f = frame(16, 16)
     pixels(f, 0, 256, [255, 0, 0])
 
@@ -60,48 +60,48 @@ describe('dominantColor', () => {
 })
 
 describe('paletteColors', () => {
-  it('sort deux couleurs distinctes d une image bicolore', () => {
+  it('extracts two distinct colours from a two-colour image', () => {
     const f = frame(16, 16)
     pixels(f, 0, 128, [255, 0, 0])
     pixels(f, 128, 128, [0, 0, 255])
 
-    const palette = paletteColors(f, entier(f), 2)
+    const palette = paletteColors(f, whole(f), 2)
 
     expect(palette).toHaveLength(2)
-    const rouges = palette.filter((c) => c.r > c.b)
-    const bleus = palette.filter((c) => c.b > c.r)
-    expect(rouges).toHaveLength(1)
-    expect(bleus).toHaveLength(1)
+    const reds = palette.filter((c) => c.r > c.b)
+    const blues = palette.filter((c) => c.b > c.r)
+    expect(reds).toHaveLength(1)
+    expect(blues).toHaveLength(1)
   })
 
-  it('ne duplique pas quand l image a moins de couleurs que demandé', () => {
+  it('does not duplicate when the image has fewer colours than asked for', () => {
     const f = frame(16, 16)
     pixels(f, 0, 256, [0, 200, 0])
 
-    expect(paletteColors(f, entier(f), 5)).toHaveLength(1)
+    expect(paletteColors(f, whole(f), 5)).toHaveLength(1)
   })
 
-  it('respecte le nombre demandé quand l image est assez riche', () => {
+  it('honours the requested count when the image is rich enough', () => {
     const f = frame(16, 16)
     pixels(f, 0, 64, [255, 0, 0])
     pixels(f, 64, 64, [0, 255, 0])
     pixels(f, 128, 64, [0, 0, 255])
     pixels(f, 192, 64, [255, 255, 0])
 
-    expect(paletteColors(f, entier(f), 3)).toHaveLength(3)
+    expect(paletteColors(f, whole(f), 3)).toHaveLength(3)
   })
 
-  it('classe la couleur la plus présente en premier', () => {
+  it('ranks the most present colour first', () => {
     const f = frame(16, 16)
     pixels(f, 0, 200, [255, 0, 0])
     pixels(f, 200, 56, [0, 0, 255])
 
-    const [premiere] = paletteColors(f, entier(f), 2)
+    const [first] = paletteColors(f, whole(f), 2)
 
-    expect(premiere!.r).toBeGreaterThan(premiere!.b)
+    expect(first!.r).toBeGreaterThan(first!.b)
   })
 
-  it('rend un tableau vide sur une image noire', () => {
-    expect(paletteColors(frame(16, 16), entier(frame(16, 16)), 3)).toEqual([])
+  it('returns an empty array on a black image', () => {
+    expect(paletteColors(frame(16, 16), whole(frame(16, 16)), 3)).toEqual([])
   })
 })

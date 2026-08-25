@@ -6,40 +6,40 @@ export interface Point {
 }
 
 /**
- * Formes connues du device, indexées par `shapeType`.
+ * Shapes the device knows about, indexed by `shapeType`.
  *
- * `baseAngleDeg` est l'angle du premier sommet à orientation nulle, mesuré
- * dans le repère écran (Y vers le bas) : -90° pointe vers le haut. Les
- * triangles Shapes ont une pointe en haut, les hexagones sont à sommet plat,
- * les carrés ont leurs arêtes parallèles aux axes.
+ * `baseAngleDeg` is the angle of the first vertex at zero orientation,
+ * measured in screen space (Y pointing down), so -90° points up. Shapes
+ * triangles have a vertex on top, hexagons are flat-topped, and squares keep
+ * their edges parallel to the axes.
  */
 export const SHAPE_GEOMETRY: Record<number, { sides: number; baseAngleDeg: number }> = {
-  0: { sides: 3, baseAngleDeg: -90 }, // triangle Aurora
+  0: { sides: 3, baseAngleDeg: -90 }, // Aurora triangle
   1: { sides: 3, baseAngleDeg: -90 }, // Rhythm
-  2: { sides: 4, baseAngleDeg: -45 }, // carré Canvas
-  3: { sides: 4, baseAngleDeg: -45 }, // carré de contrôle Canvas
-  4: { sides: 4, baseAngleDeg: -45 }, // carré de contrôle passif
-  7: { sides: 6, baseAngleDeg: 0 }, // hexagone Shapes
-  8: { sides: 3, baseAngleDeg: -90 }, // triangle Shapes
-  9: { sides: 3, baseAngleDeg: -90 }, // mini triangle Shapes
-  14: { sides: 6, baseAngleDeg: 0 }, // hexagone Elements
+  2: { sides: 4, baseAngleDeg: -45 }, // Canvas square
+  3: { sides: 4, baseAngleDeg: -45 }, // Canvas control square
+  4: { sides: 4, baseAngleDeg: -45 }, // passive control square
+  7: { sides: 6, baseAngleDeg: 0 }, // Shapes hexagon
+  8: { sides: 3, baseAngleDeg: -90 }, // Shapes triangle
+  9: { sides: 3, baseAngleDeg: -90 }, // Shapes mini triangle
+  14: { sides: 6, baseAngleDeg: 0 }, // Elements hexagon
   15: { sides: 6, baseAngleDeg: 0 },
   16: { sides: 6, baseAngleDeg: 0 },
 }
 
 const FALLBACK = { sides: 4, baseAngleDeg: -45 }
 
-/** Rayon du cercle circonscrit d'un polygone régulier. */
+/** Circumradius of a regular polygon. */
 export function circumradius(sides: number, sideLength: number): number {
   return sideLength / (2 * Math.sin(Math.PI / sides))
 }
 
 /**
- * Sommets d'un panneau dans l'espace normalisé, prêts pour le rendu.
+ * A panel's vertices in normalised space, ready for rendering.
  *
- * Le device mesure `o` dans le sens trigonométrique avec un axe Y vers le
- * haut ; `normalizeLayout` ayant inversé cet axe, la rotation devient
- * horaire ici, d'où le signe négatif.
+ * The device measures `o` counter-clockwise with Y pointing up; since
+ * `normalizeLayout` flips that axis, the rotation becomes clockwise here,
+ * hence the negative sign.
  */
 export function panelPolygon(panel: NormalizedPanel, nSideLength: number): Point[] {
   const shape = SHAPE_GEOMETRY[panel.shapeType] ?? FALLBACK
@@ -55,7 +55,7 @@ export function panelPolygon(panel: NormalizedPanel, nSideLength: number): Point
   })
 }
 
-/** Test d'appartenance par lancer de rayon, valable pour tout polygone simple. */
+/** Ray-casting containment test, valid for any simple polygon. */
 export function pointInPolygon(point: Point, polygon: Point[]): boolean {
   if (polygon.length < 3) return false
 
@@ -72,8 +72,8 @@ export function pointInPolygon(point: Point, polygon: Point[]): boolean {
 }
 
 /**
- * Panneau situé sous un point, en espace normalisé. Le dernier panneau de la
- * liste l'emporte en cas de chevauchement : c'est celui dessiné par-dessus.
+ * The panel under a point, in normalised space. The last panel in the list
+ * wins any overlap: it is the one drawn on top.
  */
 export function panelAt(layout: PanelLayout, point: Point): NormalizedPanel | null {
   for (let index = layout.panels.length - 1; index >= 0; index -= 1) {
@@ -91,11 +91,11 @@ export interface Bounds {
 }
 
 /**
- * Étendue réelle des panneaux, sommets compris.
+ * The real extent of the panels, vertices included.
  *
- * `normalizeLayout` ne normalise que les *centres* : un panneau déborde du
- * carré unité de tout son rayon circonscrit. Cadrer sur `[0,1]²` couperait
- * donc les bords du mur.
+ * `normalizeLayout` only normalises the *centres*: a panel sticks out of the
+ * unit square by its full circumradius. Framing on `[0,1]²` would therefore
+ * clip the edges of the wall.
  */
 export function wallBounds(layout: PanelLayout): Bounds {
   if (layout.panels.length === 0) return { minX: 0, minY: 0, maxX: 1, maxY: 1 }
@@ -115,16 +115,16 @@ export function wallBounds(layout: PanelLayout): Bounds {
 }
 
 /**
- * Fait tourner le mur d'un angle libre, horaire, à l'écran.
+ * Rotates the wall by an arbitrary clockwise angle, on screen.
  *
- * Le device ne dit pas dans quel sens les panneaux sont accrochés, et rien
- * n'oblige un mur à être posé à angle droit : seul l'utilisateur le sait.
- * Tourner la layout plutôt que le rendu garde le maillage, la désignation au
- * clic et le mapping spatial d'accord entre eux, puisque tous repartent des
- * mêmes `nx`, `ny` et `o`.
+ * The device does not report how the panels are mounted, and nothing says a
+ * wall has to hang square: only the user knows. Rotating the layout rather
+ * than the rendering keeps the mesh, the click hit-testing and the spatial
+ * mapping in agreement, since all three start from the same `nx`, `ny`
+ * and `o`.
  *
- * `o` est mesuré dans le repère du device, dont l'axe Y est inversé au
- * rendu : une rotation horaire à l'écran se retranche donc de `o`.
+ * `o` is measured in the device's frame, whose Y axis is flipped for
+ * rendering: a clockwise rotation on screen is therefore subtracted from `o`.
  */
 export function rotateLayout(layout: PanelLayout, degrees: number): PanelLayout {
   const angle = ((degrees % 360) + 360) % 360
@@ -145,13 +145,13 @@ export function rotateLayout(layout: PanelLayout, degrees: number): PanelLayout 
     }
   })
 
-  const tourne: PanelLayout = { ...layout, panels }
-  const bounds = wallBounds(tourne)
-  const largeur = bounds.maxX - bounds.minX
-  const hauteur = bounds.maxY - bounds.minY
+  const rotated: PanelLayout = { ...layout, panels }
+  const bounds = wallBounds(rotated)
+  const width = bounds.maxX - bounds.minX
+  const height = bounds.maxY - bounds.minY
 
   return {
-    ...tourne,
-    aspect: hauteur === 0 ? layout.aspect : largeur / hauteur,
+    ...rotated,
+    aspect: height === 0 ? layout.aspect : width / height,
   }
 }

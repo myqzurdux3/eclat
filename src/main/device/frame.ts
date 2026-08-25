@@ -1,6 +1,6 @@
 import type { Color } from '../../shared/types'
 
-/** Couleur destinée à un panneau précis, identifié par son `panelId`. */
+/** A colour aimed at one specific panel, identified by its `panelId`. */
 export interface PanelColor {
   panelId: number
   color: Color
@@ -18,14 +18,13 @@ const clampUint16 = (value: number): number =>
   Math.min(65535, Math.max(0, Math.round(value)))
 
 /**
- * Encode une trame External Control v2, en big-endian.
+ * Encodes an External Control v2 frame, big-endian.
  *
- * `transitionTime` est exprimé en centaines de millisecondes et vaut 1 par
- * défaut : le contrôleur interpole lui-même entre deux trames, ce qui lisse
- * le rendu et absorbe le jitter réseau. À 0, les panneaux scintillent.
+ * `transitionTime` is expressed in hundreds of milliseconds and defaults to
+ * 1: the controller interpolates between frames on its own, which smooths
+ * the result and absorbs network jitter. At 0, the panels flicker.
  *
- * Le canal W reste à 0 : les Shapes et les Lines n'ont pas de LED blanche
- * dédiée.
+ * The W channel stays at 0: Shapes and Lines have no dedicated white LED.
  */
 export function encodeFrameV2(panels: PanelColor[], transitionTime = 1): Buffer {
   const frame = Buffer.allocUnsafe(FRAME_HEADER_BYTES + panels.length * FRAME_PANEL_BYTES)

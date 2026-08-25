@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { discoverDevices, type MdnsBrowser, type MdnsFactory, type MdnsService } from './discovery'
 
-/** Fabrique mDNS de test : rejoue une liste de services à l abonnement. */
+/** A test mDNS factory: replays a list of services on subscription. */
 function fakeFactory(services: MdnsService[]): MdnsFactory & { stopped: () => boolean } {
   let stopped = false
   return {
@@ -20,7 +20,7 @@ function fakeFactory(services: MdnsService[]): MdnsFactory & { stopped: () => bo
 }
 
 const service = (over: Partial<MdnsService> = {}): MdnsService => ({
-  name: 'Shapes Salon',
+  name: 'Shapes Lounge',
   host: 'shapes.local',
   addresses: ['fe80::1', '192.168.1.42'],
   port: 16021,
@@ -29,15 +29,15 @@ const service = (over: Partial<MdnsService> = {}): MdnsService => ({
 })
 
 describe('discoverDevices', () => {
-  it('convertit un service en DeviceInfo en retenant l adresse IPv4', async () => {
+  it('converts a service into a DeviceInfo, keeping the IPv4 address', async () => {
     const factory = fakeFactory([service()])
 
     const devices = await discoverDevices(factory, { timeoutMs: 0, sleep: () => Promise.resolve() })
 
     expect(devices).toEqual([
       {
-        id: 'Shapes Salon',
-        name: 'Shapes Salon',
+        id: 'Shapes Lounge',
+        name: 'Shapes Lounge',
         ip: '192.168.1.42',
         port: 16021,
         model: 'NL42',
@@ -46,7 +46,7 @@ describe('discoverDevices', () => {
     ])
   })
 
-  it('déduplique les annonces répétées', async () => {
+  it('deduplicates repeated announcements', async () => {
     const factory = fakeFactory([service(), service(), service({ name: 'Autre' })])
 
     const devices = await discoverDevices(factory, { timeoutMs: 0, sleep: () => Promise.resolve() })
@@ -54,7 +54,7 @@ describe('discoverDevices', () => {
     expect(devices).toHaveLength(2)
   })
 
-  it('ignore un service sans adresse IPv4', async () => {
+  it('ignores a service with no IPv4 address', async () => {
     const factory = fakeFactory([service({ addresses: ['fe80::1'] })])
 
     const devices = await discoverDevices(factory, { timeoutMs: 0, sleep: () => Promise.resolve() })
@@ -62,7 +62,7 @@ describe('discoverDevices', () => {
     expect(devices).toEqual([])
   })
 
-  it('tolère l absence de TXT records', async () => {
+  it('tolerates the absence of TXT records', async () => {
     const factory = fakeFactory([service({ txt: undefined })])
 
     const devices = await discoverDevices(factory, { timeoutMs: 0, sleep: () => Promise.resolve() })
@@ -71,7 +71,7 @@ describe('discoverDevices', () => {
     expect(devices[0]!.firmware).toBeUndefined()
   })
 
-  it('arrête le browser à la fin', async () => {
+  it('stops the browser at the end', async () => {
     const factory = fakeFactory([service()])
 
     await discoverDevices(factory, { timeoutMs: 0, sleep: () => Promise.resolve() })

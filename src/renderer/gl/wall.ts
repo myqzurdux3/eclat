@@ -6,7 +6,7 @@ export interface WallRenderer {
   draw(colors: Map<number, Color>): void
   resize(): void
   dispose(): void
-  /** Cadrage courant, pour retrouver le panneau sous un clic. */
+  /** The current framing, used to find the panel under a click. */
   transform(): ViewTransform
 }
 
@@ -23,8 +23,8 @@ out vec2 vOffset;
 void main() {
   vColor = uColors[int(aPanelIndex)];
   vOffset = aOffset;
-  // Espace du mur vers le repère de clip : on centre, on met à l'échelle,
-  // et on inverse Y qui pointe vers le bas côté écran.
+  // Wall space into clip space: centre, scale, and flip the Y axis, which
+  // points down on screen.
   vec2 placed = (aPosition - uCentre) * uScale;
   gl_Position = vec4(placed.x, -placed.y, 0.0, 1.0);
 }`
@@ -47,37 +47,37 @@ out vec4 outColor;
 
 void main() {
   float dist = length(vOffset);
-  // Décroissance douce : opaque au centre, nulle au bord du quad.
+  // Soft falloff: opaque at the centre, zero at the quad's edge.
   float falloff = pow(max(0.0, 1.0 - dist), 3.0);
   outColor = vec4(vColor * falloff, falloff);
 }`
 
 function compile(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
   const shader = gl.createShader(type)
-  if (shader === null) throw new Error('Shader non alloué')
+  if (shader === null) throw new Error('Shader allocation failed')
   gl.shaderSource(shader, source)
   gl.compileShader(shader)
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    throw new Error(`Compilation du shader : ${gl.getShaderInfoLog(shader) ?? 'inconnue'}`)
+    throw new Error(`Shader compilation: ${gl.getShaderInfoLog(shader) ?? 'unknown'}`)
   }
   return shader
 }
 
 function link(gl: WebGL2RenderingContext, fragmentSource: string): WebGLProgram {
   const program = gl.createProgram()
-  if (program === null) throw new Error('Programme non alloué')
+  if (program === null) throw new Error('Program allocation failed')
   gl.attachShader(program, compile(gl, gl.VERTEX_SHADER, VERTEX_SHADER))
   gl.attachShader(program, compile(gl, gl.FRAGMENT_SHADER, fragmentSource))
   gl.linkProgram(program)
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    throw new Error(`Édition de liens : ${gl.getProgramInfoLog(program) ?? 'inconnue'}`)
+    throw new Error(`Program linking: ${gl.getProgramInfoLog(program) ?? 'unknown'}`)
   }
   return program
 }
 
 function upload(gl: WebGL2RenderingContext, data: Float32Array): WebGLBuffer {
   const buffer = gl.createBuffer()
-  if (buffer === null) throw new Error('Tampon non alloué')
+  if (buffer === null) throw new Error('Buffer allocation failed')
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
   gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW)
   return buffer
@@ -98,17 +98,16 @@ function bindAttribute(
 }
 
 /**
- * Dessine le mur : un halo diffus par panneau, puis le panneau lui-même.
- * Les couleurs passent par un tableau d'uniformes indexé par panneau, ce qui
- * évite de reconstruire le moindre tampon à chaque frame — seul l'uniforme
- * change, à 30 Hz.
+ * Draws the wall: a diffuse halo per panel, then the panel itself. Colours
+ * travel through a uniform array indexed by panel, which avoids rebuilding
+ * any buffer per frame — only the uniform changes, at 30 Hz.
  */
 export function createWallRenderer(
   canvas: HTMLCanvasElement,
   layout: PanelLayout,
 ): WallRenderer {
   const gl = canvas.getContext('webgl2', { alpha: true, antialias: true })
-  if (gl === null) throw new Error('WebGL2 indisponible')
+  if (gl === null) throw new Error('WebGL2 unavailable')
 
   const panelMesh = buildPanelMesh(layout)
   const haloMesh = buildHaloMesh(layout)
@@ -140,7 +139,7 @@ export function createWallRenderer(
 
   const bounds = wallBounds(layout)
 
-  /** Cadrage courant : dépend de la taille du canvas, donc recalculé. */
+  /** The current framing: depends on canvas size, so it is recomputed. */
   const currentTransform = (): ViewTransform =>
     fitTransform(bounds, canvas.height === 0 ? 1 : canvas.width / canvas.height)
 

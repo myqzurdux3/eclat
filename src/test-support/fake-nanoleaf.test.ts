@@ -11,7 +11,7 @@ afterEach(async () => {
 const base = (d: FakeNanoleaf) => `http://127.0.0.1:${d.port}`
 
 describe('FakeNanoleaf', () => {
-  it('refuse l appairage hors mode appairage', async () => {
+  it('refuses pairing outside pairing mode', async () => {
     device = new FakeNanoleaf()
     await device.start()
 
@@ -20,7 +20,7 @@ describe('FakeNanoleaf', () => {
     expect(res.status).toBe(403)
   })
 
-  it('délivre un token en mode appairage', async () => {
+  it('hands over a token while in pairing mode', async () => {
     device = new FakeNanoleaf({ token: 'tok-123' })
     await device.start()
     device.pairingMode = true
@@ -40,7 +40,7 @@ describe('FakeNanoleaf', () => {
     expect(res.status).toBe(401)
   })
 
-  it('sert l état complet', async () => {
+  it('serves the full state', async () => {
     device = new FakeNanoleaf({ token: 'tok' })
     await device.start()
 
@@ -53,7 +53,7 @@ describe('FakeNanoleaf', () => {
     expect(body.panelLayout.layout.numPanels).toBeGreaterThan(0)
   })
 
-  it('applique un PUT /state et journalise la requête', async () => {
+  it('applies a PUT /state and records the request', async () => {
     device = new FakeNanoleaf({ token: 'tok' })
     await device.start()
 
@@ -72,7 +72,7 @@ describe('FakeNanoleaf', () => {
     })
   })
 
-  it('sert la liste des effets et applique une sélection', async () => {
+  it('serves the effect list and applies a selection', async () => {
     device = new FakeNanoleaf({ token: 'tok' })
     await device.start()
     device.effects = ['Nemo', 'Northern Lights']

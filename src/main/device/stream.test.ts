@@ -6,7 +6,7 @@ import { NanoleafClient } from './client'
 import { RateGovernor } from './rate'
 import { PanelStream, type SchedulerLike } from './stream'
 
-/** Ordonnanceur manuel : la sonde de réarmement se déclenche à la demande. */
+/** A manual scheduler: the re-arm probe fires on demand. */
 function fakeScheduler(): SchedulerLike & { fire: () => void } {
   let handler: (() => void) | null = null
   return {
@@ -29,14 +29,13 @@ function clock() {
 }
 
 /**
- * La sonde est déclenchée sans être attendue : elle enchaîne deux
- * allers-retours HTTP, il faut donc sonder le résultat plutôt que céder la
- * main une seule fois.
+ * The probe is fired without being awaited: it chains two HTTP round
+ * trips, so the result has to be polled rather than yielding once.
  */
 async function waitFor(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
   const deadline = Date.now() + timeoutMs
   while (!predicate()) {
-    if (Date.now() > deadline) throw new Error('Condition jamais atteinte')
+    if (Date.now() > deadline) throw new Error('Condition never met')
     await new Promise((resolve) => setTimeout(resolve, 5))
   }
 }
@@ -73,19 +72,19 @@ beforeEach(async () => {
 })
 
 describe('PanelStream', () => {
-  it('arme le mode External Control v2', async () => {
+  it('arms External Control v2', async () => {
     await stream.arm()
 
     expect(stream.armed).toBe(true)
     expect(device.extControlVersion).toBe('v2')
   })
 
-  it('n émet rien tant que le mode n est pas armé', async () => {
+  it('sends nothing until the mode is armed', async () => {
     expect(stream.send(red)).toBe(false)
     expect(receiver.frames).toEqual([])
   })
 
-  it('émet une trame décodable une fois armé', async () => {
+  it('sends a decodable frame once armed', async () => {
     await stream.arm()
 
     expect(stream.send(red)).toBe(true)
@@ -94,7 +93,7 @@ describe('PanelStream', () => {
     expect(frame).toEqual({ transitionTime: 1, panels: red })
   })
 
-  it('refuse une trame trop rapprochée', async () => {
+  it('refuses a frame that comes too soon', async () => {
     const time = clock()
     stream = new PanelStream({
       client: new NanoleafClient({ ip: '127.0.0.1', token: 'tok', port: device.port }),
@@ -112,7 +111,7 @@ describe('PanelStream', () => {
     expect(stream.send(red)).toBe(true)
   })
 
-  it('réarme quand une autre source a repris la main', async () => {
+  it('re-arms when another source has taken over', async () => {
     await stream.arm()
     device.state.effect = 'Northern Lights'
     device.extControlVersion = null
@@ -123,7 +122,7 @@ describe('PanelStream', () => {
     expect(device.state.effect).toBe(EXT_CONTROL_EFFECT)
   })
 
-  it('ne réarme pas si le mode tient toujours', async () => {
+  it('does not re-arm while the mode still holds', async () => {
     await stream.arm()
     const armCount = device.requests.filter((r) => r.path.endsWith('/effects')).length
 
@@ -132,7 +131,7 @@ describe('PanelStream', () => {
     expect(device.requests.filter((r) => r.path.endsWith('/effects'))).toHaveLength(armCount)
   })
 
-  it('branche la sonde sur l ordonnanceur', async () => {
+  it('wires the probe onto the scheduler', async () => {
     await stream.arm()
     device.state.effect = 'Forest'
     device.extControlVersion = null
@@ -143,7 +142,7 @@ describe('PanelStream', () => {
     expect(device.extControlVersion).toBe('v2')
   })
 
-  it('restaure l effet et l état on/off à l arrêt', async () => {
+  it('restores the effect and the on/off state on stop', async () => {
     device.state.effect = 'Forest'
     device.state.on = true
     await stream.arm()
@@ -156,7 +155,7 @@ describe('PanelStream', () => {
     expect(device.state.on).toBe(true)
   })
 
-  it('rallume un device qui était allumé avant l armement', async () => {
+  it('switches back on a device that was on before arming', async () => {
     device.state.on = true
     await stream.arm()
     device.state.on = false
@@ -166,14 +165,14 @@ describe('PanelStream', () => {
     expect(device.state.on).toBe(true)
   })
 
-  it('supporte un arrêt répété', async () => {
+  it('tolerates a repeated stop', async () => {
     await stream.arm()
 
     await stream.stop()
     await expect(stream.stop()).resolves.toBeUndefined()
   })
 
-  it('ne réécrase pas l état sauvegardé si on arme deux fois', async () => {
+  it('does not overwrite the saved state when arming twice', async () => {
     device.state.effect = 'Forest'
     await stream.arm()
     await stream.arm()

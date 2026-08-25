@@ -9,8 +9,8 @@ interface ColorWheelProps {
 }
 
 /**
- * Roue teinte/saturation dessinée une fois en 2D, puis seulement recouverte
- * d'un curseur : rien ne se redessine pendant qu'un sync tourne.
+ * A hue/saturation wheel drawn once in 2D, then merely overlaid with a
+ * cursor: nothing is redrawn while a sync is running.
  */
 export function ColorWheel({ hue, sat, size, onPick }: ColorWheelProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -35,26 +35,26 @@ export function ColorWheel({ hue, sat, size, onPick }: ColorWheelProps) {
         image.data[at] = r
         image.data[at + 1] = g
         image.data[at + 2] = b
-        // Bord adouci sur le dernier pixel, sinon le disque crénèle.
-        const bordure = radius - Math.hypot(x - radius + 0.5, y - radius + 0.5)
-        image.data[at + 3] = Math.round(255 * Math.min(1, Math.max(0, bordure)))
+        // Softened edge on the last pixel, otherwise the disc aliases.
+        const edge = radius - Math.hypot(x - radius + 0.5, y - radius + 0.5)
+        image.data[at + 3] = Math.round(255 * Math.min(1, Math.max(0, edge)))
       }
     }
     context.putImageData(image, 0, 0)
   }, [size, radius])
 
   /**
-   * Le pointeur est capturé au premier appui : le glissement continue même
-   * si le curseur sort du disque, comme sur tout sélecteur de couleur.
+   * The pointer is captured on the first press: dragging carries on even
+   * when the cursor leaves the disc, as on any colour picker.
    */
   const pick = (event: React.PointerEvent<HTMLDivElement>): void => {
     const bounds = event.currentTarget.getBoundingClientRect()
     const dx = event.clientX - bounds.left - radius
     const dy = event.clientY - bounds.top - radius
     const distance = Math.hypot(dx, dy)
-    // Hors du disque, on projette sur le bord plutôt que d'ignorer le geste.
-    const facteur = distance > radius ? radius / distance : 1
-    const position = wheelToHsv(dx * facteur, dy * facteur, radius)
+    // Outside the disc, project onto the edge rather than ignore the gesture.
+    const factor = distance > radius ? radius / distance : 1
+    const position = wheelToHsv(dx * factor, dy * factor, radius)
     if (position !== null) onPick(position)
   }
 
@@ -62,7 +62,7 @@ export function ColorWheel({ hue, sat, size, onPick }: ColorWheelProps) {
 
   return (
     <div
-      className="roue"
+      className="wheel"
       style={{ width: size, height: size }}
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId)
@@ -75,7 +75,7 @@ export function ColorWheel({ hue, sat, size, onPick }: ColorWheelProps) {
     >
       <canvas ref={canvasRef} width={size} height={size} />
       <div
-        className="curseur-roue"
+        className="wheel-cursor"
         style={{
           transform: `translate(${radius + cursor.dx}px, ${radius + cursor.dy}px)`,
           background: `rgb(${hsbToRgb(hue, sat, 100).r}, ${hsbToRgb(hue, sat, 100).g}, ${hsbToRgb(hue, sat, 100).b})`,

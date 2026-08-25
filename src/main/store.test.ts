@@ -14,7 +14,7 @@ beforeEach(async () => {
 
 const device: StoredDevice = {
   id: 'FAKE0001',
-  name: 'Salon',
+  name: 'Lounge',
   ip: '192.168.1.42',
   port: 16021,
   token: 'secret',
@@ -25,13 +25,13 @@ afterEach(() => {
 })
 
 describe('ConfigStore', () => {
-  it('renvoie une configuration vide quand le fichier n existe pas', async () => {
+  it('returns an empty configuration when the file does not exist', async () => {
     const store = new ConfigStore(file)
 
     expect(await store.load()).toEqual({ devices: {}, activeDeviceId: null })
   })
 
-  it('crée le répertoire parent et relit ce qu il a écrit', async () => {
+  it('creates the parent directory and reads back what it wrote', async () => {
     const store = new ConfigStore(file)
 
     await store.save({ devices: { [device.id]: device }, activeDeviceId: device.id })
@@ -42,7 +42,7 @@ describe('ConfigStore', () => {
     })
   })
 
-  it('écrit le fichier en 0600', async () => {
+  it('writes the file as 0600', async () => {
     const store = new ConfigStore(file)
 
     await store.save({ devices: {}, activeDeviceId: null })
@@ -51,24 +51,24 @@ describe('ConfigStore', () => {
     expect(stats.mode & 0o777).toBe(0o600)
   })
 
-  it('remet en 0600 un fichier existant avec des permissions relâchées', async () => {
+  it('resets an existing file with loosened permissions back to 0600', async () => {
     const store = new ConfigStore(file)
 
-    // Créer le fichier avec permissions lâches
+    // Create the file with loose permissions
     await store.save({ devices: {}, activeDeviceId: null })
     await chmod(file, 0o644)
 
     let stats = await stat(file)
     expect(stats.mode & 0o777).toBe(0o644)
 
-    // Réécrire : la permission doit revenir à 0o600
+    // Rewrite: the permission must return to 0o600
     await store.save({ devices: { [device.id]: device }, activeDeviceId: device.id })
 
     stats = await stat(file)
     expect(stats.mode & 0o777).toBe(0o600)
   })
 
-  it('upsertDevice ajoute le device et le rend actif s il est le premier', async () => {
+  it('upsertDevice adds the device and makes it active if it is the first', async () => {
     const store = new ConfigStore(file)
 
     const config = await store.upsertDevice(device)
@@ -77,10 +77,10 @@ describe('ConfigStore', () => {
     expect(config.activeDeviceId).toBe(device.id)
   })
 
-  it('upsertDevice met à jour sans changer le device actif', async () => {
+  it('upsertDevice updates without changing the active device', async () => {
     const store = new ConfigStore(file)
     await store.upsertDevice(device)
-    await store.upsertDevice({ ...device, id: 'AUTRE0002', name: 'Bureau' })
+    await store.upsertDevice({ ...device, id: 'AUTRE0002', name: 'Study' })
 
     const config = await store.upsertDevice({ ...device, ip: '192.168.1.99' })
 
@@ -89,22 +89,22 @@ describe('ConfigStore', () => {
     expect(Object.keys(config.devices)).toHaveLength(2)
   })
 
-  it('tolère un fichier corrompu', async () => {
+  it('tolerates a corrupted file', async () => {
     const flat = join(dir, 'config.json')
     await writeFile(flat, '{ pas du json', 'utf8')
 
     expect(await new ConfigStore(flat).load()).toEqual({ devices: {}, activeDeviceId: null })
   })
 
-  it('defaultConfigPath respecte XDG_CONFIG_HOME', () => {
+  it('defaultConfigPath honours XDG_CONFIG_HOME', () => {
     process.env.XDG_CONFIG_HOME = '/tmp/xdg-test'
 
     expect(defaultConfigPath()).toBe('/tmp/xdg-test/eclat/config.json')
   })
 })
 
-describe('ConfigStore — ancien emplacement', () => {
-  it('lit l ancien fichier quand le nouveau n existe pas', async () => {
+describe('ConfigStore — legacy location', () => {
+  it('reads the old file when the new one does not exist', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-legacy-'))
     const ancien = join(dir, 'ancien.json')
     const nouveau = join(dir, 'nouveau.json')
@@ -115,7 +115,7 @@ describe('ConfigStore — ancien emplacement', () => {
     expect(config.devices[device.id]?.token).toBe(device.token)
   })
 
-  it('préfère le nouveau fichier quand les deux existent', async () => {
+  it('prefers the new file when both exist', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-legacy-'))
     const ancien = join(dir, 'ancien.json')
     const nouveau = join(dir, 'nouveau.json')
@@ -127,7 +127,7 @@ describe('ConfigStore — ancien emplacement', () => {
     expect(config.devices[device.id]?.token).toBe('nouveau')
   })
 
-  it('écrit toujours au nouvel emplacement', async () => {
+  it('always writes to the new location', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-legacy-'))
     const ancien = join(dir, 'ancien.json')
     const nouveau = join(dir, 'nouveau.json')
@@ -139,7 +139,7 @@ describe('ConfigStore — ancien emplacement', () => {
     expect(JSON.parse(await readFile(nouveau, 'utf8')).devices[device.id].token).toBe('repris')
   })
 
-  it('rend une configuration vide quand aucun des deux n existe', async () => {
+  it('returns an empty configuration when neither exists', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-legacy-'))
 
     const config = await new ConfigStore(join(dir, 'a.json'), join(dir, 'b.json')).load()

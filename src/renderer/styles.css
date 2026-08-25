@@ -32,11 +32,11 @@ button {
   color: inherit;
 }
 
-/* Dégradé lent dérivant vers la couleur dominante.
-   Deux calques empilés au fond statique, dont seule l'opacité s'anime : un
-   `transition: background` repeindrait un flou de 90 px plein écran à chaque
-   frame, ce que la contrainte des 60 fps interdit. */
-.derive {
+/* A slow gradient drifting towards the dominant colour.
+   Two stacked layers with static backgrounds, of which only the opacity is
+   animated: a `transition: background` would repaint a 90 px full-screen
+   blur every frame, which the 60 fps constraint forbids. */
+.drift {
   position: fixed;
   inset: -30%;
   z-index: 0;
@@ -47,11 +47,11 @@ button {
   will-change: opacity;
 }
 
-.derive[data-visible='true'] {
+.drift[data-visible='true'] {
   opacity: 0.45;
 }
 
-.coquille {
+.shell {
   position: relative;
   z-index: 1;
   display: grid;
@@ -59,20 +59,20 @@ button {
   height: 100vh;
 }
 
-/* ─── Barre de titre ─────────────────────────────────────────────── */
+/* --- Title bar ---------------------------------------------------- */
 
-.barre {
+.titlebar {
   -webkit-app-region: drag;
   display: flex;
   align-items: center;
   padding: 0 14px;
 }
 
-.barre button {
+.titlebar button {
   -webkit-app-region: no-drag;
 }
 
-.onglets {
+.tabs {
   display: flex;
   gap: 2px;
   padding: 3px;
@@ -81,7 +81,7 @@ button {
   border: 1px solid var(--bord);
 }
 
-.onglets button {
+.tabs button {
   background: transparent;
   border: 0;
   color: var(--discret);
@@ -93,22 +93,22 @@ button {
   transition: color 140ms ease, background 140ms ease;
 }
 
-.onglets button:hover {
+.tabs button:hover {
   color: var(--texte);
 }
 
-.onglets button[aria-selected='true'] {
+.tabs button[aria-selected='true'] {
   background: var(--verre-fort);
   color: var(--texte);
 }
 
-.commandes-fenetre {
+.window-controls {
   margin-left: auto;
   display: flex;
   gap: 8px;
 }
 
-.commandes-fenetre button {
+.window-controls button {
   width: 26px;
   height: 26px;
   display: grid;
@@ -122,21 +122,21 @@ button {
   transition: background 140ms ease, color 140ms ease;
 }
 
-.commandes-fenetre button:hover {
+.window-controls button:hover {
   background: var(--verre-fort);
   color: var(--texte);
 }
 
-/* ─── Surfaces ───────────────────────────────────────────────────── */
+/* --- Surfaces ------------------------------------------------------ */
 
-.verre {
+.glass {
   background: var(--verre);
   border: 1px solid var(--bord);
   backdrop-filter: blur(24px);
   border-radius: var(--rayon);
 }
 
-.controle {
+.control {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 16px;
@@ -144,8 +144,8 @@ button {
   min-height: 0;
 }
 
-/* Le mur occupe toute la scène ; le halo peut déborder sans être coupé. */
-.scene {
+/* The wall fills the whole stage; the halo may bleed without being clipped. */
+.stage {
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -157,14 +157,14 @@ button {
     rgba(255, 255, 255, 0.015);
 }
 
-.mur {
+.wall {
   display: block;
   width: 100%;
   height: 100%;
   cursor: crosshair;
 }
 
-.panneau-lateral {
+.sidebar {
   display: grid;
   gap: 18px;
   align-content: start;
@@ -174,7 +174,7 @@ button {
   scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
 }
 
-/* La barre native est opaque et blanche sur ce fond : on la reprend. */
+/* The native bar is opaque and white against this background: restyle it. */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -196,25 +196,25 @@ button {
   background-clip: padding-box;
 }
 
-/* ─── Typographie ────────────────────────────────────────────────── */
+/* --- Typography ---------------------------------------------------- */
 
-.titre-device {
+.device-title {
   display: grid;
   gap: 2px;
 }
 
-.titre-device strong {
+.device-title strong {
   font-size: 17px;
   font-weight: 650;
   letter-spacing: -0.01em;
 }
 
-.titre-device span {
+.device-title span {
   font-size: 12px;
   color: var(--faible);
 }
 
-.etiquette {
+.label {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -225,7 +225,7 @@ button {
   color: var(--faible);
 }
 
-.etiquette b {
+.label b {
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0;
@@ -234,22 +234,22 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-.aide {
+.hint {
   margin: 0;
   font-size: 12px;
   line-height: 1.55;
   color: var(--faible);
 }
 
-.erreur {
+.error {
   margin: 0;
   font-size: 12px;
   color: var(--alerte);
 }
 
-/* ─── Contrôles ──────────────────────────────────────────────────── */
+/* --- Controls ------------------------------------------------------ */
 
-.bouton {
+.button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -265,26 +265,26 @@ button {
   transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
 
-.bouton:hover:not(:disabled) {
+.button:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.14);
 }
 
-.bouton:active:not(:disabled) {
+.button:active:not(:disabled) {
   transform: scale(0.985);
 }
 
-.bouton:disabled {
+.button:disabled {
   opacity: 0.45;
   cursor: default;
 }
 
-.bouton[data-actif='true'] {
+.button[data-actif='true'] {
   background: var(--texte);
   border-color: var(--texte);
   color: #101014;
 }
 
-.groupe {
+.group {
   display: grid;
   gap: 9px;
 }
@@ -323,8 +323,8 @@ button {
   color: var(--texte);
 }
 
-/* Curseur : piste et pastille dessinées à la main, la version native est
-   inutilisable sur un fond sombre. */
+/* Slider: track and thumb drawn by hand, the native version being unusable
+   on a dark background. */
 input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
@@ -357,19 +357,19 @@ input[type='range']:active::-webkit-slider-thumb {
   transform: scale(1.15);
 }
 
-.roue {
+.wheel {
   position: relative;
   margin: 2px auto 0;
   touch-action: none;
 }
 
-.roue canvas {
+.wheel canvas {
   display: block;
   border-radius: 50%;
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
 }
 
-.curseur-roue {
+.wheel-cursor {
   position: absolute;
   left: 0;
   top: 0;
@@ -382,9 +382,9 @@ input[type='range']:active::-webkit-slider-thumb {
   pointer-events: none;
 }
 
-/* ─── Scènes ─────────────────────────────────────────────────────── */
+/* --- Scenes -------------------------------------------------------- */
 
-.grille-scenes {
+.stage-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
   gap: 14px;
@@ -393,7 +393,7 @@ input[type='range']:active::-webkit-slider-thumb {
   align-content: start;
 }
 
-.vignette {
+.thumb {
   position: relative;
   border: 1px solid var(--bord);
   border-radius: 14px;
@@ -404,16 +404,16 @@ input[type='range']:active::-webkit-slider-thumb {
   transition: transform 160ms ease, border-color 160ms ease;
 }
 
-.vignette:hover {
+.thumb:hover {
   transform: translateY(-2px);
   border-color: var(--bord-vif);
 }
 
-.vignette[aria-current='true'] {
+.thumb[aria-current='true'] {
   border-color: var(--texte);
 }
 
-.vignette span {
+.thumb span {
   display: block;
   padding: 9px 12px;
   font-size: 13px;
@@ -421,14 +421,14 @@ input[type='range']:active::-webkit-slider-thumb {
   text-align: left;
 }
 
-.etat-vide {
+.empty-state {
   padding: 0 16px;
   color: var(--discret);
 }
 
-/* ─── Sync écran ─────────────────────────────────────────────────── */
+/* --- Screen sync --------------------------------------------------- */
 
-.apercu-cadre {
+.preview-frame {
   display: grid;
   grid-template-rows: 1fr auto;
   place-items: center;
@@ -436,9 +436,9 @@ input[type='range']:active::-webkit-slider-thumb {
   gap: 16px;
 }
 
-/* L'image d'analyse fait 64×36 : agrandie au pixel, sans lissage, pour
-   montrer exactement ce que le pipeline voit. */
-.apercu {
+/* The analysis image is 64x36: enlarged pixel by pixel, unsmoothed, to show
+   exactly what the pipeline sees. */
+.preview {
   width: 100%;
   max-width: 640px;
   aspect-ratio: 16 / 9;
@@ -447,7 +447,7 @@ input[type='range']:active::-webkit-slider-thumb {
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
-.apercu-vide {
+.preview-empty {
   display: grid;
   place-items: center;
   text-align: center;
@@ -455,39 +455,39 @@ input[type='range']:active::-webkit-slider-thumb {
   max-width: 380px;
 }
 
-.bande-couleurs {
+.colour-strip {
   display: flex;
   gap: 4px;
   width: 100%;
   max-width: 640px;
 }
 
-.bande-couleurs span {
+.colour-strip span {
   flex: 1;
   height: 26px;
   border-radius: 6px;
 }
 
-.langues {
+.locales {
   padding: 2px;
   margin-right: 4px;
 }
 
-.langues button {
+.locales button {
   display: grid;
   place-items: center;
   min-width: 32px;
   padding: 4px 8px;
   font-size: 11px;
   letter-spacing: 0.06em;
-  /* `letter-spacing` ajoute sa chasse après la dernière lettre aussi : sans
-     compensation, le texte penche à gauche dans un bloc centré. */
+  /* `letter-spacing` adds its space after the last letter too: without
+     compensation the text leans left inside a centred box. */
   text-indent: 0.06em;
 }
 
-/* Sélecteur de mur : les noms de device sont de longueur libre, donc pas de
-   colonnes égales — chaque bouton prend la largeur de son nom. */
-.murs {
+/* Wall picker: device names have no fixed length, so no equal columns —
+   each button takes the width of its own name. */
+.walls {
   grid-auto-flow: column;
   grid-auto-columns: max-content;
   justify-content: start;
@@ -495,25 +495,25 @@ input[type='range']:active::-webkit-slider-thumb {
   scrollbar-width: none;
 }
 
-.murs button {
+.walls button {
   padding: 6px 12px;
   white-space: nowrap;
 }
 
-.rangee-murs {
+.wall-row {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
 }
 
-.rangee-murs .murs {
+.wall-row .walls {
   min-width: 0;
 }
 
-/* Relancer une découverte doit rester possible une fois un mur appairé :
-   c'est le seul chemin pour en ajouter un second. */
-.rechercher {
+/* Re-running discovery has to stay possible once a wall is paired: it is
+   the only path to adding a second one. */
+.rescan {
   flex: none;
   width: 30px;
   height: 30px;
@@ -528,12 +528,12 @@ input[type='range']:active::-webkit-slider-thumb {
   transition: background 140ms ease, color 140ms ease;
 }
 
-.rechercher:hover:not(:disabled) {
+.rescan:hover:not(:disabled) {
   background: var(--verre-fort);
   color: var(--texte);
 }
 
-.rechercher:disabled {
+.rescan:disabled {
   opacity: 0.4;
   cursor: default;
 }

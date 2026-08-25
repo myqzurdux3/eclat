@@ -7,17 +7,17 @@ export interface RawPanel {
 }
 
 export interface NormalizedPanel extends RawPanel {
-  /** Position horizontale normalisée dans [0,1], 0 = bord gauche du mur. */
+  /** Normalised horizontal position in [0,1]; 0 is the left edge of the wall. */
   nx: number
-  /** Position verticale normalisée dans [0,1], 0 = haut du mur. */
+  /** Normalised vertical position in [0,1]; 0 is the top of the wall. */
   ny: number
 }
 
 export interface PanelLayout {
   sideLength: number
-  /** Côté d'un panneau, dans la même échelle normalisée que `nx` et `ny`. */
+  /** A panel's side length, in the same normalised scale as `nx` and `ny`. */
   nSideLength: number
-  /** largeur / hauteur de l'enveloppe des panneaux ; 1 si un seul panneau. */
+  /** Width over height of the panels' envelope; 1 for a single panel. */
   aspect: number
   panels: NormalizedPanel[]
 }
@@ -48,20 +48,20 @@ export interface Color {
 }
 
 /**
- * Nom d'effet rapporté par le contrôleur quand le mode External Control est
- * armé. Sert de sonde : si l'effet courant n'est plus celui-ci, une autre
- * source (app mobile, bouton physique) a repris la main.
+ * The effect name the controller reports while External Control is armed.
+ * It doubles as a probe: if the current effect is no longer this one, some
+ * other source (the mobile app, the physical button) has taken over.
  */
 export const EXT_CONTROL_EFFECT = '*ExtControl*'
 
 /**
- * Sources capables d'écrire sur les panneaux, par priorité décroissante.
- * Déclaré ici parce que le contrat IPC s'en sert : le renderer n'importe
- * jamais depuis le processus main.
+ * Sources allowed to write to the panels, in decreasing priority. Declared
+ * here because the IPC contract uses it: the renderer never imports from the
+ * main process.
  */
 export type SourceId = 'manual' | 'screen' | 'audio'
 
-/** Palette d'un effet du device, convertie en RGB pour l'affichage. */
+/** A device effect's palette, converted to RGB for display. */
 export interface EffectPalette {
   name: string
   colors: Color[]

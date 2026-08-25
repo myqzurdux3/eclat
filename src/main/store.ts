@@ -17,26 +17,26 @@ export interface AppConfig {
 
 const EMPTY_CONFIG: AppConfig = { devices: {}, activeDeviceId: null }
 
-const baseXdg = (): string => process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config')
+const xdgBase = (): string => process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config')
 
-/** Chemin du fichier de configuration, conforme à la spec XDG. */
+/** Path to the configuration file, following the XDG spec. */
 export function defaultConfigPath(): string {
-  return join(baseXdg(), 'eclat', 'config.json')
+  return join(xdgBase(), 'eclat', 'config.json')
 }
 
 /**
- * Emplacement d'avant le nom du projet.
+ * The location used before the project had a name.
  *
- * Lu en dernier recours pour ne pas perdre l'appairage de quelqu'un qui
- * utilisait déjà l'application ; la première écriture le remplace.
+ * Read as a last resort so an existing user does not lose their pairing; the
+ * first write replaces it.
  */
 export function legacyConfigPath(): string {
-  return join(baseXdg(), 'nanoleaf-app', 'config.json')
+  return join(xdgBase(), 'nanoleaf-app', 'config.json')
 }
 
 /**
- * Configuration persistée. Contient les tokens d'authentification, donc le
- * fichier est écrit en 0600 et ne doit jamais transiter vers le renderer.
+ * The persisted configuration. It holds the authentication tokens, so the
+ * file is written 0600 and must never travel to the renderer.
  */
 export class ConfigStore {
   constructor(
@@ -59,14 +59,14 @@ export class ConfigStore {
     }
   }
 
-  /** Le fichier courant, sinon celui de l'ancien emplacement. */
+  /** The current file, otherwise the one at the legacy location. */
   private async lire(): Promise<string | null> {
-    for (const chemin of [this.filePath, this.legacyPath]) {
-      if (chemin === undefined) continue
+    for (const path of [this.filePath, this.legacyPath]) {
+      if (path === undefined) continue
       try {
-        return await readFile(chemin, 'utf8')
+        return await readFile(path, 'utf8')
       } catch {
-        // Fichier absent : on essaie l'emplacement suivant.
+        // File missing: try the next location.
       }
     }
     return null
@@ -75,7 +75,7 @@ export class ConfigStore {
   async save(config: AppConfig): Promise<void> {
     await mkdir(dirname(this.filePath), { recursive: true, mode: 0o700 })
     await writeFile(this.filePath, JSON.stringify(config, null, 2), { mode: 0o600 })
-    // writeFile n'applique le mode qu'à la création : forcer sur un fichier existant.
+    // writeFile only applies the mode on creation: force it on an existing file.
     await chmod(this.filePath, 0o600)
   }
 

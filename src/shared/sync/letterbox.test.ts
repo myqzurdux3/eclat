@@ -9,7 +9,7 @@ function frame(width: number, height: number, fill = 0): Frame {
   return { width, height, data }
 }
 
-function bande(f: Frame, y0: number, y1: number, value: number): void {
+function band(f: Frame, y0: number, y1: number, value: number): void {
   for (let y = y0; y < y1; y += 1) {
     for (let x = 0; x < f.width; x += 1) {
       const at = (y * f.width + x) * 4
@@ -20,7 +20,7 @@ function bande(f: Frame, y0: number, y1: number, value: number): void {
   }
 }
 
-function colonne(f: Frame, x0: number, x1: number, value: number): void {
+function column(f: Frame, x0: number, x1: number, value: number): void {
   for (let y = 0; y < f.height; y += 1) {
     for (let x = x0; x < x1; x += 1) {
       const at = (y * f.width + x) * 4
@@ -32,56 +32,56 @@ function colonne(f: Frame, x0: number, x1: number, value: number): void {
 }
 
 describe('detectLetterbox', () => {
-  it('rend l image entière quand elle est pleine', () => {
+  it('returns the whole image when it is full', () => {
     const f = frame(64, 36, 200)
 
     expect(detectLetterbox(f)).toEqual({ x: 0, y: 0, width: 64, height: 36 })
   })
 
-  it('retire des bandes horizontales', () => {
+  it('removes horizontal bars', () => {
     const f = frame(64, 36)
-    bande(f, 8, 28, 200)
+    band(f, 8, 28, 200)
 
     expect(detectLetterbox(f)).toEqual({ x: 0, y: 8, width: 64, height: 20 })
   })
 
-  it('retire des bandes verticales', () => {
+  it('removes vertical bars', () => {
     const f = frame(64, 36)
-    colonne(f, 10, 54, 200)
+    column(f, 10, 54, 200)
 
     expect(detectLetterbox(f)).toEqual({ x: 10, y: 0, width: 44, height: 36 })
   })
 
-  it('retire les deux à la fois', () => {
+  it('removes both at once', () => {
     const f = frame(64, 36)
-    bande(f, 6, 30, 200)
-    colonne(f, 0, 10, 0)
-    colonne(f, 54, 64, 0)
+    band(f, 6, 30, 200)
+    column(f, 0, 10, 0)
+    column(f, 54, 64, 0)
 
     expect(detectLetterbox(f)).toEqual({ x: 10, y: 6, width: 44, height: 24 })
   })
 
-  it('voit les bandes noires imparfaites de la compression', () => {
+  it('sees the imperfect black bars left by compression', () => {
     const f = frame(64, 36, 6)
-    bande(f, 8, 28, 200)
+    band(f, 8, 28, 200)
 
     expect(detectLetterbox(f).y).toBe(8)
   })
 
-  it('rend l image entière si elle est toute noire', () => {
-    // Une scène nocturne n'est pas un letterbox : mieux vaut tout garder
-    // que renvoyer un rectangle vide.
+  it('returns the whole image when it is all black', () => {
+    // A night scene is not letterboxing: better to keep everything than
+    // to hand back an empty rectangle.
     expect(detectLetterbox(frame(64, 36))).toEqual({ x: 0, y: 0, width: 64, height: 36 })
   })
 
-  it('renonce quand le crop mangerait plus de la moitié de l image', () => {
+  it('gives up when the crop would eat more than half the image', () => {
     const f = frame(64, 36)
-    bande(f, 17, 19, 200)
+    band(f, 17, 19, 200)
 
     expect(detectLetterbox(f)).toEqual({ x: 0, y: 0, width: 64, height: 36 })
   })
 
-  it('ne rend jamais un rectangle vide', () => {
+  it('never returns an empty rectangle', () => {
     const f = frame(64, 36, 1)
     const rect = detectLetterbox(f)
 

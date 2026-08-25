@@ -1,21 +1,21 @@
 import { panelPolygon } from '../../shared/geometry'
 import type { PanelLayout } from '../../shared/types'
 
-/** Nombre maximal de panneaux adressables par le tableau d'uniformes. */
+/** The most panels the uniform array can address. */
 export const MAX_PANELS = 128
 
 export interface WallMesh {
-  /** Paires x,y en espace normalisé. */
+  /** x,y pairs in normalised space. */
   positions: Float32Array
-  /** Indice du panneau, un par sommet. */
+  /** The panel index, one per vertex. */
   panelIndices: Float32Array
   vertexCount: number
 }
 
 /**
- * Triangule chaque panneau en éventail depuis son premier sommet. Les formes
- * du device sont toutes convexes, l'éventail suffit donc et évite d'avoir à
- * indexer les sommets.
+ * Triangulates each panel as a fan from its first vertex. Every shape the
+ * device uses is convex, so a fan suffices and avoids having to index the
+ * vertices.
  */
 export function buildPanelMesh(layout: PanelLayout): WallMesh {
   const positions: number[] = []
@@ -40,10 +40,10 @@ export function buildPanelMesh(layout: PanelLayout): WallMesh {
 }
 
 /**
- * Un quad centré sur chaque panneau, plus large que lui, porteur du halo.
- * `offsets` donne à chaque sommet sa position dans le carré unité centré, ce
- * qui laisse le fragment shader calculer la décroissance radiale sans avoir
- * besoin du centre du panneau.
+ * One quad centred on each panel, wider than it, carrying the halo.
+ * `offsets` gives each vertex its position within the centred unit square,
+ * which lets the fragment shader compute the radial falloff without needing
+ * the panel's centre.
  */
 export function buildHaloMesh(
   layout: PanelLayout,

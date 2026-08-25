@@ -9,37 +9,37 @@ export const LOCALES: Array<{ value: Locale; label: string }> = [
   { value: 'en', label: 'English' },
 ]
 
-const DICTIONNAIRES: Record<Locale, Dictionary> = { fr, en }
+const DICTIONARIES: Record<Locale, Dictionary> = { fr, en }
 
-/** Traducteur : une clé, des paramètres nommés, une chaîne. */
+/** A translator: a key, named parameters, a string. */
 export type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
 
 /**
- * Construit le traducteur d'une langue.
+ * Builds the translator for one locale.
  *
- * Les paramètres sont substitués par nom — `{count}` — plutôt que par
- * position : l'ordre des mots change d'une langue à l'autre, une
- * substitution positionnelle finirait par mentir.
+ * Parameters are substituted by name — `{count}` — rather than by position:
+ * word order changes from one language to the next, and positional
+ * substitution would eventually lie.
  */
 export function createTranslate(locale: Locale): Translate {
-  const dictionnaire = DICTIONNAIRES[locale] ?? fr
+  const dictionary = DICTIONARIES[locale] ?? fr
 
   return (key, params) => {
-    const modele = dictionnaire[key] ?? fr[key] ?? key
-    if (params === undefined) return modele
+    const template = dictionary[key] ?? fr[key] ?? key
+    if (params === undefined) return template
 
     return Object.entries(params).reduce(
-      (texte, [nom, valeur]) => texte.split(`{${nom}}`).join(String(valeur)),
-      modele,
+      (text, [name, value]) => text.split(`{${name}}`).join(String(value)),
+      template,
     )
   }
 }
 
-/** Langue à retenir d'une préférence de navigateur, français par défaut. */
+/** The locale to keep from a browser preference; French by default. */
 export function matchLocale(preferences: readonly string[]): Locale {
   for (const preference of preferences) {
-    const racine = preference.toLowerCase().split('-')[0]
-    if (racine === 'fr' || racine === 'en') return racine
+    const root = preference.toLowerCase().split('-')[0]
+    if (root === 'fr' || root === 'en') return root
   }
   return 'fr'
 }

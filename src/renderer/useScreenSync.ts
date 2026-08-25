@@ -4,7 +4,7 @@ import {
   DEFAULT_SYNC_SETTINGS,
   type SyncSettings,
 } from '../shared/sync/settings'
-import type { DepuisWorker, VersWorker } from './worker/capture.worker'
+import type { FromWorker, ToWorker } from './worker/capture.worker'
 import type { Color, PanelLayout } from '../shared/types'
 
 export interface SyncTarget {
@@ -12,11 +12,11 @@ export interface SyncTarget {
   layout: PanelLayout
 }
 
-const CLE_REGLAGES = 'nanoleaf.sync'
+const SETTINGS_KEY = 'nanoleaf.sync'
 
 /**
- * `MediaStreamTrackProcessor` n'est pas dans la lib DOM de TypeScript : c'est
- * une API Chromium (WebCodecs). On déclare le strict nécessaire.
+ * `MediaStreamTrackProcessor` is missing from TypeScript's DOM lib: it is a
+ * Chromium API (WebCodecs). Only the strict minimum is declared here.
  */
 declare class MediaStreamTrackProcessor<T> {
   constructor(init: { track: MediaStreamTrack })
@@ -24,43 +24,43 @@ declare class MediaStreamTrackProcessor<T> {
 }
 
 /**
- * Ouvre le flux de frames d'une piste vidéo.
+ * Opens the frame stream of a video track.
  *
- * Le processeur est construit ici, sur le thread principal, et c'est son
- * `ReadableStream` qui part au Worker : une `MediaStreamTrack` n'est pas
- * transférable dans cette version de Chromium, alors qu'un flux l'est.
+ * The processor is built here, on the main thread, and it is its
+ * `ReadableStream` that goes to the Worker: a `MediaStreamTrack` is not
+ * transferable in this build of Chromium, whereas a stream is.
  */
-function ouvrirFlux(piste: MediaStreamTrack): ReadableStream<VideoFrame> {
+function openFrameStream(track: MediaStreamTrack): ReadableStream<VideoFrame> {
   if (typeof MediaStreamTrackProcessor === 'undefined') {
     throw new Error(
       "MediaStreamTrackProcessor est indisponible : cette version de Chromium ne peut pas lire la capture image par image.",
     )
   }
-  return new MediaStreamTrackProcessor<VideoFrame>({ track: piste }).readable
+  return new MediaStreamTrackProcessor<VideoFrame>({ track }).readable
 }
 
-export interface Apercu {
+export interface Preview {
   width: number
   height: number
   data: Uint8ClampedArray<ArrayBuffer>
 }
 
 export interface ScreenSync {
-  actif: boolean
-  demarrage: boolean
+  active: boolean
+  starting: boolean
   settings: SyncSettings
-  /** Dernières couleurs envoyées, par device. */
+  /** The last colours sent, per device. */
   colors: Map<string, Map<number, Color>> | null
-  apercu: Apercu | null
+  preview: Preview | null
   error: string | null
   setSettings: (partial: Partial<SyncSettings>) => void
   start: () => void
   stop: () => void
 }
 
-function lireReglages(): SyncSettings {
+function readSettings(): SyncSettings {
   try {
-    const brut = localStorage.getItem(CLE_REGLAGES)
+    const brut = localStorage.getItem(SETTINGS_KEY)
     return brut === null ? DEFAULT_SYNC_SETTINGS : clampSettings(JSON.parse(brut))
   } catch {
     return DEFAULT_SYNC_SETTINGS
@@ -68,22 +68,22 @@ function lireReglages(): SyncSettings {
 }
 
 /**
- * Pilote la capture d'écran et le Worker d'analyse.
+ * Drives screen capture and the analysis Worker.
  *
- * Le flux est gardé vivant tant que l'application tourne : le jeton de
- * restauration du portail xdg-desktop-portal n'étant pas exposé par
- * Electron, redemander la source rouvrirait le sélecteur GNOME à chaque
- * bascule. Arrêter le sync coupe donc l'analyse, pas la capture.
+ * The stream is kept alive for as long as the application runs: since
+ * Electron does not expose xdg-desktop-portal's restore token, asking for
+ * the source again would reopen the GNOME picker on every toggle. Stopping
+ * the sync therefore cuts the analysis, not the capture.
  */
 export function useScreenSync(
   targets: SyncTarget[],
   onColors: (byDevice: Record<string, Color[]>) => void,
 ): ScreenSync {
-  const [actif, setActif] = useState(false)
-  const [demarrage, setDemarrage] = useState(false)
-  const [settings, setSettingsState] = useState<SyncSettings>(lireReglages)
+  const [active, setActive] = useState(false)
+  const [starting, setStarting] = useState(false)
+  const [settings, setSettingsState] = useState<SyncSettings>(readSettings)
   const [colors, setColors] = useState<Map<string, Map<number, Color>> | null>(null)
-  const [apercu, setApercu] = useState<Apercu | null>(null)
+  const [preview, setPreview] = useState<Preview | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const workerRef = useRef<Worker | null>(null)
@@ -93,27 +93,27 @@ export function useScreenSync(
   const onColorsRef = useRef(onColors)
   onColorsRef.current = onColors
 
-  const poster = (message: VersWorker, transfer: Transferable[] = []): void => {
+  const post = (message: ToWorker, transfer: Transferable[] = []): void => {
     workerRef.current?.postMessage(message, transfer)
   }
 
   const stop = useCallback(() => {
-    poster({ type: 'stop' })
-    setActif(false)
+    post({ type: 'stop' })
+    setActive(false)
     setColors(null)
   }, [])
 
   const start = useCallback(() => {
-    const cibles = targetsRef.current
-    if (cibles.length === 0 || streamRef.current !== null) {
-      if (streamRef.current !== null && cibles.length > 0) {
-        // La capture est déjà ouverte : on relance seulement l'analyse.
-        const piste = streamRef.current.getVideoTracks()[0]
-        if (piste !== undefined) {
+    const walls = targetsRef.current
+    if (walls.length === 0 || streamRef.current !== null) {
+      if (streamRef.current !== null && walls.length > 0) {
+        // Capture is already open: only the analysis is restarted.
+        const track = streamRef.current.getVideoTracks()[0]
+        if (track !== undefined) {
           try {
-            const readable = ouvrirFlux(piste)
-            poster({ type: 'start', readable, targets: cibles, settings }, [readable])
-            setActif(true)
+            const readable = openFrameStream(track)
+            post({ type: 'start', readable, targets: walls, settings }, [readable])
+            setActive(true)
           } catch (cause) {
             setError(cause instanceof Error ? cause.message : String(cause))
           }
@@ -122,45 +122,45 @@ export function useScreenSync(
       return
     }
 
-    setDemarrage(true)
+    setStarting(true)
     setError(null)
 
     void navigator.mediaDevices
       .getDisplayMedia({ video: true, audio: false })
       .then((stream) => {
         streamRef.current = stream
-        const piste = stream.getVideoTracks()[0]
-        if (piste === undefined) throw new Error('Aucune piste vidéo dans le flux')
+        const track = stream.getVideoTracks()[0]
+        if (track === undefined) throw new Error('No video track in the stream')
 
-        // L'utilisateur peut couper le partage depuis le panneau GNOME.
-        piste.addEventListener('ended', () => {
+        // The user can stop sharing from the GNOME panel.
+        track.addEventListener('ended', () => {
           streamRef.current = null
-          setActif(false)
+          setActive(false)
           setColors(null)
         })
 
-        const readable = ouvrirFlux(piste)
-        poster({ type: 'start', readable, targets: cibles, settings }, [readable])
-        setActif(true)
+        const readable = openFrameStream(track)
+        post({ type: 'start', readable, targets: walls, settings }, [readable])
+        setActive(true)
       })
       .catch((cause: unknown) => {
-        // Le sélecteur GNOME annulé remonte ici : ce n'est pas une panne.
+        // A cancelled GNOME picker surfaces here: that is not a failure.
         const message = cause instanceof Error ? cause.message : String(cause)
         setError(message.includes('Permission denied') ? null : message)
       })
-      .finally(() => setDemarrage(false))
+      .finally(() => setStarting(false))
   }, [settings])
 
   const setSettings = useCallback((partial: Partial<SyncSettings>) => {
     setSettingsState((precedent) => {
-      const suivant = clampSettings({ ...precedent, ...partial })
+      const next = clampSettings({ ...precedent, ...partial })
       try {
-        localStorage.setItem(CLE_REGLAGES, JSON.stringify(suivant))
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(next))
       } catch {
-        // Stockage indisponible : les réglages valent pour cette session.
+        // Storage unavailable: the settings hold for this session only.
       }
-      workerRef.current?.postMessage({ type: 'settings', settings: suivant })
-      return suivant
+      workerRef.current?.postMessage({ type: 'settings', settings: next })
+      return next
     })
   }, [])
 
@@ -170,7 +170,7 @@ export function useScreenSync(
     })
     workerRef.current = worker
 
-    worker.onmessage = (event: MessageEvent<DepuisWorker>) => {
+    worker.onmessage = (event: MessageEvent<FromWorker>) => {
       const message = event.data
 
       if (message.type === 'colors') {
@@ -192,7 +192,7 @@ export function useScreenSync(
       }
 
       if (message.type === 'preview') {
-        setApercu({
+        setPreview({
           width: message.width,
           height: message.height,
           data: new Uint8ClampedArray(message.data),
@@ -201,7 +201,7 @@ export function useScreenSync(
       }
 
       if (message.type === 'error') setError(message.message)
-      if (message.type === 'ended') setActif(false)
+      if (message.type === 'ended') setActive(false)
     }
 
     return () => {
@@ -213,5 +213,5 @@ export function useScreenSync(
     }
   }, [])
 
-  return { actif, demarrage, settings, colors, apercu, error, setSettings, start, stop }
+  return { active, starting, settings, colors, preview, error, setSettings, start, stop }
 }

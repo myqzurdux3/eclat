@@ -1,8 +1,8 @@
 /**
- * Image telle que la voit le pipeline.
+ * An image as the pipeline sees it.
  *
- * Structurellement compatible avec `ImageData`, mais déclarée ici pour que
- * l'analyse se teste sous Node, sans DOM.
+ * Structurally compatible with `ImageData`, but declared here so the analysis
+ * can be tested under Node, without a DOM.
  */
 export interface Frame {
   width: number
@@ -17,40 +17,41 @@ export interface Rect {
   height: number
 }
 
-/** Couleur en espace linéaire, chaque canal dans [0,1]. */
+/** A colour in linear space, each channel within [0,1]. */
 export interface LinearColor {
   r: number
   g: number
   b: number
 }
 
-const NOIR: LinearColor = { r: 0, g: 0, b: 0 }
+const BLACK: LinearColor = { r: 0, g: 0, b: 0 }
 
-/** Table de conversion : 256 entrées, calculées une fois. */
-const VERS_LINEAIRE = new Float64Array(256)
+/** Conversion table: 256 entries, computed once. */
+const TO_LINEAR = new Float64Array(256)
 for (let value = 0; value < 256; value += 1) {
-  const canal = value / 255
-  VERS_LINEAIRE[value] = canal <= 0.04045 ? canal / 12.92 : ((canal + 0.055) / 1.055) ** 2.4
+  const channel = value / 255
+  TO_LINEAR[value] = channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
 }
 
-/** sRGB 0-255 vers linéaire 0-1. */
+/** sRGB 0-255 to linear 0-1. */
 export function toLinear(channel: number): number {
-  return VERS_LINEAIRE[Math.min(255, Math.max(0, Math.round(channel)))]!
+  return TO_LINEAR[Math.min(255, Math.max(0, Math.round(channel)))]!
 }
 
-/** Linéaire 0-1 vers sRGB 0-255. */
+/** Linear 0-1 back to sRGB 0-255. */
 export function toSrgb(linear: number): number {
-  const borne = Math.min(1, Math.max(0, linear))
-  const canal = borne <= 0.0031308 ? borne * 12.92 : 1.055 * borne ** (1 / 2.4) - 0.055
-  return Math.round(canal * 255)
+  const bounded = Math.min(1, Math.max(0, linear))
+  const channel =
+    bounded <= 0.0031308 ? bounded * 12.92 : 1.055 * bounded ** (1 / 2.4) - 0.055
+  return Math.round(channel * 255)
 }
 
 /**
- * Moyenne d'un rectangle, en espace linéaire.
+ * Average of a rectangle, in linear space.
  *
- * Moyenner directement des valeurs sRGB produit du gris désaturé : l'encodage
- * gamma n'est pas linéaire, la moyenne de deux couleurs vives y tombe trop
- * bas. C'est la source d'erreur la plus visible de tout le pipeline.
+ * Averaging sRGB values directly yields washed-out grey: the gamma encoding
+ * is not linear, so the mean of two vivid colours lands far too low. This is
+ * the single most visible source of error in the whole pipeline.
  */
 export function averageLinear(frame: Frame, rect: Rect): LinearColor {
   const x0 = Math.max(0, Math.floor(rect.x))
@@ -58,7 +59,7 @@ export function averageLinear(frame: Frame, rect: Rect): LinearColor {
   const x1 = Math.min(frame.width, Math.floor(rect.x + rect.width))
   const y1 = Math.min(frame.height, Math.floor(rect.y + rect.height))
 
-  if (x1 <= x0 || y1 <= y0) return { ...NOIR }
+  if (x1 <= x0 || y1 <= y0) return { ...BLACK }
 
   let r = 0
   let g = 0
@@ -67,9 +68,9 @@ export function averageLinear(frame: Frame, rect: Rect): LinearColor {
   for (let y = y0; y < y1; y += 1) {
     for (let x = x0; x < x1; x += 1) {
       const at = (y * frame.width + x) * 4
-      r += VERS_LINEAIRE[frame.data[at]!]!
-      g += VERS_LINEAIRE[frame.data[at + 1]!]!
-      b += VERS_LINEAIRE[frame.data[at + 2]!]!
+      r += TO_LINEAR[frame.data[at]!]!
+      g += TO_LINEAR[frame.data[at + 1]!]!
+      b += TO_LINEAR[frame.data[at + 2]!]!
     }
   }
 
@@ -77,7 +78,7 @@ export function averageLinear(frame: Frame, rect: Rect): LinearColor {
   return { r: r / total, g: g / total, b: b / total }
 }
 
-/** Luminance linéaire, pondérations Rec. 709. */
+/** Linear luminance, Rec. 709 weights. */
 export function luminance(color: LinearColor): number {
   return 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b
 }

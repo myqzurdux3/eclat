@@ -4,22 +4,22 @@ import { ControlScreen } from './screens/ControlScreen'
 import { ScenesScreen } from './screens/ScenesScreen'
 import { SyncScreen } from './screens/SyncScreen'
 import { useScreenSync } from './useScreenSync'
-import { LangueProvider, useLangue, useT } from './i18n'
+import { LocaleProvider, useLocale, useT } from './i18n'
 import { LOCALES, type MessageKey } from '../shared/i18n'
 import { useNanoleaf } from './useNanoleaf'
 
 declare global {
   interface Window {
     /**
-     * Injecté par le preload d'Electron. Absent quand la page est ouverte
-     * directement dans un navigateur : le serveur Vite ne sert que le
-     * renderer, il n'apporte aucun pont IPC.
+     * Injected by Electron's preload. Absent when the page is opened
+     * directly in a browser: the Vite server only serves the renderer and
+     * brings no IPC bridge.
      */
     nanoleaf?: NanoleafApi
   }
 }
 
-/** Affiché quand la page tourne hors d'Electron, sans pont IPC. */
+/** Shown when the page runs outside Electron, with no IPC bridge. */
 function MissingBridge() {
   const t = useT()
 
@@ -34,12 +34,12 @@ function MissingBridge() {
   )
 }
 
-/** Bascule de langue, dans la barre de titre. */
-function ChoixLangue() {
-  const { locale, setLocale, t } = useLangue()
+/** The locale switch, in the title bar. */
+function LocaleSwitch() {
+  const { locale, setLocale, t } = useLocale()
 
   return (
-    <div className="segments langues" role="group" aria-label={t('app.language')}>
+    <div className="segments locales" role="group" aria-label={t('app.language')}>
       {LOCALES.map(({ value, label }) => (
         <button
           key={value}
@@ -54,21 +54,21 @@ function ChoixLangue() {
   )
 }
 
-type Onglet = 'controle' | 'scenes' | 'sync'
+type Tab = 'controle' | 'scenes' | 'sync'
 
-const ONGLETS: Array<{ value: Onglet; cle: MessageKey }> = [
-  { value: 'controle', cle: 'app.tab.control' },
-  { value: 'scenes', cle: 'app.tab.scenes' },
-  { value: 'sync', cle: 'app.tab.sync' },
+const TABS: Array<{ value: Tab; key: MessageKey }> = [
+  { value: 'controle', key: 'app.tab.control' },
+  { value: 'scenes', key: 'app.tab.scenes' },
+  { value: 'sync', key: 'app.tab.sync' },
 ]
 
-const CLE_ONGLET = 'nanoleaf.onglet'
+const TAB_KEY = 'eclat.tab'
 
-/** L'application rouvre sur l'onglet quitté. */
-function lireOnglet(): Onglet {
+/** The application reopens on the tab it was left on. */
+function readTab(): Tab {
   try {
-    const brut = localStorage.getItem(CLE_ONGLET)
-    return ONGLETS.some((onglet) => onglet.value === brut) ? (brut as Onglet) : 'controle'
+    const raw = localStorage.getItem(TAB_KEY)
+    return TABS.some((tab) => tab.value === raw) ? (raw as Tab) : 'controle'
   } catch {
     return 'controle'
   }
@@ -77,83 +77,83 @@ function lireOnglet(): Onglet {
 function Shell({ bridge }: { bridge: NanoleafApi }) {
   const t = useT()
   const session = useNanoleaf(bridge)
-  // Un sync alimente tous les murs appairés à la fois : une seule capture,
-  // un pipeline par géométrie.
-  const cibles = useMemo(
+  // One sync feeds every paired wall at once: a single capture, one
+  // pipeline per geometry.
+  const walls = useMemo(
     () => [...session.layouts].map(([deviceId, layout]) => ({ deviceId, layout })),
     [session.layouts],
   )
 
-  const sync = useScreenSync(cibles, session.pushColors)
-  const [screen, setScreen] = useState<Onglet>(lireOnglet)
+  const sync = useScreenSync(walls, session.pushColors)
+  const [screen, setScreen] = useState<Tab>(readTab)
 
-  const choisirOnglet = (value: Onglet): void => {
+  const chooseTab = (value: Tab): void => {
     setScreen(value)
     try {
-      localStorage.setItem(CLE_ONGLET, value)
+      localStorage.setItem(TAB_KEY, value)
     } catch {
-      // Stockage indisponible : le choix vaut pour cette session.
+      // Storage unavailable: the choice holds for this session only.
     }
   }
 
-  // Pendant un sync, le mur affiche ce qui part vraiment vers les panneaux.
-  const couleursMur =
+  // During a sync, the wall shows what is actually sent to the panels.
+  const wallColours =
     (session.device === undefined ? undefined : sync.colors?.get(session.device.id)) ??
     session.colors
 
-  /** Le fond dérive vers la moyenne des couleurs posées sur le mur. */
-  const derive = useMemo(() => {
-    const posees = [...couleursMur.values()]
-    if (posees.length === 0) return 'radial-gradient(circle at 30% 30%, #16161c, #0a0a0c)'
-    const somme = posees.reduce(
+  /** The background drifts towards the mean of the colours on the wall. */
+  const drift = useMemo(() => {
+    const laid = [...wallColours.values()]
+    if (laid.length === 0) return 'radial-gradient(circle at 30% 30%, #16161c, #0a0a0c)'
+    const total = laid.reduce(
       (total, color) => ({ r: total.r + color.r, g: total.g + color.g, b: total.b + color.b }),
       { r: 0, g: 0, b: 0 },
     )
-    const n = posees.length
-    const teinte = `rgb(${Math.round(somme.r / n)}, ${Math.round(somme.g / n)}, ${Math.round(somme.b / n)})`
-    return `radial-gradient(circle at 30% 30%, ${teinte}, #0a0a0c)`
-  }, [couleursMur])
+    const n = laid.length
+    const tint = `rgb(${Math.round(total.r / n)}, ${Math.round(total.g / n)}, ${Math.round(total.b / n)})`
+    return `radial-gradient(circle at 30% 30%, ${tint}, #0a0a0c)`
+  }, [wallColours])
 
-  // Fondu croisé : le calque sortant garde son fond, seule l'opacité bouge.
-  const [calques, setCalques] = useState<[string, string]>([derive, derive])
-  const [actif, setActif] = useState(0)
+  // Cross-fade: the outgoing layer keeps its background, only opacity moves.
+  const [layers, setLayers] = useState<[string, string]>([drift, drift])
+  const [visibleLayer, setVisibleLayer] = useState(0)
 
   useEffect(() => {
-    if (calques[actif] === derive) return
-    const suivant = actif === 0 ? 1 : 0
-    setCalques((precedents) => {
-      const copie: [string, string] = [...precedents]
-      copie[suivant] = derive
-      return copie
+    if (layers[visibleLayer] === drift) return
+    const next = visibleLayer === 0 ? 1 : 0
+    setLayers((previous) => {
+      const copy: [string, string] = [...previous]
+      copy[next] = drift
+      return copy
     })
-    setActif(suivant)
-  }, [derive, actif, calques])
+    setVisibleLayer(next)
+  }, [drift, visibleLayer, layers])
 
   return (
     <>
-      {calques.map((fond, index) => (
+      {layers.map((background, index) => (
         <div
           key={index}
-          className="derive"
-          data-visible={index === actif}
-          style={{ background: fond }}
+          className="drift"
+          data-visible={index === visibleLayer}
+          style={{ background }}
         />
       ))}
-      <div className="coquille">
-        <header className="barre">
-          <nav className="onglets">
-            {ONGLETS.map(({ value, cle }) => (
+      <div className="shell">
+        <header className="titlebar">
+          <nav className="tabs">
+            {TABS.map(({ value, key: messageKey }) => (
               <button
                 key={value}
                 aria-selected={screen === value}
-                onClick={() => choisirOnglet(value)}
+                onClick={() => chooseTab(value)}
               >
-                {t(cle)}
+                {t(messageKey)}
               </button>
             ))}
           </nav>
-          <div className="commandes-fenetre">
-            <ChoixLangue />
+          <div className="window-controls">
+            <LocaleSwitch />
             <button title={t('app.window.minimise')} onClick={() => void bridge.minimizeWindow()}>
               –
             </button>
@@ -163,7 +163,7 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
           </div>
         </header>
 
-        {screen === 'controle' && <ControlScreen session={session} colors={couleursMur} />}
+        {screen === 'controle' && <ControlScreen session={session} colors={wallColours} />}
         {screen === 'scenes' && <ScenesScreen session={session} />}
         {screen === 'sync' && <SyncScreen session={session} sync={sync} />}
       </div>
@@ -171,7 +171,7 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
   )
 }
 
-function Racine() {
+function Root() {
   const bridge = typeof window === 'undefined' ? undefined : window.nanoleaf
   if (bridge === undefined) return <MissingBridge />
   return <Shell bridge={bridge} />
@@ -179,8 +179,8 @@ function Racine() {
 
 export function App() {
   return (
-    <LangueProvider>
-      <Racine />
-    </LangueProvider>
+    <LocaleProvider>
+      <Root />
+    </LocaleProvider>
   )
 }

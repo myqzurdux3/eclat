@@ -1,31 +1,31 @@
 import type { Color } from './types'
 
 export interface SceneMotionOptions {
-  /** Durée d'un passage d'une couleur de palette à la suivante. */
-  dureeMs?: number
-  /** Décalage entre le premier et le dernier panneau, en fraction de cycle. */
-  etalement?: number
+  /** How long one palette colour takes to give way to the next. */
+  durationMs?: number
+  /** Offset between the first and last panel, as a fraction of a cycle. */
+  spread?: number
 }
 
-const NOIR: Color = { r: 0, g: 0, b: 0 }
-const DUREE_PAR_DEFAUT = 4000
-const ETALEMENT_PAR_DEFAUT = 0.7
+const BLACK: Color = { r: 0, g: 0, b: 0 }
+const DEFAULT_DURATION = 4000
+const DEFAULT_SPREAD = 0.7
 
-const melanger = (a: Color, b: Color, t: number): Color => ({
+const blend = (a: Color, b: Color, t: number): Color => ({
   r: Math.round(a.r + (b.r - a.r) * t),
   g: Math.round(a.g + (b.g - a.g) * t),
   b: Math.round(a.b + (b.b - a.b) * t),
 })
 
 /**
- * Fait vivre une palette sur le mur : une vague de couleurs qui la parcourt.
+ * Brings a palette to life across the wall: a wave of colour travelling over it.
  *
- * **Ce n'est pas ce que les panneaux affichent.** Le device n'expose aucune
- * couleur panneau par panneau, et les animations de ses effets sont des
- * greffons fermés : impossible de les reproduire. On sait seulement quelles
- * couleurs composent la scène. Cette fonction en tire un mouvement plausible,
- * pour que la maquette respire au lieu de rester figée — l'interface le dit à
- * l'utilisateur, et elle ne doit jamais prétendre le contraire.
+ * **This is not what the panels are showing.** The device exposes no
+ * per-panel colour, and its effects are closed plugins, so reproducing them
+ * is out of reach. All we know is which colours make up the scene. This
+ * function derives a plausible motion from them, so the mock-up breathes
+ * instead of sitting frozen — the interface says as much to the user, and it
+ * must never claim otherwise.
  */
 export function sceneMotion(
   palette: Color[],
@@ -34,25 +34,25 @@ export function sceneMotion(
   options: SceneMotionOptions = {},
 ): Color[] {
   if (panelCount <= 0) return []
-  if (palette.length === 0) return Array.from({ length: panelCount }, () => ({ ...NOIR }))
+  if (palette.length === 0) return Array.from({ length: panelCount }, () => ({ ...BLACK }))
   if (palette.length === 1) {
     return Array.from({ length: panelCount }, () => ({ ...palette[0]! }))
   }
 
-  const duree = options.dureeMs ?? DUREE_PAR_DEFAUT
-  const etalement = options.etalement ?? ETALEMENT_PAR_DEFAUT
-  const avance = timeMs / duree
+  const duration = options.durationMs ?? DEFAULT_DURATION
+  const spread = options.spread ?? DEFAULT_SPREAD
+  const progress = timeMs / duration
 
   return Array.from({ length: panelCount }, (_, index) => {
-    // Chaque panneau est en retard sur le précédent : la vague se voit passer.
-    const decalage = panelCount === 1 ? 0 : (index / panelCount) * etalement * palette.length
-    const position = avance + decalage
+    // Each panel lags behind the previous one, so the wave can be seen moving.
+    const offset = panelCount === 1 ? 0 : (index / panelCount) * spread * palette.length
+    const position = progress + offset
 
-    const depuis = Math.floor(position)
-    const fraction = position - depuis
-    const a = palette[((depuis % palette.length) + palette.length) % palette.length]!
-    const b = palette[((depuis + 1) % palette.length + palette.length) % palette.length]!
+    const from = Math.floor(position)
+    const fraction = position - from
+    const a = palette[((from % palette.length) + palette.length) % palette.length]!
+    const b = palette[(((from + 1) % palette.length) + palette.length) % palette.length]!
 
-    return melanger(a, b, fraction)
+    return blend(a, b, fraction)
   })
 }

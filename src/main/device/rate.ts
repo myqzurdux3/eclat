@@ -1,24 +1,24 @@
 export interface RateGovernorOptions {
-  /** Cadence visée, plafonnée à 30 Hz par la spec. */
+  /** Target rate, capped at 30 Hz by the spec. */
   targetHz?: number
-  /** Cadence plancher, sous laquelle on ne descend jamais. */
+  /** Floor rate, never dropped below. */
   minHz?: number
   now?: () => number
-  /** Au-delà de ce rapport intervalle réel / intervalle visé, ça dérive. */
+  /** Above this actual-to-target interval ratio, the loop is drifting. */
   driftRatio?: number
-  /** Nombre d'intervalles consécutifs avant de réagir. */
+  /** How many consecutive intervals before reacting. */
   patience?: number
 }
 
 const STEP_HZ = 5
 
 /**
- * Régule la cadence d'émission.
+ * Regulates the send rate.
  *
- * Au-delà de 25-30 Hz les panneaux droppent des trames de façon visible. Le
- * régulateur plafonne donc la cadence, et la baisse si les envois réels
- * traînent — c'est la boucle appelante qui dérive, pas le réseau, et
- * insister ne ferait qu'aggraver le retard.
+ * Beyond 25-30 Hz the panels drop frames visibly. The governor therefore
+ * caps the rate, and lowers it when actual sends lag behind — it is the
+ * calling loop that drifts, not the network, and pushing harder would only
+ * deepen the backlog.
  */
 export class RateGovernor {
   private readonly targetHz: number
@@ -49,13 +49,13 @@ export class RateGovernor {
     return 1000 / this.currentHz
   }
 
-  /** Vrai si l'intervalle minimal est écoulé depuis le dernier envoi. */
+  /** True once the minimum interval has elapsed since the last send. */
   shouldSend(): boolean {
     if (this.lastSentAt === null) return true
     return this.now() - this.lastSentAt >= this.intervalMs
   }
 
-  /** À appeler juste après un envoi effectif. */
+  /** Call right after an actual send. */
   recordSent(): void {
     const at = this.now()
 
