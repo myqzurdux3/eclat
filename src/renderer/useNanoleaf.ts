@@ -175,9 +175,9 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
   }, [device?.id, device?.paired, load])
 
   /**
-   * The device reports its own changes — including when the command
-   * vient de l'app mobile ou du bouton physique. Sans ce flux, l'interface
-   * would show a stale state until the next full re-read.
+   * The device reports its own changes — including when the command comes
+   * from the mobile app or the physical button. Without this stream the
+   * interface would show a stale state until the next full re-read.
    */
   useEffect(() => {
     return bridge.onDeviceEvent((event: DeviceEventMessage) => {
