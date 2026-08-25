@@ -101,6 +101,17 @@ export class NanoleafClient {
     await this.request('PUT', '/effects', { select: name })
   }
 
+  /**
+   * Bascule le contrôleur en mode External Control v2. Il écoute ensuite en
+   * UDP sur le port 60222. Toute autre commande (app mobile, bouton
+   * physique) révoque ce mode : il faut le sonder et le réarmer.
+   */
+  async enableExternalControl(): Promise<void> {
+    await this.request('PUT', '/effects', {
+      write: { command: 'display', animType: 'extControl', extControlVersion: 'v2' },
+    })
+  }
+
   async getLayout(): Promise<PanelLayout> {
     const body = await this.request<LayoutResponse>('GET', '/panelLayout/layout')
     return normalizeLayout(body.positionData, body.sideLength)

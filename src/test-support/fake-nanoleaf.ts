@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import type { RawPanel } from '../shared/types'
+import { EXT_CONTROL_EFFECT, type RawPanel } from '../shared/types'
 
 export interface FakeNanoleafOptions {
   token?: string
@@ -20,6 +20,8 @@ const DEFAULT_POSITION_DATA: RawPanel[] = [
 export class FakeNanoleaf {
   readonly token: string
   pairingMode = false
+  /** Version d'External Control armée, `null` tant que le mode est inactif. */
+  extControlVersion: string | null = null
   effects: string[] = ['Nemo', 'Northern Lights', 'Forest']
   state = { on: true, brightness: 50, hue: 120, sat: 80, ct: 4000, effect: 'Nemo' }
   requests: Array<{ method: string; path: string; body: unknown }> = []
@@ -84,8 +86,17 @@ export class FakeNanoleaf {
       return send(res, 204)
     }
     if (method === 'PUT' && route === '/effects') {
-      const select = (body as { select?: string } | null)?.select
-      if (typeof select === 'string') this.state.effect = select
+      const payload = (body ?? {}) as {
+        select?: string
+        write?: { command?: string; animType?: string; extControlVersion?: string }
+      }
+      if (payload.write?.command === 'display' && payload.write.animType === 'extControl') {
+        this.extControlVersion = payload.write.extControlVersion ?? 'v1'
+        this.state.effect = EXT_CONTROL_EFFECT
+      } else if (typeof payload.select === 'string') {
+        this.state.effect = payload.select
+        this.extControlVersion = null
+      }
       return send(res, 204)
     }
 

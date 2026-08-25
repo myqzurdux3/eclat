@@ -720,6 +720,19 @@ function clock() {
   return { now: () => value, advance: (ms: number) => { value += ms } }
 }
 
+/**
+ * La sonde est déclenchée sans être attendue : elle enchaîne deux
+ * allers-retours HTTP, il faut donc sonder le résultat plutôt que céder la
+ * main une seule fois.
+ */
+async function waitFor(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (!predicate()) {
+    if (Date.now() > deadline) throw new Error('Condition jamais atteinte')
+    await new Promise((resolve) => setTimeout(resolve, 5))
+  }
+}
+
 let device: FakeNanoleaf
 let receiver: FakeStreamReceiver
 let scheduler: ReturnType<typeof fakeScheduler>
@@ -817,7 +830,7 @@ describe('PanelStream', () => {
     device.extControlVersion = null
 
     scheduler.fire()
-    await new Promise((resolve) => setImmediate(resolve))
+    await waitFor(() => device.extControlVersion === 'v2')
 
     expect(device.extControlVersion).toBe('v2')
   })
