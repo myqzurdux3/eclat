@@ -1,4 +1,4 @@
-import type { NormalizedPanel } from './types'
+import type { NormalizedPanel, PanelLayout } from './types'
 
 export interface Point {
   x: number
@@ -53,4 +53,32 @@ export function panelPolygon(panel: NormalizedPanel, nSideLength: number): Point
       y: panel.ny + radius * Math.sin(angle),
     }
   })
+}
+
+/** Test d'appartenance par lancer de rayon, valable pour tout polygone simple. */
+export function pointInPolygon(point: Point, polygon: Point[]): boolean {
+  if (polygon.length < 3) return false
+
+  let inside = false
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+    const a = polygon[i]!
+    const b = polygon[j]!
+    const crosses = a.y > point.y !== b.y > point.y
+    if (!crosses) continue
+    const cut = ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x
+    if (point.x < cut) inside = !inside
+  }
+  return inside
+}
+
+/**
+ * Panneau situé sous un point, en espace normalisé. Le dernier panneau de la
+ * liste l'emporte en cas de chevauchement : c'est celui dessiné par-dessus.
+ */
+export function panelAt(layout: PanelLayout, point: Point): NormalizedPanel | null {
+  for (let index = layout.panels.length - 1; index >= 0; index -= 1) {
+    const panel = layout.panels[index]!
+    if (pointInPolygon(point, panelPolygon(panel, layout.nSideLength))) return panel
+  }
+  return null
 }

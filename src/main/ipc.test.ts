@@ -278,3 +278,87 @@ describe('DeviceService — palettes', () => {
     ])
   })
 })
+
+describe('DeviceService — peinture manuelle', () => {
+  let receiver: FakeStreamReceiver
+
+  beforeEach(async () => {
+    receiver = new FakeStreamReceiver()
+    await receiver.start()
+
+    const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-paint-'))
+    service = new DeviceService({
+      store: new ConfigStore(join(dir, 'config.json')),
+      mdnsFactory: fakeFactory([
+        {
+          name: 'Shapes Salon',
+          host: 'shapes.local',
+          addresses: ['127.0.0.1'],
+          port: device.port,
+          txt: { md: 'NL42', srcvers: '4.6.2' },
+        },
+      ]),
+      discoverTimeoutMs: 0,
+      sleep: () => Promise.resolve(),
+      pairAttempts: 2,
+      streamFactory: ({ client }) =>
+        new PanelStream({
+          client,
+          ip: '127.0.0.1',
+          port: receiver.port,
+          scheduler: { setInterval: () => 1, clearInterval: () => {} },
+        }),
+    })
+
+    device.pairingMode = true
+    await service.discover()
+    await service.pair('Shapes Salon')
+
+    return async () => {
+      await service.shutdown()
+      await receiver.stop()
+    }
+  })
+
+  it('arme le stream toute seule au premier clic', async () => {
+    expect(await service.paintPanel('Shapes Salon', 2, { r: 255, g: 0, b: 0 })).toBe(true)
+
+    expect(device.extControlVersion).toBe('v2')
+  })
+
+  it('ne peint que le panneau visé, les autres restent éteints', async () => {
+    await service.paintPanel('Shapes Salon', 2, { r: 255, g: 0, b: 0 })
+
+    const [frame] = await receiver.waitForFrames(1)
+    expect(frame!.panels).toEqual([
+      { panelId: 1, color: { r: 0, g: 0, b: 0 } },
+      { panelId: 2, color: { r: 255, g: 0, b: 0 } },
+      { panelId: 3, color: { r: 0, g: 0, b: 0 } },
+    ])
+  })
+
+  it('conserve les panneaux déjà peints', async () => {
+    await service.paintPanel('Shapes Salon', 1, { r: 255, g: 0, b: 0 })
+    await new Promise((resolve) => setTimeout(resolve, 40))
+    await service.paintPanel('Shapes Salon', 3, { r: 0, g: 0, b: 255 })
+
+    const frames = await receiver.waitForFrames(2)
+    expect(frames[1]!.panels[0]!.color).toEqual({ r: 255, g: 0, b: 0 })
+    expect(frames[1]!.panels[2]!.color).toEqual({ r: 0, g: 0, b: 255 })
+  })
+
+  it('oublie la peinture à l extinction', async () => {
+    await service.paintPanel('Shapes Salon', 1, { r: 255, g: 0, b: 0 })
+
+    await service.shutdown()
+
+    expect(device.state.effect).toBe('Nemo')
+  })
+
+  it('règle teinte et saturation par le REST', async () => {
+    await service.setColor('Shapes Salon', 200, 80)
+
+    expect(device.state.hue).toBe(200)
+    expect(device.state.sat).toBe(80)
+  })
+})

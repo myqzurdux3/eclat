@@ -30,6 +30,8 @@ export class DeviceService {
   private readonly streams = new Map<string, PanelStream>()
   /** `panelId` dans l'ordre du layout, mémorisé à l'armement. */
   private readonly panelIds = new Map<string, number[]>()
+  /** Dernière couleur posée sur chaque panneau, par device. */
+  private readonly painted = new Map<string, Map<number, Color>>()
   private readonly arbiter: SourceArbiter
 
   constructor(private readonly options: DeviceServiceOptions) {
@@ -177,6 +179,7 @@ export class DeviceService {
     if (stream === undefined) return
     this.streams.delete(deviceId)
     this.panelIds.delete(deviceId)
+    this.painted.delete(deviceId)
     await stream.stop()
   }
 
@@ -205,11 +208,48 @@ export class DeviceService {
     )
   }
 
+  /**
+   * Peint un panneau et rediffuse le mur entier : le protocole v2 n'a pas de
+   * trame partielle. Les panneaux jamais peints restent noirs — leur couleur
+   * d'avant l'armement n'est pas récupérable.
+   *
+   * Arme le stream au besoin : cliquer un panneau doit suffire, sans avoir à
+   * démarrer un sync au préalable.
+   */
+  async paintPanel(deviceId: string, panelId: number, color: Color): Promise<boolean> {
+    if (!this.streams.has(deviceId)) {
+      await this.startStream(deviceId, 'manual')
+    }
+
+    const panelIds = this.panelIds.get(deviceId)
+    if (panelIds === undefined) return false
+
+    let painted = this.painted.get(deviceId)
+    if (painted === undefined) {
+      painted = new Map<number, Color>()
+      this.painted.set(deviceId, painted)
+    }
+    painted.set(panelId, color)
+
+    return this.sendFrame(
+      deviceId,
+      'manual',
+      panelIds.map((id) => painted.get(id) ?? { r: 0, g: 0, b: 0 }),
+    )
+  }
+
+  async setColor(deviceId: string, hue: number, sat: number): Promise<void> {
+    const client = await this.client(deviceId)
+    await client.setHue(hue)
+    await client.setSat(sat)
+  }
+
   /** Rend son effet à chaque device. Appelé à la fermeture et sur signal. */
   async shutdown(): Promise<void> {
     const streams = [...this.streams.values()]
     this.streams.clear()
     this.panelIds.clear()
+    this.painted.clear()
     this.arbiter.reset()
     await Promise.all(streams.map((stream) => stream.stop()))
   }
@@ -256,6 +296,14 @@ export function registerIpc(ipcMain: IpcMainLike, service: DeviceService): void 
   )
   ipcMain.handle(IPC_CHANNELS.selectEffect, (_event, id: string, name: string) =>
     service.selectEffect(id, name),
+  )
+  ipcMain.handle(
+    IPC_CHANNELS.paintPanel,
+    (_event, id: string, panelId: number, color: Color) =>
+      service.paintPanel(id, panelId, color),
+  )
+  ipcMain.handle(IPC_CHANNELS.setColor, (_event, id: string, hue: number, sat: number) =>
+    service.setColor(id, hue, sat),
   )
   ipcMain.handle(IPC_CHANNELS.startStream, (_event, id: string, source: SourceId) =>
     service.startStream(id, source),

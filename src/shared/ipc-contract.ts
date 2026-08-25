@@ -30,6 +30,8 @@ export interface NanoleafApi {
     colors: Color[],
     transitionTime?: number,
   ): Promise<boolean>
+  paintPanel(deviceId: string, panelId: number, color: Color): Promise<boolean>
+  setColor(deviceId: string, hue: number, sat: number): Promise<void>
 }
 
 export const IPC_CHANNELS = {
@@ -46,4 +48,6 @@ export const IPC_CHANNELS = {
   startStream: 'stream:start',
   stopStream: 'stream:stop',
   frame: 'stream:frame',
+  paintPanel: 'devices:paintPanel',
+  setColor: 'devices:setColor',
 } as const

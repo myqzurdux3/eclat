@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { circumradius, panelPolygon } from './geometry'
+import { circumradius, panelAt, panelPolygon, pointInPolygon } from './geometry'
+import { normalizeLayout } from '../main/device/layout'
 import type { NormalizedPanel } from './types'
 
 const panel = (over: Partial<NormalizedPanel> = {}): NormalizedPanel => ({
@@ -78,5 +79,46 @@ describe('panelPolygon', () => {
 
     near(cx, 0.25)
     near(cy, 0.75)
+  })
+})
+
+describe('pointInPolygon', () => {
+  const carre = [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: 1, y: 1 },
+    { x: 0, y: 1 },
+  ]
+
+  it('accepte un point intérieur', () => {
+    expect(pointInPolygon({ x: 0.5, y: 0.5 }, carre)).toBe(true)
+  })
+
+  it('refuse un point extérieur', () => {
+    expect(pointInPolygon({ x: 1.5, y: 0.5 }, carre)).toBe(false)
+  })
+
+  it('refuse un polygone dégénéré', () => {
+    expect(pointInPolygon({ x: 0, y: 0 }, [{ x: 0, y: 0 }])).toBe(false)
+  })
+})
+
+describe('panelAt', () => {
+  const layout = normalizeLayout(
+    [
+      { panelId: 11, x: 0, y: 0, o: 0, shapeType: 8 },
+      { panelId: 22, x: 300, y: 0, o: 0, shapeType: 8 },
+    ],
+    100,
+  )
+
+  it('désigne le panneau sous le point', () => {
+    const cible = layout.panels[1]!
+
+    expect(panelAt(layout, { x: cible.nx, y: cible.ny })?.panelId).toBe(22)
+  })
+
+  it('ne désigne rien dans le vide', () => {
+    expect(panelAt(layout, { x: 0.5, y: 0.02 })).toBeNull()
   })
 })
