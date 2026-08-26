@@ -82,6 +82,19 @@ export const fr = {
   'audio.mid': 'Médiums',
   'audio.treble': 'Aigus',
   'audio.beat': 'Battement',
+  'audio.mode': 'Mode',
+  'audio.mode.ambient': 'Ambiance',
+  'audio.mode.ambient.help':
+    "Un champ de couleur sur tout le mur : chaud quand le grave domine, froid quand l'aigu prend le dessus.",
+  'audio.mode.meter': 'Vu-mètre',
+  'audio.mode.meter.help':
+    'Le mur se remplit de gauche à droite selon le volume, vert vers rouge, et la crête redescend lentement.',
+  'audio.mode.spectrum': 'Spectre',
+  'audio.mode.spectrum.help':
+    "Le mur devient un axe de fréquences : grave à gauche, aigu à droite, chaque panneau à l'énergie de sa bande.",
+  'audio.mode.pulse': 'Pulsation',
+  'audio.mode.pulse.help':
+    'Tout le mur sur une couleur, renouvelée à chaque beat, qui retombe entre deux.',
   'audio.help':
     'Éclat écoute ce qui sort de tes enceintes, par le monitor PipeWire. Si le mur reste noir alors que la musique joue, vérifie que la sortie n’est pas coupée : PipeWire applique le volume avant la prise du monitor, et une sortie muette ne donne que du silence.',
   'sync.wayland.help':

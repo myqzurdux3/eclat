@@ -7,7 +7,7 @@
 [![CI](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml/badge.svg)](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-6aa9ff.svg)](LICENSE)
 ![Platform: Linux](https://img.shields.io/badge/platform-Linux-33e0b0.svg)
-![Tests](https://img.shields.io/badge/tests-409%20passing-e0347a.svg)
+![Tests](https://img.shields.io/badge/tests-428%20passing-e0347a.svg)
 
 [Français](README.fr.md) · [Getting started](#getting-started) · [How it works](#architecture) · [What the hardware taught us](#notes-from-the-hardware)
 
@@ -24,9 +24,9 @@ cloud account, no vendor SDK, no telemetry. It finds them over mDNS, pairs with
 them, draws your wall in WebGL2 at its real geometry, and can drive every panel
 in real time from whatever is on your screen.
 
-> **Status: working, not finished.** Discovery, pairing, control, scenes and
-> screen sync all run against real hardware. Audio sync and packaging are not
-> written yet — see the [roadmap](#roadmap).
+> **Status: working.** Discovery, pairing, control, scenes, screen sync and
+> audio sync all run against real hardware, and the app packages to an
+> AppImage and a `.deb` — see the [roadmap](#roadmap).
 
 ## Why it exists
 
@@ -45,7 +45,7 @@ detail it ran into is written down in [Notes from the hardware](#notes-from-the-
 | **Control** | power, brightness, hue/saturation wheel, and click-to-paint on any single panel |
 | **Scenes** | built from the palettes actually stored on the device, not from invented colours |
 | **Screen sync** | Wayland portal capture, analysed in a Worker; spatial, dominant and palette mapping |
-| **Audio sync** | reads the PipeWire monitor of your speakers: bands drive the hue, beats flash the wall |
+| **Audio sync** | reads the PipeWire monitor of your speakers, in four modes: a colour field, a left-to-right meter with a falling peak, a frequency axis, or a pulse renewed on every beat |
 | **Several walls** | pair as many devices as you like, switch between them, and sync them all from one capture |
 | **A living wall** | the mock-up follows the device: exact while Éclat drives the panels, animated from the scene's own palette otherwise |
 | **Languages** | French and English |
@@ -111,7 +111,7 @@ isolation to work around a temporary system setting.
 ## Development
 
 ```bash
-npm test                # 409 unit tests — no hardware, network, GPU or DOM
+npm test                # 428 unit tests — no hardware, network, GPU or DOM
 npm run typecheck       # main process + renderer
 npm run build           # main process + renderer
 npm run dev:renderer    # Vite dev server, then, in another terminal:

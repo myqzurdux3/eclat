@@ -3,6 +3,7 @@ import type { AudioSync } from '../useAudioSync'
 import type { NanoleafSession } from '../useNanoleaf'
 import type { MessageKey } from '../../shared/i18n'
 import { translateError } from '../../shared/i18n/errors'
+import { AUDIO_MODES } from '../../shared/audio/palette'
 
 const SLIDERS = [
   { key: 'sensitivity', label: 'audio.sensitivity', min: 0.2, max: 3, step: 0.1 },
@@ -124,6 +125,25 @@ export function AudioScreen({
         >
           {audio.active ? t('audio.stop') : t('audio.start')}
         </button>
+
+        <div className="group">
+          <div className="label">
+            {t('audio.mode')}
+            <b>{t(`audio.mode.${audio.settings.mode}` as MessageKey)}</b>
+          </div>
+          <div className="segments">
+            {AUDIO_MODES.map((mode) => (
+              <button
+                key={mode}
+                aria-pressed={audio.settings.mode === mode}
+                onClick={() => audio.setSettings({ mode })}
+              >
+                {t(`audio.mode.${mode}` as MessageKey)}
+              </button>
+            ))}
+          </div>
+          <p className="hint">{t(`audio.mode.${audio.settings.mode}.help` as MessageKey)}</p>
+        </div>
 
         {SLIDERS.map(({ key, label, min, max, step }) => (
           <div className="group" key={key}>

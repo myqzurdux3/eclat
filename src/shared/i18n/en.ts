@@ -78,6 +78,19 @@ export const en: Dictionary = {
   'audio.mid': 'Mids',
   'audio.treble': 'Treble',
   'audio.beat': 'Beat',
+  'audio.mode': 'Mode',
+  'audio.mode.ambient': 'Ambient',
+  'audio.mode.ambient.help':
+    'A field of colour over the whole wall: warm when the bass carries the mix, cool when the treble does.',
+  'audio.mode.meter': 'Meter',
+  'audio.mode.meter.help':
+    'The wall fills from left to right with the level, green through red, and the peak falls back slowly.',
+  'audio.mode.spectrum': 'Spectrum',
+  'audio.mode.spectrum.help':
+    "The wall becomes a frequency axis: bass on the left, treble on the right, each panel lit by its band's energy.",
+  'audio.mode.pulse': 'Pulse',
+  'audio.mode.pulse.help':
+    'The whole wall on one colour, renewed at every beat, fading in between.',
   'audio.help':
     'Éclat listens to what leaves your speakers, through the PipeWire monitor. If the wall stays black while music plays, check the output is not muted: PipeWire applies volume before the monitor tap, and a muted output yields nothing but silence.',
   'sync.wayland.help':

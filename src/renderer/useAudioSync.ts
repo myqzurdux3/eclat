@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AudioSourceInfo, NanoleafApi } from '../shared/ipc-contract'
-import { audioColors, DEFAULT_AUDIO_SETTINGS, type AudioSettings } from '../shared/audio/palette'
+import { DEFAULT_AUDIO_SETTINGS, toMode, type AudioSettings } from '../shared/audio/palette'
+import { AudioPainter } from '../shared/audio/painter'
 import type { AudioFeatures } from '../shared/audio/analyser'
 import type { Color, PanelLayout } from '../shared/types'
 
@@ -30,7 +31,10 @@ export interface AudioSync {
 function readSettings(): AudioSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
-    return raw === null ? DEFAULT_AUDIO_SETTINGS : { ...DEFAULT_AUDIO_SETTINGS, ...JSON.parse(raw) }
+    if (raw === null) return DEFAULT_AUDIO_SETTINGS
+    const stored = { ...DEFAULT_AUDIO_SETTINGS, ...JSON.parse(raw) }
+    // A mode saved by an older version, or edited by hand, means nothing.
+    return { ...stored, mode: toMode(stored.mode) }
   } catch {
     return DEFAULT_AUDIO_SETTINGS
   }
@@ -73,6 +77,23 @@ export function useAudioSync(
   targetsRef.current = targets
   const onColorsRef = useRef(onColors)
   onColorsRef.current = onColors
+  /**
+   * One painter per wall.
+   *
+   * A painter carries the memory a mode needs between blocks, and two walls
+   * of different sizes fill their meters at different places: sharing one
+   * would have each overwrite the other's peak, every block.
+   */
+  const painters = useRef(new Map<string, AudioPainter>())
+  const painterFor = (deviceId: string): AudioPainter => {
+    let painter = painters.current.get(deviceId)
+    if (painter === undefined) {
+      painter = new AudioPainter()
+      painters.current.set(deviceId, painter)
+    }
+    return painter
+  }
+
   const settingsRef = useRef(settings)
   settingsRef.current = settings
   const activeRef = useRef(active)
@@ -98,7 +119,11 @@ export function useAudioSync(
       const rendered = new Map<string, Map<number, Color>>()
 
       for (const target of targetsRef.current) {
-        const panelColors = audioColors(next, target.layout, settingsRef.current)
+        const panelColors = painterFor(target.deviceId).paint(
+          next,
+          target.layout,
+          settingsRef.current,
+        )
         byDevice[target.deviceId] = panelColors
         rendered.set(
           target.deviceId,
@@ -149,6 +174,7 @@ export function useAudioSync(
 
     start: () => {
       if (sourceId === null) return
+      for (const painter of painters.current.values()) painter.reset()
       setError(null)
       void bridge
         .startAudioCapture(sourceId)

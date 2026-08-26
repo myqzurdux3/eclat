@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { audioColors, DEFAULT_AUDIO_SETTINGS } from './palette'
+import { AUDIO_MODES, DEFAULT_AUDIO_SETTINGS, toMode } from './palette'
+import { AudioPainter } from './painter'
 import { normalizeLayout } from '../../main/device/layout'
 import type { AudioFeatures } from './analyser'
 
@@ -24,7 +25,13 @@ const features = (over: Partial<AudioFeatures> = {}): AudioFeatures => ({
 const brightnessOf = (colors: Array<{ r: number; g: number; b: number }>): number =>
   colors.reduce((total, c) => total + c.r + c.g + c.b, 0)
 
-describe('audioColors', () => {
+describe('AudioPainter', () => {
+  const audioColors = (
+    features: AudioFeatures,
+    wall: typeof layout,
+    settings: typeof DEFAULT_AUDIO_SETTINGS,
+  ) => new AudioPainter().paint(features, wall, settings)
+
   it('returns one colour per panel', () => {
     expect(audioColors(features(), layout, DEFAULT_AUDIO_SETTINGS)).toHaveLength(3)
   })
@@ -86,5 +93,50 @@ describe('audioColors', () => {
 
     const warmth = (c: { r: number; b: number }) => c.r - c.b
     expect(warmth(bassy[0]!)).toBeGreaterThan(warmth(bright[0]!))
+  })
+})
+
+describe('toMode', () => {
+  it('keeps a mode it knows', () => {
+    expect(toMode('meter')).toBe('meter')
+  })
+
+  /**
+   * The mode is persisted in local storage, so it comes back as whatever was
+   * written there — by an older version, or by hand. An unknown name must
+   * not reach the dispatch table, where it would index to `undefined`.
+   */
+  it('falls back on anything it does not know', () => {
+    expect(toMode('comet')).toBe(DEFAULT_AUDIO_SETTINGS.mode)
+    expect(toMode(undefined)).toBe(DEFAULT_AUDIO_SETTINGS.mode)
+    expect(toMode(7)).toBe(DEFAULT_AUDIO_SETTINGS.mode)
+  })
+})
+
+describe('every mode', () => {
+  it('gives one colour per panel, whichever it is', () => {
+    for (const mode of AUDIO_MODES) {
+      const colors = new AudioPainter().paint(features(), layout, {
+        ...DEFAULT_AUDIO_SETTINGS,
+        mode,
+      })
+
+      expect(colors, mode).toHaveLength(3)
+    }
+  })
+
+  it('switches the wall off below the gate, whichever it is', () => {
+    for (const mode of AUDIO_MODES) {
+      const colors = new AudioPainter().paint(features({ level: 0 }), layout, {
+        ...DEFAULT_AUDIO_SETTINGS,
+        mode,
+      })
+
+      expect(colors, mode).toEqual([
+        { r: 0, g: 0, b: 0 },
+        { r: 0, g: 0, b: 0 },
+        { r: 0, g: 0, b: 0 },
+      ])
+    }
   })
 })

@@ -7,7 +7,7 @@
 [![CI](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml/badge.svg)](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml)
 [![Licence : MIT](https://img.shields.io/badge/licence-MIT-6aa9ff.svg)](LICENSE)
 ![Plateforme : Linux](https://img.shields.io/badge/plateforme-Linux-33e0b0.svg)
-![Tests](https://img.shields.io/badge/tests-409%20passants-e0347a.svg)
+![Tests](https://img.shields.io/badge/tests-428%20passants-e0347a.svg)
 
 [English](README.md) · [Démarrer](#démarrer) · [Architecture](#architecture) · [Ce que le matériel apprend](#ce-que-le-matériel-apprend)
 
@@ -24,9 +24,10 @@ compte cloud, sans SDK propriétaire, sans télémétrie. Il les découvre en mD
 s'appaire avec eux, dessine ton mur en WebGL2 à sa géométrie réelle, et pilote
 chaque panneau en temps réel depuis ce qui s'affiche à l'écran.
 
-> **État : fonctionnel, pas terminé.** Découverte, appairage, contrôle, scènes
-> et synchronisation écran tournent contre le vrai matériel. La synchronisation
-> audio et l'empaquetage restent à écrire. Voir la [feuille de route](#feuille-de-route).
+> **État : fonctionnel.** Découverte, appairage, contrôle, scènes,
+> synchronisation écran et synchronisation audio tournent tous contre du vrai
+> matériel, et l'app s'empaquette en AppImage et en `.deb`. Voir la
+> [feuille de route](#feuille-de-route).
 
 ## Pourquoi
 
@@ -68,7 +69,9 @@ sans compte cloud, sans SDK propriétaire, sans télémétrie.
 - **Un mur vivant** : la maquette suit le device — exacte quand Éclat pilote
   les panneaux, animée d'après la palette de la scène sinon.
 - **Synchronisation audio** : Éclat écoute le monitor PipeWire de tes
-  enceintes ; les bandes pilotent la teinte, les battements éclairent le mur.
+  enceintes, en quatre modes — un champ de couleur, un vu-mètre qui se
+  remplit de gauche à droite avec une crête qui retombe, un axe de
+  fréquences, ou une pulsation renouvelée à chaque battement.
 - Interface **française et anglaise**.
 
 ## Prérequis
@@ -122,7 +125,7 @@ l'isolation du renderer pour contourner un réglage système temporaire.
 ## Développement
 
 ```bash
-npm test                # 409 tests unitaires, sans matériel ni réseau
+npm test                # 428 tests unitaires, sans matériel ni réseau
 npm run typecheck       # processus main + renderer
 npm run build           # processus main + renderer
 npm run dev:renderer    # serveur Vite, puis :
