@@ -1,6 +1,5 @@
 import { ColorWheel } from '../components/ColorWheel'
 import { WallCanvas } from '../components/WallCanvas'
-import { hsbToRgb } from '../../shared/color'
 import { EXT_CONTROL_EFFECT } from '../../shared/types'
 import { SOLIDE, type NanoleafSession } from '../useNanoleaf'
 import type { Color } from '../../shared/types'
@@ -61,7 +60,6 @@ export function ControlScreen({
   // showing them would suggest the wall is lit white.
   const underScene =
     state !== null && state.colorMode === 'effect' && state.effect !== SOLIDE
-  const brush = hsbToRgb(state?.hue ?? 0, state?.sat ?? 100, 100)
 
   // The wall is only animated while a device scene is running and no
   // source of the application is writing to it: in that case the displayed
@@ -81,7 +79,7 @@ export function ControlScreen({
           layout={layout}
           colors={colors}
           motion={motion}
-          onPaint={(panelId) => session.paint(panelId, brush)}
+          onPaint={(panelId) => session.paint(panelId)}
         />
       )}
 
@@ -149,15 +147,15 @@ export function ControlScreen({
             {t('control.colour')}
             <b>
               {!underScene
-                ? `${Math.round(state?.hue ?? 0)}° · ${Math.round(state?.sat ?? 0)} %`
+                ? `${Math.round(session.brush.hue)}° · ${Math.round(session.brush.sat)} %`
                 : state!.effect === EXT_CONTROL_EFFECT
                   ? t('control.externalControl')
                   : state!.effect}
             </b>
           </div>
           <ColorWheel
-            hue={state?.hue ?? 0}
-            sat={state?.sat ?? 0}
+            hue={session.brush.hue}
+            sat={session.brush.sat}
             size={200}
             onPick={({ hue, sat }) => session.setColor(Math.round(hue), Math.round(sat))}
           />

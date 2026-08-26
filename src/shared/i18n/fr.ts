@@ -43,7 +43,7 @@ export const fr = {
   'control.motion.approximate':
     "Le mur est animé d'après les couleurs de la scène. Le device ne publie pas l'état de ses LED : c'est une approximation, pas un reflet.",
   'control.paint.help':
-    "Clique un panneau pour l'allumer, clique-le encore pour l'éteindre. La roue recolore les panneaux choisis, ou tout le mur si tu n'en as choisi aucun.",
+    "Clique des panneaux pour les allumer : la roue leur donne leur couleur. Le clic suivant ouvre un nouveau groupe, donc plusieurs couleurs sur un même mur. Reclique un panneau pour l'éteindre.",
   'control.wallUnavailable': 'Rendu du mur indisponible',
 
   'scenes.empty': 'Aucune scène lue pour le moment.',

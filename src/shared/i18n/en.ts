@@ -39,7 +39,7 @@ export const en: Dictionary = {
   'control.motion.approximate':
     'The wall is animated from the scene\u2019s colours. The device does not publish its LED state: this is an approximation, not a mirror.',
   'control.paint.help':
-    'Click a panel to light it, click it again to switch it off. The wheel recolours the panels you chose, or the whole wall when you have chosen none.',
+    'Click panels to light them: the wheel gives them their colour. The next click opens a new group, so one wall can carry several colours. Click a panel again to switch it off.',
   'control.wallUnavailable': 'Wall rendering unavailable',
 
   'scenes.empty': 'No scenes read yet.',

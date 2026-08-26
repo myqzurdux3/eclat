@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nextPaint, toFrameColor, UNLIT } from './paint'
+import { defaultBrush, FALLBACK_BRUSH, nextPaint, toFrameColor, UNLIT } from './paint'
 
 const brush = { r: 255, g: 120, b: 0 }
 
@@ -32,5 +32,25 @@ describe('toFrameColor', () => {
 
   it('sends a lit colour through untouched', () => {
     expect(toFrameColor({ r: 200, g: 40, b: 0 }, tint)).toEqual({ r: 200, g: 40, b: 0 })
+  })
+})
+
+describe('defaultBrush', () => {
+  it('takes the device colour when it has one', () => {
+    expect(defaultBrush({ hue: 200, sat: 80 })).toEqual({ hue: 200, sat: 80 })
+  })
+
+  /**
+   * Under an effect the device stops updating hue and saturation: they sit
+   * at 0 and 0, which is white. Handing that back made every first stroke
+   * white, whatever the wall was showing.
+   */
+  it('refuses the white a running effect leaves behind', () => {
+    expect(defaultBrush({ hue: 0, sat: 0 })).toEqual(FALLBACK_BRUSH)
+    expect(FALLBACK_BRUSH.sat).toBeGreaterThan(0)
+  })
+
+  it('has something to offer before any state has landed', () => {
+    expect(defaultBrush(null)).toEqual(FALLBACK_BRUSH)
   })
 })

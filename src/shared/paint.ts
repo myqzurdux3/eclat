@@ -38,3 +38,25 @@ export function toFrameColor(shown: Color | undefined, ...tints: Color[]): Color
   )
   return isTint ? UNLIT : shown
 }
+
+/** Hue and saturation of the colour a click lays down. */
+export interface Brush {
+  hue: number
+  sat: number
+}
+
+/**
+ * The brush to start from, before the user has chosen one.
+ *
+ * A device running an effect stops keeping `hue` and `sat` current — they
+ * sit at 0 and 0, which is white — so reading them back would hand the user
+ * a white brush and every first stroke would be white. When the device has
+ * no colour to offer, the brush starts on a warm amber: an arbitrary choice,
+ * but a deliberate one, and anything is better than white on a wall.
+ */
+export const FALLBACK_BRUSH: Brush = { hue: 30, sat: 90 }
+
+export function defaultBrush(state: { hue: number; sat: number } | null): Brush {
+  if (state === null || state.sat <= 0) return FALLBACK_BRUSH
+  return { hue: state.hue, sat: state.sat }
+}

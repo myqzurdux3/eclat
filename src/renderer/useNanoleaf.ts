@@ -3,7 +3,14 @@ import type { DeviceEventMessage, NanoleafApi, RendererDevice } from '../shared/
 import { createCoalescer } from '../shared/coalesce'
 import { hsbToRgb } from '../shared/color'
 import { rotateLayout } from '../shared/geometry'
-import { isUnlit, nextPaint, toFrameColor, UNLIT } from '../shared/paint'
+import {
+  defaultBrush,
+  isUnlit,
+  nextPaint,
+  toFrameColor,
+  UNLIT,
+  type Brush,
+} from '../shared/paint'
 import { NEUTRAL, OFF, wallColors } from '../shared/wall-colors'
 import type { Color, DeviceState, EffectPalette, PanelLayout } from '../shared/types'
 
@@ -44,7 +51,9 @@ export interface NanoleafSession {
   setOn: (on: boolean) => void
   setBrightness: (value: number) => void
   setColor: (hue: number, sat: number) => void
-  paint: (panelId: number, color: Color) => void
+  /** The colour a click lays down, chosen in the app, not read back. */
+  brush: Brush
+  paint: (panelId: number) => void
   selectEffect: (name: string) => void
   /** Arms external control for the screen source, on every paired wall. */
   armScreen: () => Promise<void>
@@ -85,6 +94,27 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
    * repaint the whole wall instead of the handful of panels chosen.
    */
   const [selection, setSelection] = useState<Set<number>>(new Set())
+  /**
+   * Every panel the user has lit by hand, across all colour groups.
+   *
+   * `selection` only holds the group the wheel is recolouring right now, so
+   * it cannot answer whether a click means "switch this off". This can.
+   */
+  const [touched, setTouched] = useState<Set<number>>(new Set())
+  /**
+   * Set once the wheel has coloured the current group. The next click then
+   * opens a new group instead of joining the old one, which is what makes
+   * two colours on one wall a deliberate act rather than an accident.
+   */
+  const [groupClosed, setGroupClosed] = useState(false)
+  /**
+   * The brush lives in the application, not on the device.
+   *
+   * Reading hue and saturation back would lose it: a device running an
+   * effect leaves them at 0 and 0, so a single `Turn off` and `Turn on` —
+   * which re-reads the whole state — turned the chosen colour white.
+   */
+  const [chosenBrush, setChosenBrush] = useState<Brush | null>(null)
   const [live, setLive] = useState(false)
   const [rotations, setRotations] = useState<Record<string, number>>({})
   const [chosen, setChosen] = useState<string | null>(() => {
@@ -123,12 +153,28 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
     [layout, state, palettes, painted],
   )
 
+  const brush = chosenBrush ?? defaultBrush(state)
+
   const run = useCallback((fn: () => Promise<void>): void => {
     setBusy(true)
     setError(null)
     void fn()
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
       .finally(() => setBusy(false))
+  }, [])
+
+  /**
+   * Forgets everything the user painted, but not the colour they chose.
+   *
+   * Called when the wall goes back to the device — a scene, a sync, an
+   * effect the device announces itself. The brush survives: it is a setting
+   * of the application, and losing it on every handover is exactly how a
+   * chosen colour used to turn back into white.
+   */
+  const forgetPainting = useCallback((): void => {
+    setSelection(new Set())
+    setTouched(new Set())
+    setGroupClosed(false)
   }, [])
 
   const report = useCallback((cause: unknown): void => {
@@ -209,7 +255,7 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
             : { ...previous, effect: name, colorMode: name === SOLIDE ? 'hs' : 'effect' },
         )
         setPainted(new Map())
-        setSelection(new Set())
+        forgetPainting()
         setLive(false)
         return
       }
@@ -266,6 +312,7 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
     colors,
     layouts,
     live,
+    brush,
     rotation,
     busy,
     error,
@@ -334,17 +381,23 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
      */
     setColor: (hue, sat) => {
       if (deviceId === undefined) return
+      setChosenBrush({ hue, sat })
 
-      const lit = [...selection]
-      if (lit.length > 0) {
+      const group = [...selection]
+      if (group.length > 0) {
         const colour = hsbToRgb(hue, sat, 100)
         setPainted((previous) => {
           const next = new Map(previous)
-          for (const id of lit) next.set(id, colour)
+          for (const id of group) next.set(id, colour)
           return next
         })
-        setState((previous) => (previous === null ? previous : { ...previous, hue, sat }))
-        pushSelection({ id: deviceId, entries: lit.map((panelId) => ({ panelId, color: colour })) })
+        // The group has its colour: the next click starts another one, so
+        // panels already coloured keep theirs.
+        setGroupClosed(true)
+        pushSelection({
+          id: deviceId,
+          entries: group.map((panelId) => ({ panelId, color: colour })),
+        })
         return
       }
 
@@ -368,20 +421,31 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
      * with what the wall already appears to be spares the jump from a lit
      * scene to a single lit panel over a dead wall.
      */
-    paint: (panelId, color) => {
+    paint: (panelId) => {
       if (deviceId === undefined) return
-      const next = nextPaint(selection.has(panelId), color)
+      // Whether the click switches the panel off is a question about the
+      // whole session, not about the group the wheel is holding: a panel
+      // coloured green two groups ago must still answer a click.
+      const next = nextPaint(touched.has(panelId), hsbToRgb(brush.hue, brush.sat, 100))
+      const off = isUnlit(next)
       setLive(true)
       setState((previous) => (previous === null ? previous : { ...previous, on: true }))
 
+      setTouched((previous) => {
+        const marked = new Set(previous)
+        if (off) marked.delete(panelId)
+        else marked.add(panelId)
+        return marked
+      })
+
       setSelection((previous) => {
-        const chosen = new Set(previous)
-        // A panel switched off leaves the selection: the wheel must not
-        // light it again behind the user's back.
-        if (isUnlit(next)) chosen.delete(panelId)
+        // A closed group is left as it is: this click opens the next one.
+        const chosen = groupClosed && !off ? new Set<number>() : new Set(previous)
+        if (off) chosen.delete(panelId)
         else chosen.add(panelId)
         return chosen
       })
+      if (groupClosed && !off) setGroupClosed(false)
 
       if (painted.size > 0) {
         setPainted((previous) => new Map(previous).set(panelId, next))
@@ -422,7 +486,7 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
       await Promise.all(paired.map((entry) => bridge.stopStream(entry.id, 'screen')))
       setLive(false)
       setPainted(new Map())
-      setSelection(new Set())
+      forgetPainting()
       if (deviceId !== undefined) setState(await bridge.getState(deviceId))
     },
 
@@ -439,7 +503,7 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
         if (deviceId === undefined) return
         await bridge.selectEffect(deviceId, name)
         setPainted(new Map())
-        setSelection(new Set())
+        forgetPainting()
         setLive(false)
         setState(await bridge.getState(deviceId))
       }),
