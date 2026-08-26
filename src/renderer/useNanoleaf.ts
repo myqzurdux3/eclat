@@ -3,8 +3,8 @@ import type { DeviceEventMessage, NanoleafApi, RendererDevice } from '../shared/
 import { createCoalescer } from '../shared/coalesce'
 import { hsbToRgb } from '../shared/color'
 import { rotateLayout } from '../shared/geometry'
-import { isUnlit, nextPaint } from '../shared/paint'
-import { wallColors } from '../shared/wall-colors'
+import { isUnlit, nextPaint, toFrameColor } from '../shared/paint'
+import { OFF, wallColors } from '../shared/wall-colors'
 import type { Color, DeviceState, EffectPalette, PanelLayout } from '../shared/types'
 
 const ROTATION_KEY = 'nanoleaf.rotation'
@@ -77,6 +77,14 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
   const [rawLayouts, setRawLayouts] = useState<Record<string, PanelLayout>>({})
   const [palettes, setPalettes] = useState<EffectPalette[]>([])
   const [painted, setPainted] = useState<Map<number, Color>>(new Map())
+  /**
+   * The panels the user has actually clicked.
+   *
+   * Distinct from `painted`, which also holds the panels seeded to keep the
+   * wall looking like itself: without the distinction the colour wheel would
+   * repaint the whole wall instead of the handful of panels chosen.
+   */
+  const [selection, setSelection] = useState<Set<number>>(new Set())
   const [live, setLive] = useState(false)
   const [rotations, setRotations] = useState<Record<string, number>>({})
   const [chosen, setChosen] = useState<string | null>(() => {
@@ -201,6 +209,7 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
             : { ...previous, effect: name, colorMode: name === SOLIDE ? 'hs' : 'effect' },
         )
         setPainted(new Map())
+        setSelection(new Set())
         setLive(false)
         return
       }
@@ -310,8 +319,8 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
     },
 
     /**
-     * Recolours the painted panels when there are any, the whole wall
-     * otherwise.
+     * Recolours the panels the user has chosen, or the whole wall when they
+     * have chosen none.
      *
      * Painting holds the wall through external control, and the solid colour
      * goes over REST: sending one while the other owns the panels made two
@@ -326,7 +335,7 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
     setColor: (hue, sat) => {
       if (deviceId === undefined) return
 
-      const lit = [...painted].filter(([, colour]) => !isUnlit(colour)).map(([id]) => id)
+      const lit = [...selection]
       if (lit.length > 0) {
         const colour = hsbToRgb(hue, sat, 100)
         setPainted((previous) => {
@@ -347,17 +356,50 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
       pushColour({ id: deviceId, hue, sat })
     },
 
-    // A click either lights a panel or switches it back off. Painting an off
-    // wall switches it on in the main process; reflecting that here at once
-    // keeps the mock-up from drawing a dark wall for the time it takes the
-    // device to announce its own change.
+    /**
+     * A click either lights a panel or switches it back off.
+     *
+     * Painting an off wall switches it on in the main process; reflecting
+     * that here at once keeps the mock-up from drawing a dark wall for the
+     * time it takes the device to announce its own change.
+     *
+     * The first stroke takes the whole wall, because external control drives
+     * every panel: the ones left out of the frame go black. Seeding them
+     * with what the wall already appears to be spares the jump from a lit
+     * scene to a single lit panel over a dead wall.
+     */
     paint: (panelId, color) => {
-      const next = nextPaint(painted.get(panelId), color)
-      setPainted((previous) => new Map(previous).set(panelId, next))
       if (deviceId === undefined) return
+      const next = nextPaint(selection.has(panelId), color)
       setLive(true)
       setState((previous) => (previous === null ? previous : { ...previous, on: true }))
-      void bridge.paintPanel(deviceId, panelId, next).catch(report)
+
+      setSelection((previous) => {
+        const chosen = new Set(previous)
+        // A panel switched off leaves the selection: the wheel must not
+        // light it again behind the user's back.
+        if (isUnlit(next)) chosen.delete(panelId)
+        else chosen.add(panelId)
+        return chosen
+      })
+
+      if (painted.size > 0) {
+        setPainted((previous) => new Map(previous).set(panelId, next))
+        void bridge.paintPanel(deviceId, panelId, next).catch(report)
+        return
+      }
+
+      const seeded = new Map<number, Color>()
+      for (const panel of layout?.panels ?? []) {
+        seeded.set(panel.panelId, toFrameColor(colors.get(panel.panelId), OFF))
+      }
+      seeded.set(panelId, next)
+
+      setPainted(seeded)
+      pushSelection({
+        id: deviceId,
+        entries: [...seeded].map(([id, colour]) => ({ panelId: id, color: colour })),
+      })
     },
 
     armScreen: async () => {
@@ -372,6 +414,7 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
       await Promise.all(paired.map((entry) => bridge.stopStream(entry.id, 'screen')))
       setLive(false)
       setPainted(new Map())
+      setSelection(new Set())
       if (deviceId !== undefined) setState(await bridge.getState(deviceId))
     },
 
@@ -388,6 +431,7 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
         if (deviceId === undefined) return
         await bridge.selectEffect(deviceId, name)
         setPainted(new Map())
+        setSelection(new Set())
         setLive(false)
         setState(await bridge.getState(deviceId))
       }),

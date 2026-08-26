@@ -51,6 +51,8 @@ export class DeviceService {
   /** The last colour laid on each panel, per device. */
   private readonly painted = new Map<string, Map<number, Color>>()
   private readonly arbiters = new Map<string, SourceArbiter>()
+  /** Pending re-sends of a painting the rate governor refused, per device. */
+  private readonly flushes = new Map<string, ReturnType<typeof setTimeout>>()
   private readonly subscriptions = new Map<string, EventSubscription>()
   private audio: AudioCapture | null = null
   /**
@@ -370,18 +372,47 @@ export class DeviceService {
     }
     for (const entry of entries) painted.set(entry.panelId, entry.color)
 
-    const frame = (): Color[] =>
-      panelIds.map((id) => painted.get(id) ?? { r: 0, g: 0, b: 0 })
-
-    if (await this.sendFrame(deviceId, 'manual', frame())) return true
+    if (await this.sendPainted(deviceId)) return true
 
     // The rate governor caps the stream and refuses anything closer than its
-    // interval. A click is not a stream frame — dropping it loses a
-    // deliberate action and the panel simply never lights — so wait the
-    // interval out and send once more. The frame is rebuilt from `painted`,
-    // which by then holds every stroke made in the meantime.
-    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
-    return this.sendFrame(deviceId, 'manual', frame())
+    // interval. A stroke is not a stream frame — dropping it loses a
+    // deliberate action and the panel simply never lights — so the frame is
+    // sent again shortly, without making this call wait for it. Waiting here
+    // would stall the caller on every write, and dragging the colour wheel
+    // writes as fast as the pointer moves.
+    this.scheduleFlush(deviceId)
+    return true
+  }
+
+  /** Broadcasts what is currently painted on a wall. */
+  private async sendPainted(deviceId: string): Promise<boolean> {
+    const panelIds = this.panelIds.get(deviceId)
+    const painted = this.painted.get(deviceId)
+    if (panelIds === undefined || painted === undefined) return false
+
+    return this.sendFrame(
+      deviceId,
+      'manual',
+      panelIds.map((id) => painted.get(id) ?? { r: 0, g: 0, b: 0 }),
+    )
+  }
+
+  /**
+   * Sends the painting again once the governor will have it.
+   *
+   * One pending flush per device is enough: it reads `painted`, so by the
+   * time it fires it carries every stroke made in the meantime.
+   */
+  private scheduleFlush(deviceId: string): void {
+    if (this.flushes.has(deviceId)) return
+
+    this.flushes.set(
+      deviceId,
+      setTimeout(() => {
+        this.flushes.delete(deviceId)
+        void this.sendPainted(deviceId).catch(() => undefined)
+      }, RETRY_DELAY_MS),
+    )
   }
 
   async setColor(deviceId: string, hue: number, sat: number): Promise<void> {
@@ -406,6 +437,12 @@ export class DeviceService {
 
   /** Cuts a device's stream, with or without restoring its effect. */
   private async release(deviceId: string, options: { restore: boolean }): Promise<void> {
+    const flush = this.flushes.get(deviceId)
+    if (flush !== undefined) {
+      clearTimeout(flush)
+      this.flushes.delete(deviceId)
+    }
+
     const stream = this.streams.get(deviceId)
     if (stream === undefined) return
 
@@ -456,6 +493,8 @@ export class DeviceService {
     for (const subscription of this.subscriptions.values()) subscription.close()
     this.subscriptions.clear()
 
+    for (const flush of this.flushes.values()) clearTimeout(flush)
+    this.flushes.clear()
 
     const streams = [...this.streams.values()]
     this.streams.clear()

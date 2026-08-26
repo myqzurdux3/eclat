@@ -1,22 +1,30 @@
 import { describe, expect, it } from 'vitest'
-import { nextPaint, UNLIT } from './paint'
+import { nextPaint, toFrameColor, UNLIT } from './paint'
 
 const brush = { r: 255, g: 120, b: 0 }
 
 describe('nextPaint', () => {
-  it('paints a panel the user has not touched', () => {
-    expect(nextPaint(undefined, brush)).toEqual(brush)
+  it('paints a panel the user has not chosen', () => {
+    expect(nextPaint(false, brush)).toEqual(brush)
   })
 
-  it('switches off a panel that is already lit', () => {
-    expect(nextPaint({ r: 12, g: 0, b: 0 }, brush)).toEqual(UNLIT)
+  it('switches off a panel the user had chosen', () => {
+    expect(nextPaint(true, brush)).toEqual(UNLIT)
+  })
+})
+
+describe('toFrameColor', () => {
+  const tint = { r: 34, g: 36, b: 46 }
+
+  it('sends real black for a panel drawn with the unlit tint', () => {
+    expect(toFrameColor(tint, tint)).toEqual(UNLIT)
   })
 
-  it('paints again a panel that was switched off', () => {
-    expect(nextPaint(UNLIT, brush)).toEqual(brush)
+  it('sends real black for a panel the mock-up knows nothing about', () => {
+    expect(toFrameColor(undefined, tint)).toEqual(UNLIT)
   })
 
-  it('treats any non-black colour as lit, however dim', () => {
-    expect(nextPaint({ r: 0, g: 0, b: 1 }, brush)).toEqual(UNLIT)
+  it('sends a lit colour through untouched', () => {
+    expect(toFrameColor({ r: 200, g: 40, b: 0 }, tint)).toEqual({ r: 200, g: 40, b: 0 })
   })
 })

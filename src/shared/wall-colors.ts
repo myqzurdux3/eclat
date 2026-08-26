@@ -1,4 +1,5 @@
 import { hsbToRgb } from './color'
+import { isUnlit } from './paint'
 import type { Color, DeviceState, EffectPalette, NormalizedPanel } from './types'
 
 /** Muted grey shown while the device state is still unknown. */
@@ -12,7 +13,7 @@ const NEUTRAL: Color = { r: 40, g: 42, b: 52 }
  * switched off — there was nothing left to click. This reads as unlit while
  * still showing where the panels are.
  */
-export const OFF: Color = { r: 26, g: 28, b: 36 }
+export const OFF: Color = { r: 34, g: 36, b: 46 }
 
 const dim = (color: Color, factor: number): Color => ({
   r: Math.round(color.r * factor),
@@ -53,9 +54,11 @@ export function wallColors(
     }
 
     // A painted panel was painted on purpose: it keeps its full colour.
+    // Except when the user switched it off — the wall receives black, but
+    // black on a near-black stage is a hole nobody can click back on.
     const paintedColour = painted.get(panel.panelId)
     if (paintedColour !== undefined) {
-      colors.set(panel.panelId, paintedColour)
+      colors.set(panel.panelId, isUnlit(paintedColour) ? OFF : paintedColour)
       return
     }
 

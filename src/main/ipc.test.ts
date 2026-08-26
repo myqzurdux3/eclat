@@ -533,6 +533,27 @@ describe('DeviceService — releasing external control', () => {
     expect(painted.get(2)).toEqual({ r: 0, g: 255, b: 0 })
   })
 
+  /**
+   * Dragging the wheel writes as fast as the pointer moves. Making each
+   * write wait out the governor's interval before returning turned the drag
+   * into a stutter: the caller has to come straight back, and the frame the
+   * governor refused is sent on its own.
+   */
+  it('returns at once when the governor refuses, and sends the frame after', async () => {
+    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
+    await receiver.waitForFrames(1)
+
+    const started = process.hrtime.bigint()
+    await service.paintPanel('Shapes Lounge', 2, { r: 0, g: 255, b: 0 })
+    const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6
+
+    expect(elapsedMs).toBeLessThan(20)
+
+    const frames = await receiver.waitForFrames(2)
+    const painted = new Map(frames.at(-1)!.panels.map((panel) => [panel.panelId, panel.color]))
+    expect(painted.get(2)).toEqual({ r: 0, g: 255, b: 0 })
+  })
+
   it('keeps the panels painted earlier when a selection is recoloured', async () => {
     await service.paintPanel('Shapes Lounge', 1, { r: 0, g: 255, b: 0 })
     await receiver.waitForFrames(1)

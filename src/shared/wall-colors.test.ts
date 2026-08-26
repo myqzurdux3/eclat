@@ -148,6 +148,17 @@ describe('wallColors', () => {
   })
 
   /**
+   * Switching a panel off writes black into the painting, and black is what
+   * the wall receives. On screen it has to read as unlit rather than vanish:
+   * a panel nobody can see is a panel nobody can click back on.
+   */
+  it('draws a panel switched off by hand as unlit, not as a hole', () => {
+    const painted = new Map([[1, { r: 0, g: 0, b: 0 }]])
+
+    expect(wallColors(layout.panels, state(), palettes, painted).get(1)).toEqual(OFF)
+  })
+
+  /**
    * The stage behind the wall is nearly black. An unlit panel drawn in pure
    * black left nothing on screen to aim at once the wall was switched off.
    */
