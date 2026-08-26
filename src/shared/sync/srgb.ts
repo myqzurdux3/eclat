@@ -25,6 +25,15 @@ export interface LinearColor {
 }
 
 /**
+ * Black, in linear space.
+ *
+ * Distinct from `UNLIT` in `paint.ts` on purpose: the numbers agree, the
+ * spaces do not, and every other value in one means something else in the
+ * other. Spread it — callers hand these around and must not share one.
+ */
+export const LINEAR_BLACK: LinearColor = { r: 0, g: 0, b: 0 }
+
+/**
  * Conversion table: 256 entries, computed once.
  *
  * Exported for the hot loops, which read `Uint8ClampedArray` data: the
@@ -53,4 +62,21 @@ export function toSrgb(linear: number): number {
 /** Linear luminance, Rec. 709 weights. */
 export function luminance(color: LinearColor): number {
   return 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b
+}
+
+/**
+ * The part of `rect` that is actually inside the frame.
+ *
+ * The same four lines were written out at each place that walks a rectangle.
+ * One of those copies scanned the wrong bounds for months.
+ */
+export function clipRect(frame: Frame, rect: Rect): Rect {
+  const x = Math.max(0, Math.floor(rect.x))
+  const y = Math.max(0, Math.floor(rect.y))
+  return {
+    x,
+    y,
+    width: Math.max(0, Math.min(frame.width, Math.floor(rect.x + rect.width)) - x),
+    height: Math.max(0, Math.min(frame.height, Math.floor(rect.y + rect.height)) - y),
+  }
 }

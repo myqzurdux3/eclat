@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DeviceEventMessage, NanoleafApi, RendererDevice } from '../shared/ipc-contract'
 import { createCoalescer } from '../shared/coalesce'
+import { readText, writeText } from './storage'
 import { hsbToRgb } from '../shared/color'
 import { rotateLayout } from '../shared/geometry'
 import {
@@ -19,6 +20,7 @@ import type {
   PanelLayout,
   SourceId,
 } from '../shared/types'
+import { reasonFor } from '../shared/i18n/errors'
 
 const ROTATION_KEY = 'nanoleaf.rotation'
 
@@ -81,7 +83,7 @@ const normaliseAngle = (degrees: number): number =>
 function readRotation(deviceId: string | undefined): number {
   if (deviceId === undefined) return 0
   try {
-    const raw = localStorage.getItem(rotationKey(deviceId))
+    const raw = readText(rotationKey(deviceId))
     if (raw === null) return 0
     const degrees = Number(raw)
     // A corrupted value would poison every panel coordinate with NaN: the
@@ -133,13 +135,7 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
   const [chosenBrush, setChosenBrush] = useState<Brush | null>(null)
   const [live, setLive] = useState(false)
   const [rotations, setRotations] = useState<Record<string, number>>({})
-  const [chosen, setChosen] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(ACTIVE_KEY)
-    } catch {
-      return null
-    }
-  })
+  const [chosen, setChosen] = useState<string | null>(() => readText(ACTIVE_KEY))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -175,7 +171,7 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
     setBusy(true)
     setError(null)
     void fn()
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
+      .catch((cause: unknown) => setError(reasonFor(cause)))
       .finally(() => setBusy(false))
   }, [])
 
@@ -194,7 +190,7 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
   }, [])
 
   const report = useCallback((cause: unknown): void => {
-    setError(cause instanceof Error ? cause.message : String(cause))
+    setError(reasonFor(cause))
   }, [])
 
   /**
@@ -364,11 +360,7 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
         setLive(false)
       }
       setChosen(id)
-      try {
-        localStorage.setItem(ACTIVE_KEY, id)
-      } catch {
-        // Storage unavailable: the choice holds for this session only.
-      }
+      writeText(ACTIVE_KEY, id)
     },
 
     pair: (target) =>
@@ -387,11 +379,7 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
       if (deviceId === undefined) return
       const angle = normaliseAngle(degrees)
       setRotations((previous) => ({ ...previous, [deviceId]: angle }))
-      try {
-        localStorage.setItem(rotationKey(deviceId), String(angle))
-      } catch {
-        // Storage unavailable: the setting holds for this session only.
-      }
+      writeText(rotationKey(deviceId), String(angle))
     },
 
     setOn: (on) =>

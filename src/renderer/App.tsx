@@ -9,6 +9,7 @@ import { useScreenSync } from './useScreenSync'
 import { LocaleProvider, useLocale, useT } from './i18n'
 import { LOCALES, type MessageKey } from '../shared/i18n'
 import { useNanoleaf } from './useNanoleaf'
+import { readText, writeText } from './storage'
 
 declare global {
   interface Window {
@@ -69,12 +70,8 @@ const TAB_KEY = 'eclat.tab'
 
 /** The application reopens on the tab it was left on. */
 function readTab(): Tab {
-  try {
-    const raw = localStorage.getItem(TAB_KEY)
-    return TABS.some((tab) => tab.value === raw) ? (raw as Tab) : 'controle'
-  } catch {
-    return 'controle'
-  }
+  const raw = readText(TAB_KEY)
+  return TABS.some((tab) => tab.value === raw) ? (raw as Tab) : 'controle'
 }
 
 /** The `.drift` transition in the stylesheet. One swap per fade, no more. */
@@ -100,11 +97,7 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
 
   const chooseTab = (value: Tab): void => {
     setScreen(value)
-    try {
-      localStorage.setItem(TAB_KEY, value)
-    } catch {
-      // Storage unavailable: the choice holds for this session only.
-    }
+    writeText(TAB_KEY, value)
   }
 
   // During a sync, the wall shows what is actually sent to the panels.

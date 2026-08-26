@@ -1,4 +1,4 @@
-import { toLinear, TO_LINEAR, type Frame, type LinearColor, type Rect } from './srgb'
+import { clipRect, LINEAR_BLACK, TO_LINEAR, type Frame, type LinearColor, type Rect } from './srgb'
 import type { PanelLayout } from '../types'
 
 /**
@@ -17,15 +17,11 @@ export function mapSpatial(
   layout: PanelLayout,
   radius: number,
 ): LinearColor[] {
-  const x0 = Math.max(0, Math.floor(rect.x))
-  const y0 = Math.max(0, Math.floor(rect.y))
-  const x1 = Math.min(frame.width, Math.floor(rect.x + rect.width))
-  const y1 = Math.min(frame.height, Math.floor(rect.y + rect.height))
-
-  const width = x1 - x0
-  const height = y1 - y0
+  const { x: x0, y: y0, width, height } = clipRect(frame, rect)
+  const x1 = x0 + width
+  const y1 = y0 + height
   if (width <= 0 || height <= 0) {
-    return layout.panels.map(() => ({ r: 0, g: 0, b: 0 }))
+    return layout.panels.map(() => ({ ...LINEAR_BLACK }))
   }
 
   // A zero radius would drive every weight towards zero: keep enough spread
@@ -81,9 +77,9 @@ export function mapSpatial(
       const py = Math.min(y1 - 1, Math.max(y0, y0 + Math.round(panel.ny * (height - 1))))
       const at = (py * frame.width + px) * 4
       return {
-        r: toLinear(frame.data[at]!),
-        g: toLinear(frame.data[at + 1]!),
-        b: toLinear(frame.data[at + 2]!),
+        r: TO_LINEAR[frame.data[at]!]!,
+        g: TO_LINEAR[frame.data[at + 1]!]!,
+        b: TO_LINEAR[frame.data[at + 2]!]!,
       }
     }
 

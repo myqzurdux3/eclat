@@ -5,6 +5,7 @@ import {
   type Locale,
   type Translate,
 } from '../shared/i18n'
+import { readText, writeText } from './storage'
 
 const LOCALE_KEY = 'eclat.locale'
 
@@ -18,12 +19,8 @@ const LocaleContext = createContext<LocaleContextValue | null>(null)
 
 /** The remembered locale, else the system's, else French. */
 function readLocale(): Locale {
-  try {
-    const stored = localStorage.getItem(LOCALE_KEY)
-    if (stored === 'fr' || stored === 'en') return stored
-  } catch {
-    // Storage unavailable: fall back on the system preference.
-  }
+  const stored = readText(LOCALE_KEY)
+  if (stored === 'fr' || stored === 'en') return stored
   return matchLocale(typeof navigator === 'undefined' ? [] : navigator.languages)
 }
 
@@ -32,11 +29,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next)
-    try {
-      localStorage.setItem(LOCALE_KEY, next)
-    } catch {
-      // Storage unavailable: the choice holds for this session only.
-    }
+    writeText(LOCALE_KEY, next)
     document.documentElement.lang = next
   }, [])
 

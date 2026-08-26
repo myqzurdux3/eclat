@@ -7,7 +7,7 @@
 [![CI](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml/badge.svg)](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml)
 [![Licence : MIT](https://img.shields.io/badge/licence-MIT-6aa9ff.svg)](LICENSE)
 ![Plateforme : Linux](https://img.shields.io/badge/plateforme-Linux-33e0b0.svg)
-![Tests](https://img.shields.io/badge/tests-429%20passants-e0347a.svg)
+![Tests](https://img.shields.io/badge/tests-443%20passants-e0347a.svg)
 
 [English](README.md) · [Démarrer](#démarrer) · [Architecture](#architecture) · [Ce que le matériel apprend](#ce-que-le-matériel-apprend)
 
@@ -132,7 +132,7 @@ l'isolation du renderer pour contourner un réglage système temporaire.
 ## Développement
 
 ```bash
-npm test                # 429 tests unitaires, sans matériel, réseau, GPU ni DOM
+npm test                # 443 tests unitaires, sans matériel, réseau, GPU ni DOM
 npm run typecheck       # processus main + renderer
 npm run build           # processus main + renderer
 npm run dev:renderer    # serveur Vite, puis, dans un autre terminal :

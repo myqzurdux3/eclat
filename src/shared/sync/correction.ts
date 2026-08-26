@@ -1,7 +1,8 @@
-import { luminance, type LinearColor } from './srgb'
-import type { SyncSettings } from './settings'
+import { LINEAR_BLACK, luminance, type LinearColor } from './srgb'
+import { clamp } from '../color'
 
-const bound = (value: number): number => Math.min(1, Math.max(0, value))
+const clamp01 = (value: number): number => clamp(value, 0, 1)
+import type { SyncSettings } from './settings'
 
 /**
  * Boosts saturation and applies the black floor.
@@ -36,12 +37,12 @@ export function applyCorrection(color: LinearColor, settings: SyncSettings): Lin
   )
 
   const saturated: LinearColor = {
-    r: bound(grey + (color.r - grey) * factor),
-    g: bound(grey + (color.g - grey) * factor),
-    b: bound(grey + (color.b - grey) * factor),
+    r: clamp01(grey + (color.r - grey) * factor),
+    g: clamp01(grey + (color.g - grey) * factor),
+    b: clamp01(grey + (color.b - grey) * factor),
   }
 
-  if (luminance(saturated) < settings.blackFloor) return { r: 0, g: 0, b: 0 }
+  if (luminance(saturated) < settings.blackFloor) return { ...LINEAR_BLACK }
 
   return saturated
 }

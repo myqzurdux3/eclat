@@ -1,7 +1,8 @@
-import { hsbToRgb } from '../color'
+import { clamp, hsbToRgb } from '../color'
 import type { Color, PanelLayout } from '../types'
 import type { AudioFeatures } from './analyser'
 import type { AudioSettings } from './palette'
+import { UNLIT } from '../paint'
 
 /**
  * What a mode carries from one block to the next.
@@ -50,11 +51,6 @@ const PULSE_FALL = 0.05
  */
 const BEAT_HUE_STEP = 137.5
 
-const BLACK: Color = { r: 0, g: 0, b: 0 }
-
-const bound = (value: number, min: number, max: number): number =>
-  Math.min(max, Math.max(min, value))
-
 /**
  * The panels read from left to right.
  *
@@ -98,7 +94,7 @@ export const ambient: Mode = (features, layout, settings, memory) => {
   const balance = total === 0 ? 0.5 : features.treble / total
   const baseHue = WARM_HUE + (COOL_HUE - WARM_HUE) * balance
 
-  const energy = bound(
+  const energy = clamp(
     (features.bass * 0.5 + features.mid * 0.3 + features.treble * 0.2) * settings.sensitivity,
     0,
     1,
@@ -111,8 +107,8 @@ export const ambient: Mode = (features, layout, settings, memory) => {
     // the ear puts it.
     return hsbToRgb(
       baseHue + (1 - panel.ny) * 40,
-      bound(60 + energy * 40, 0, 100),
-      bound((0.25 + energy * 0.75 + flash) * 100, 0, 100),
+      clamp(60 + energy * 40, 0, 100),
+      clamp((0.25 + energy * 0.75 + flash) * 100, 0, 100),
     )
   })
 
@@ -132,13 +128,13 @@ export const meter: Mode = (features, layout, settings, memory) => {
   const count = layout.panels.length
   const order = horizontalOrder(layout)
 
-  const level = bound(features.level * settings.sensitivity, 0, 1)
+  const level = clamp(features.level * settings.sensitivity, 0, 1)
   const peak = Math.max(level, memory.peak - PEAK_FALL)
 
   const filled = level * count
   const peakPlace = peak <= 0 ? -1 : Math.min(count - 1, Math.floor(peak * count))
 
-  const colors = new Array<Color>(count).fill(BLACK)
+  const colors = new Array<Color>(count).fill(UNLIT)
 
   order.forEach((panelIndex, place) => {
     // Green on the left, red on the right, whatever the wall's size.
@@ -151,10 +147,10 @@ export const meter: Mode = (features, layout, settings, memory) => {
 
     // The panel the fill stops on is lit by however much of it is covered,
     // which keeps the meter from jumping a whole panel at a time.
-    const covered = bound(filled - place, 0, 1)
+    const covered = clamp(filled - place, 0, 1)
     if (covered <= 0) return
 
-    colors[panelIndex] = hsbToRgb(hue, 90, bound((0.2 + covered * 0.8) * 100, 0, 100))
+    colors[panelIndex] = hsbToRgb(hue, 90, clamp((0.2 + covered * 0.8) * 100, 0, 100))
   })
 
   return { colors, memory: { ...memory, peak } }
@@ -172,18 +168,18 @@ export const spectrum: Mode = (features, layout, settings, memory) => {
   const order = horizontalOrder(layout)
   const bands = [features.bass, features.mid, features.treble]
 
-  const colors = new Array<Color>(count).fill(BLACK)
+  const colors = new Array<Color>(count).fill(UNLIT)
 
   order.forEach((panelIndex, place) => {
     const across = count === 1 ? 0 : place / (count - 1)
     const band = bands[Math.min(bands.length - 1, Math.floor(across * bands.length))]!
-    const energy = bound(band * settings.sensitivity, 0, 1)
+    const energy = clamp(band * settings.sensitivity, 0, 1)
     if (energy <= 0) return
 
     colors[panelIndex] = hsbToRgb(
       WARM_HUE + (COOL_HUE - WARM_HUE) * across,
       90,
-      bound(energy * 100, 0, 100),
+      clamp(energy * 100, 0, 100),
     )
   })
 
@@ -204,8 +200,8 @@ export const pulse: Mode = (features, layout, settings, memory) => {
     : memory.pulseHue
   const remaining = features.beat ? 1 : Math.max(0, memory.pulse - PULSE_FALL)
 
-  const floor = bound(features.level * settings.sensitivity, 0, 1) * 0.3
-  const brightness = bound(Math.max(floor, remaining) * 100, 0, 100)
+  const floor = clamp(features.level * settings.sensitivity, 0, 1) * 0.3
+  const brightness = clamp(Math.max(floor, remaining) * 100, 0, 100)
   const color = hsbToRgb(pulseHue, 85, brightness)
 
   return {

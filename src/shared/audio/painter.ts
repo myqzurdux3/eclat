@@ -2,8 +2,7 @@ import { decay, EMPTY_MEMORY, type ModeMemory } from './modes'
 import { MODES, type AudioSettings } from './palette'
 import type { Color, PanelLayout } from '../types'
 import type { AudioFeatures } from './analyser'
-
-const BLACK: Color = { r: 0, g: 0, b: 0 }
+import { UNLIT } from '../paint'
 
 /**
  * Turns audio features into one colour per panel, block after block.
@@ -24,7 +23,7 @@ export class AudioPainter {
       // The memory keeps settling through the silence: a peak that froze
       // where the music stopped would still be there when it starts again.
       this.memory = decay(this.memory)
-      return layout.panels.map(() => ({ ...BLACK }))
+      return layout.panels.map(() => ({ ...UNLIT }))
     }
 
     const frame = MODES[settings.mode](features, layout, settings, this.memory)

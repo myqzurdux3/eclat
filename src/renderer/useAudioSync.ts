@@ -4,6 +4,8 @@ import { DEFAULT_AUDIO_SETTINGS, toMode, type AudioSettings } from '../shared/au
 import { AudioPainter } from '../shared/audio/painter'
 import type { AudioFeatures } from '../shared/audio/analyser'
 import type { Color, PanelLayout } from '../shared/types'
+import { readJson, writeJson } from './storage'
+import { reasonFor } from '../shared/i18n/errors'
 
 const SETTINGS_KEY = 'eclat.audio'
 const SOURCE_KEY = 'eclat.audio.source'
@@ -29,15 +31,9 @@ export interface AudioSync {
 }
 
 function readSettings(): AudioSettings {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY)
-    if (raw === null) return DEFAULT_AUDIO_SETTINGS
-    const stored = { ...DEFAULT_AUDIO_SETTINGS, ...JSON.parse(raw) }
-    // A mode saved by an older version, or edited by hand, means nothing.
-    return { ...stored, mode: toMode(stored.mode) }
-  } catch {
-    return DEFAULT_AUDIO_SETTINGS
-  }
+  const stored = { ...DEFAULT_AUDIO_SETTINGS, ...(readJson(SETTINGS_KEY, {}) as object) }
+  // A mode saved by an older version, or edited by hand, means nothing.
+  return { ...stored, mode: toMode(stored.mode) }
 }
 
 /**
@@ -49,17 +45,11 @@ function readSettings(): AudioSettings {
  * stored beside it and checked against what PipeWire reports now.
  */
 function readSource(): { id: number; name: string } | null {
-  try {
-    const raw = localStorage.getItem(SOURCE_KEY)
-    if (raw === null) return null
-    const stored: unknown = JSON.parse(raw)
-    if (typeof stored !== 'object' || stored === null) return null
-    const { id, name } = stored as { id?: unknown; name?: unknown }
-    if (!Number.isInteger(id) || typeof name !== 'string') return null
-    return { id: id as number, name }
-  } catch {
-    return null
-  }
+  const stored = readJson(SOURCE_KEY, null)
+  if (typeof stored !== 'object' || stored === null) return null
+  const { id, name } = stored as { id?: unknown; name?: unknown }
+  if (!Number.isInteger(id) || typeof name !== 'string') return null
+  return { id: id as number, name }
 }
 
 /**
@@ -69,10 +59,6 @@ function readSource(): { id: number; name: string } | null {
  * features cross the IPC boundary, five numbers at a time. Sending raw PCM
  * would move roughly 192 kB a second for no gain.
  */
-/** Electron flattens `Error` across IPC: keep the message, drop the wrapper. */
-const message = (cause: unknown): string =>
-  cause instanceof Error ? cause.message : String(cause)
-
 export function useAudioSync(
   bridge: NanoleafApi,
   targets: AudioSyncTarget[],
@@ -130,7 +116,7 @@ export function useAudioSync(
     void bridge
       .listAudioSources()
       .then(setSources)
-      .catch((cause: unknown) => setError(message(cause)))
+      .catch((cause: unknown) => setError(reasonFor(cause)))
   }, [bridge])
 
   useEffect(() => {
@@ -181,22 +167,16 @@ export function useAudioSync(
     selectSource: (id) => {
       setChosen(id)
       const name = sources.find((entry) => entry.id === id)?.name
-      if (name !== undefined) setRemembered({ id, name })
-      try {
-        if (name !== undefined) localStorage.setItem(SOURCE_KEY, JSON.stringify({ id, name }))
-      } catch {
-        // Storage unavailable: the choice holds for this session only.
+      if (name !== undefined) {
+        setRemembered({ id, name })
+        writeJson(SOURCE_KEY, { id, name })
       }
     },
 
     setSettings: (partial) => {
       setSettingsState((previous) => {
         const next = { ...previous, ...partial }
-        try {
-          localStorage.setItem(SETTINGS_KEY, JSON.stringify(next))
-        } catch {
-          // Storage unavailable: the settings hold for this session only.
-        }
+        writeJson(SETTINGS_KEY, next)
         return next
       })
     },
@@ -208,7 +188,7 @@ export function useAudioSync(
       void bridge
         .startAudioCapture(sourceId)
         .then(() => setActive(true))
-        .catch((cause: unknown) => setError(message(cause)))
+        .catch((cause: unknown) => setError(reasonFor(cause)))
     },
 
     stop: () => {

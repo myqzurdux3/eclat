@@ -1,8 +1,7 @@
-import { toLinear, toSrgb, type Frame, type LinearColor, type Rect } from './srgb'
+import { clipRect, LINEAR_BLACK, toLinear, toSrgb, type Frame, type LinearColor, type Rect } from './srgb'
 
 /** Bins per axis of the 3D histogram. */
 const BINS = 16
-const BLACK: LinearColor = { r: 0, g: 0, b: 0 }
 /** Below this a pixel carries no weight: neither bright nor colourful enough. */
 const MIN_WEIGHT = 1e-4
 
@@ -25,10 +24,11 @@ interface Bin {
  * number of occurrences.
  */
 function histogram(frame: Frame, rect: Rect): Map<number, Bin> {
-  const x0 = Math.max(0, Math.floor(rect.x))
-  const y0 = Math.max(0, Math.floor(rect.y))
-  const x1 = Math.min(frame.width, Math.floor(rect.x + rect.width))
-  const y1 = Math.min(frame.height, Math.floor(rect.y + rect.height))
+  const clipped = clipRect(frame, rect)
+  const x0 = clipped.x
+  const y0 = clipped.y
+  const x1 = x0 + clipped.width
+  const y1 = y0 + clipped.height
 
   const bins = new Map<number, Bin>()
 
@@ -92,7 +92,7 @@ const distance = (a: LinearColor, b: LinearColor): number =>
 /** The colour of the heaviest cluster. Every panel receives it. */
 export function dominantColor(frame: Frame, rect: Rect): LinearColor {
   const bins = [...histogram(frame, rect).values()]
-  if (bins.length === 0) return { ...BLACK }
+  if (bins.length === 0) return { ...LINEAR_BLACK }
 
   const winner = bins.reduce((a, b) => (a.weight >= b.weight ? a : b))
   return centroid(winner)

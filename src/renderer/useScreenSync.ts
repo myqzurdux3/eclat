@@ -6,6 +6,8 @@ import {
 } from '../shared/sync/settings'
 import type { FromWorker, ToWorker } from './worker/capture.worker'
 import type { Color, PanelLayout } from '../shared/types'
+import { readJson, writeJson } from './storage'
+import { reasonFor } from '../shared/i18n/errors'
 
 export interface SyncTarget {
   deviceId: string
@@ -59,12 +61,8 @@ export interface ScreenSync {
 }
 
 function readSettings(): SyncSettings {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY)
-    return raw === null ? DEFAULT_SYNC_SETTINGS : clampSettings(JSON.parse(raw))
-  } catch {
-    return DEFAULT_SYNC_SETTINGS
-  }
+  const stored = readJson(SETTINGS_KEY, DEFAULT_SYNC_SETTINGS)
+  return clampSettings(stored as Partial<SyncSettings>)
 }
 
 /**
@@ -115,7 +113,7 @@ export function useScreenSync(
             post({ type: 'start', readable, targets: walls, settings }, [readable])
             setActive(true)
           } catch (cause) {
-            setError(cause instanceof Error ? cause.message : String(cause))
+            setError(reasonFor(cause))
           }
         }
       }
@@ -145,7 +143,7 @@ export function useScreenSync(
       })
       .catch((cause: unknown) => {
         // A cancelled GNOME picker surfaces here: that is not a failure.
-        const message = cause instanceof Error ? cause.message : String(cause)
+        const message = reasonFor(cause)
         setError(message.includes('Permission denied') ? null : message)
       })
       .finally(() => setStarting(false))
@@ -166,11 +164,7 @@ export function useScreenSync(
   const setSettings = useCallback((partial: Partial<SyncSettings>) => {
     setSettingsState((previous) => {
       const next = clampSettings({ ...previous, ...partial })
-      try {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(next))
-      } catch {
-        // Storage unavailable: the settings hold for this session only.
-      }
+      writeJson(SETTINGS_KEY, next)
       workerRef.current?.postMessage({ type: 'settings', settings: next })
       return next
     })

@@ -1,3 +1,4 @@
+import { clamp } from '../color'
 export type MappingMode = 'spatial' | 'dominant' | 'palette'
 
 export interface SyncSettings {
@@ -36,10 +37,8 @@ const RANGES: Record<Exclude<keyof SyncSettings, 'mode'>, [number, number]> = {
   hz: [10, 30],
 }
 
-const bound = (value: unknown, [min, max]: [number, number], fallback: number): number => {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
-  return Math.min(max, Math.max(min, value))
-}
+const bound = (value: unknown, [min, max]: [number, number], fallback: number): number =>
+  typeof value === 'number' && Number.isFinite(value) ? clamp(value, min, max) : fallback
 
 /**
  * Completes and bounds a partial set of settings.

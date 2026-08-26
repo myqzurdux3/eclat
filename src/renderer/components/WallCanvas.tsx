@@ -5,6 +5,7 @@ import { unproject } from '../../shared/view'
 import { sceneMotion } from '../../shared/scene-motion'
 import type { Color, PanelLayout } from '../../shared/types'
 import { useT } from '../i18n'
+import { reasonFor } from '../../shared/i18n/errors'
 
 interface WallCanvasProps {
   layout: PanelLayout
@@ -54,7 +55,7 @@ export function WallCanvas({ layout, colors, motion, onPaint }: WallCanvasProps)
     } catch (cause) {
       // GPU context unavailable or shader refused: say so, rather than
       // leaving an empty area with no explanation.
-      setFailure(cause instanceof Error ? cause.message : String(cause))
+      setFailure(reasonFor(cause))
       return
     }
     setFailure(null)

@@ -3,7 +3,7 @@ import { detectLetterbox } from './letterbox'
 import { dominantColor, paletteColors } from './mapping-clusters'
 import { mapSpatial } from './mapping-spatial'
 import { Smoother } from './smoothing'
-import { toSrgb, type Frame, type LinearColor, type Rect } from './srgb'
+import { LINEAR_BLACK, toSrgb, type Frame, type LinearColor, type Rect } from './srgb'
 import type { SyncSettings } from './settings'
 import type { Color, PanelLayout } from '../types'
 
@@ -65,7 +65,7 @@ export class SyncPipeline {
     if (this.settings.mode === 'palette') {
       const palette = paletteColors(frame, rect, CLUSTERS)
       if (palette.length === 0) {
-        return Array.from({ length: count }, () => ({ r: 0, g: 0, b: 0 }))
+        return Array.from({ length: count }, () => ({ ...LINEAR_BLACK }))
       }
       return Array.from({ length: count }, (_, index) => palette[index % palette.length]!)
     }

@@ -1,4 +1,5 @@
 import type { Color } from './types'
+import { UNLIT } from './paint'
 
 export interface SceneMotionOptions {
   /** How long one palette colour takes to give way to the next. */
@@ -7,7 +8,6 @@ export interface SceneMotionOptions {
   spread?: number
 }
 
-const BLACK: Color = { r: 0, g: 0, b: 0 }
 const DEFAULT_DURATION = 4000
 const DEFAULT_SPREAD = 0.7
 
@@ -34,7 +34,7 @@ export function sceneMotion(
   options: SceneMotionOptions = {},
 ): Color[] {
   if (panelCount <= 0) return []
-  if (palette.length === 0) return Array.from({ length: panelCount }, () => ({ ...BLACK }))
+  if (palette.length === 0) return Array.from({ length: panelCount }, () => ({ ...UNLIT }))
   if (palette.length === 1) {
     return Array.from({ length: panelCount }, () => ({ ...palette[0]! }))
   }

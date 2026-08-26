@@ -1,6 +1,17 @@
 import { fr } from './fr'
 import type { MessageKey, Translate } from './index'
 
+/**
+ * What an unknown failure has to say for itself.
+ *
+ * Electron flattens `Error` across IPC, so what arrives is a message; and a
+ * `catch` binding is `unknown`, so it may be anything at all. This was
+ * written out at seven call sites, once with the wrapper left on.
+ */
+export function reasonFor(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause)
+}
+
 /** `[error.deviceUnpaired] Device not paired: Shapes` yields the key. */
 const KEY = /\[(error\.[A-Za-z]+)\]/
 

@@ -2,6 +2,7 @@
 import { SyncPipeline } from '../../shared/sync/pipeline'
 import { clampSettings, type SyncSettings } from '../../shared/sync/settings'
 import type { Color, PanelLayout } from '../../shared/types'
+import { reasonFor } from '../../shared/i18n/errors'
 
 /** Analysis size imposed by the spec: 2304 pixels, resized by the GPU. */
 const WIDTH = 64
@@ -154,7 +155,7 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
     loop(message.readable, run).catch((cause: unknown) => {
       send({
         type: 'error',
-        message: cause instanceof Error ? cause.message : String(cause),
+        message: reasonFor(cause),
       })
     })
     return
