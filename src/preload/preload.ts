@@ -27,9 +27,9 @@ const api: NanoleafApi = {
     ipcRenderer.invoke(IPC_CHANNELS.paintPanels, deviceId, entries),
   setColor: (deviceId, hue, sat) => ipcRenderer.invoke(IPC_CHANNELS.setColor, deviceId, hue, sat),
   onDeviceEvent: (listener) => {
-    const relais = (_event: unknown, message: DeviceEventMessage): void => listener(message)
-    ipcRenderer.on(IPC_CHANNELS.deviceEvent, relais)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.deviceEvent, relais)
+    const relay = (_event: unknown, message: DeviceEventMessage): void => listener(message)
+    ipcRenderer.on(IPC_CHANNELS.deviceEvent, relay)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.deviceEvent, relay)
   },
   listAudioSources: () => ipcRenderer.invoke(IPC_CHANNELS.audioSources),
   startAudioCapture: (sourceId) => ipcRenderer.invoke(IPC_CHANNELS.audioStart, sourceId),

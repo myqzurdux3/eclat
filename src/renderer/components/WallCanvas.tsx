@@ -27,10 +27,22 @@ export function WallCanvas({ layout, colors, motion, onPaint }: WallCanvasProps)
   const rendererRef = useRef<WallRenderer | null>(null)
   const colorsRef = useRef(colors)
   colorsRef.current = colors
+  const layoutRef = useRef(layout)
+  layoutRef.current = layout
   const motionRef = useRef(motion)
   motionRef.current = motion
   const [failure, setFailure] = useState<string | null>(null)
   const t = useT()
+
+  // The renderer outlives a geometry change: only its buffers depend on the
+  // layout, and rebuilding it per rotation step recompiled six shaders and
+  // relinked three programs on every pointer event.
+  useEffect(() => {
+    const renderer = rendererRef.current
+    if (renderer === null) return
+    renderer.setLayout(layout)
+    renderer.draw(colorsRef.current)
+  }, [layout])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -38,7 +50,7 @@ export function WallCanvas({ layout, colors, motion, onPaint }: WallCanvasProps)
 
     let renderer: WallRenderer
     try {
-      renderer = createWallRenderer(canvas, layout)
+      renderer = createWallRenderer(canvas, layoutRef.current)
     } catch (cause) {
       // GPU context unavailable or shader refused: say so, rather than
       // leaving an empty area with no explanation.
@@ -56,12 +68,21 @@ export function WallCanvas({ layout, colors, motion, onPaint }: WallCanvasProps)
     })
     observer.observe(canvas)
 
+    // A lost context leaves a blank wall for good unless we hear about it.
+    const onLost = (event: Event): void => {
+      event.preventDefault()
+      rendererRef.current = null
+      setFailure(t('control.wallUnavailable'))
+    }
+    canvas.addEventListener('webglcontextlost', onLost)
+
     return () => {
+      canvas.removeEventListener('webglcontextlost', onLost)
       observer.disconnect()
       renderer.dispose()
       rendererRef.current = null
     }
-  }, [layout])
+  }, [t])
 
   useEffect(() => {
     rendererRef.current?.draw(colors)
@@ -127,18 +148,24 @@ export function WallCanvas({ layout, colors, motion, onPaint }: WallCanvasProps)
     if (panel !== null) onPaint(panel.panelId)
   }
 
-  if (failure !== null) {
-    return (
-      <div className="stage" style={{ display: 'grid', alignContent: 'center', padding: 24 }}>
-        <strong>{t('control.wallUnavailable')}</strong>
-        <p className="hint">{failure}</p>
-      </div>
-    )
-  }
-
+  // The canvas stays mounted even when the context failed: unmounting it
+  // took away the very element the next attempt needs, so a single failure —
+  // a context lost after a burst of allocations, say — was final for the
+  // life of the component.
   return (
     <div className="stage">
-      <canvas ref={canvasRef} className="wall" onClick={handleClick} />
+      <canvas
+        ref={canvasRef}
+        className="wall"
+        onClick={handleClick}
+        style={failure === null ? undefined : { visibility: 'hidden' }}
+      />
+      {failure !== null && (
+        <div className="wall-failure">
+          <strong>{t('control.wallUnavailable')}</strong>
+          <p className="hint">{failure}</p>
+        </div>
+      )}
     </div>
   )
 }

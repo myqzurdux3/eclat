@@ -89,9 +89,9 @@ export function SyncScreen({
       <div className="stage preview-frame">
         <PreviewCanvas sync={sync} />
         {sync.colors !== null &&
-          [...sync.colors].map(([deviceId, couleurs]) => (
+          [...sync.colors].map(([deviceId, panelColors]) => (
             <div className="colour-strip" key={deviceId} title={deviceId}>
-              {[...couleurs.values()].map((color, index) => (
+              {[...panelColors.values()].map((color, index) => (
                 <span
                   key={index}
                   style={{ background: `rgb(${color.r}, ${color.g}, ${color.b})` }}

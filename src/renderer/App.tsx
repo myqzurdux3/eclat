@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { NanoleafApi } from '../shared/ipc-contract'
 import { ControlScreen } from './screens/ControlScreen'
 import { ScenesScreen } from './screens/ScenesScreen'
@@ -77,6 +77,9 @@ function readTab(): Tab {
   }
 }
 
+/** The `.drift` transition in the stylesheet. One swap per fade, no more. */
+const DRIFT_FADE_MS = 1600
+
 function Shell({ bridge }: { bridge: NanoleafApi }) {
   const t = useT()
   const session = useNanoleaf(bridge)
@@ -124,20 +127,37 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
     return `radial-gradient(circle at 30% 30%, ${tint}, #0a0a0c)`
   }, [wallColours])
 
-  // Cross-fade: the outgoing layer keeps its background, only opacity moves.
+  /**
+   * Cross-fade: the outgoing layer keeps its background, only opacity moves.
+   *
+   * The swap is rationed. `drift` is recomputed from a fresh colour map on
+   * every sync frame — twenty-five times a second — while the fade itself
+   * takes 1.6 s. Swapping on each one restarted the transition some forty
+   * times before it could finish, so both layers sat at half opacity and the
+   * tint jumped instead of drifting. One swap per fade is what a fade is.
+   */
   const [layers, setLayers] = useState<[string, string]>([drift, drift])
   const [visibleLayer, setVisibleLayer] = useState(0)
+  const driftRef = useRef(drift)
+  driftRef.current = drift
 
   useEffect(() => {
-    if (layers[visibleLayer] === drift) return
-    const next = visibleLayer === 0 ? 1 : 0
-    setLayers((previous) => {
-      const copy: [string, string] = [...previous]
-      copy[next] = drift
-      return copy
-    })
-    setVisibleLayer(next)
-  }, [drift, visibleLayer, layers])
+    const swap = (): void => {
+      setVisibleLayer((visible) => {
+        const next = visible === 0 ? 1 : 0
+        setLayers((previous) => {
+          if (previous[next] === driftRef.current) return previous
+          const copy: [string, string] = [...previous]
+          copy[next] = driftRef.current
+          return copy
+        })
+        return next
+      })
+    }
+
+    const timer = setInterval(swap, DRIFT_FADE_MS)
+    return () => clearInterval(timer)
+  }, [])
 
   return (
     <>

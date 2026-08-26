@@ -60,8 +60,8 @@ export interface ScreenSync {
 
 function readSettings(): SyncSettings {
   try {
-    const brut = localStorage.getItem(SETTINGS_KEY)
-    return brut === null ? DEFAULT_SYNC_SETTINGS : clampSettings(JSON.parse(brut))
+    const raw = localStorage.getItem(SETTINGS_KEY)
+    return raw === null ? DEFAULT_SYNC_SETTINGS : clampSettings(JSON.parse(raw))
   } catch {
     return DEFAULT_SYNC_SETTINGS
   }
@@ -151,9 +151,21 @@ export function useScreenSync(
       .finally(() => setStarting(false))
   }, [settings])
 
+  /**
+   * Keeps the worker's geometry in step with the walls.
+   *
+   * The pipelines used to be frozen at whatever was passed on `start`: a
+   * wall rotated mid-sync went on being mapped at its old angle, and one
+   * that finished pairing never received a frame at all.
+   */
+  useEffect(() => {
+    if (!active) return
+    workerRef.current?.postMessage({ type: 'targets', targets })
+  }, [active, targets])
+
   const setSettings = useCallback((partial: Partial<SyncSettings>) => {
-    setSettingsState((precedent) => {
-      const next = clampSettings({ ...precedent, ...partial })
+    setSettingsState((previous) => {
+      const next = clampSettings({ ...previous, ...partial })
       try {
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(next))
       } catch {
@@ -177,12 +189,12 @@ export function useScreenSync(
         onColorsRef.current(message.colors)
         setColors(
           new Map(
-            targetsRef.current.map((cible) => [
-              cible.deviceId,
+            targetsRef.current.map((target) => [
+              target.deviceId,
               new Map(
-                cible.layout.panels.map((panel, index) => [
+                target.layout.panels.map((panel, index) => [
                   panel.panelId,
-                  message.colors[cible.deviceId]?.[index] ?? { r: 0, g: 0, b: 0 },
+                  message.colors[target.deviceId]?.[index] ?? { r: 0, g: 0, b: 0 },
                 ]),
               ),
             ]),

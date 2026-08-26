@@ -10,6 +10,14 @@ import type { Color, PanelLayout } from '../../shared/types'
 
 export interface WallRenderer {
   draw(colors: Map<number, Color>): void
+  /**
+   * Points the renderer at a new geometry.
+   *
+   * Only the buffers depend on it. Rebuilding the whole renderer for a
+   * rotation step meant recompiling six shaders and relinking three programs
+   * per pointer event, all of them identical to the ones just thrown away.
+   */
+  setLayout(layout: PanelLayout): void
   resize(): void
   dispose(): void
   /** The current framing, used to find the panel under a click. */
@@ -85,9 +93,18 @@ function compile(gl: WebGL2RenderingContext, type: number, source: string): WebG
 function link(gl: WebGL2RenderingContext, fragmentSource: string): WebGLProgram {
   const program = gl.createProgram()
   if (program === null) throw new Error('Program allocation failed')
-  gl.attachShader(program, compile(gl, gl.VERTEX_SHADER, VERTEX_SHADER))
-  gl.attachShader(program, compile(gl, gl.FRAGMENT_SHADER, fragmentSource))
+  const vertex = compile(gl, gl.VERTEX_SHADER, VERTEX_SHADER)
+  const fragment = compile(gl, gl.FRAGMENT_SHADER, fragmentSource)
+  gl.attachShader(program, vertex)
+  gl.attachShader(program, fragment)
   gl.linkProgram(program)
+
+  // Flagged as soon as they are linked: a shader lives until every program
+  // holding it is gone, and without this it survives its program's deletion.
+  // The wall is rebuilt on every rotation step, so they used to pile up.
+  gl.deleteShader(vertex)
+  gl.deleteShader(fragment)
+
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
     throw new Error(`Program linking: ${gl.getProgramInfoLog(program) ?? 'unknown'}`)
   }
@@ -104,16 +121,49 @@ function upload(gl: WebGL2RenderingContext, data: Float32Array): WebGLBuffer {
 
 function bindAttribute(
   gl: WebGL2RenderingContext,
-  program: WebGLProgram,
-  name: string,
+  location: number,
   buffer: WebGLBuffer,
   size: number,
 ): void {
-  const location = gl.getAttribLocation(program, name)
   if (location < 0) return
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
   gl.enableVertexAttribArray(location)
   gl.vertexAttribPointer(location, size, gl.FLOAT, false, 0, 0)
+}
+
+interface Geometry {
+  layout: PanelLayout
+  bounds: ReturnType<typeof wallBounds>
+  panel: WallMesh
+  halo: WallMesh
+  outline: WallMesh
+  buffers: Record<string, WebGLBuffer>
+}
+
+/** Meshes and buffers for one wall geometry. Nothing here survives a rotation. */
+function buildGeometry(gl: WebGL2RenderingContext, layout: PanelLayout): Geometry {
+  const panel = buildPanelMesh(layout)
+  const halo = buildHaloMesh(layout)
+  const outline = buildOutlineMesh(layout)
+
+  return {
+    layout,
+    bounds: wallBounds(layout),
+    panel,
+    halo,
+    outline,
+    buffers: {
+      panelPosition: upload(gl, panel.positions),
+      panelIndex: upload(gl, panel.panelIndices),
+      panelOffset: upload(gl, new Float32Array(panel.vertexCount * 2)),
+      haloPosition: upload(gl, halo.positions),
+      haloIndex: upload(gl, halo.panelIndices),
+      haloOffset: upload(gl, halo.offsets),
+      outlinePosition: upload(gl, outline.positions),
+      outlineIndex: upload(gl, outline.panelIndices),
+      outlineOffset: upload(gl, new Float32Array(outline.vertexCount * 2)),
+    },
+  }
 }
 
 /**
@@ -129,30 +179,33 @@ export function createWallRenderer(
   const gl = canvas.getContext('webgl2', { alpha: true, antialias: true })
   if (gl === null) throw new Error('WebGL2 unavailable')
 
-  const panelMesh = buildPanelMesh(layout)
-  const haloMesh = buildHaloMesh(layout)
-  const outlineMesh = buildOutlineMesh(layout)
-
   const panelProgram = link(gl, PANEL_FRAGMENT_SHADER)
   const haloProgram = link(gl, HALO_FRAGMENT_SHADER)
   const outlineProgram = link(gl, OUTLINE_FRAGMENT_SHADER)
 
-  const buffers = {
-    panelPosition: upload(gl, panelMesh.positions),
-    panelIndex: upload(gl, panelMesh.panelIndices),
-    panelOffset: upload(gl, new Float32Array(panelMesh.vertexCount * 2)),
-    haloPosition: upload(gl, haloMesh.positions),
-    haloIndex: upload(gl, haloMesh.panelIndices),
-    haloOffset: upload(gl, haloMesh.offsets),
-    outlinePosition: upload(gl, outlineMesh.positions),
-    outlineIndex: upload(gl, outlineMesh.panelIndices),
-    outlineOffset: upload(gl, new Float32Array(outlineMesh.vertexCount * 2)),
+  /** Locations are fixed at link time: looking them up per frame is waste. */
+  const locate = (program: WebGLProgram) => ({
+    program,
+    aPosition: gl.getAttribLocation(program, 'aPosition'),
+    aPanelIndex: gl.getAttribLocation(program, 'aPanelIndex'),
+    aOffset: gl.getAttribLocation(program, 'aOffset'),
+    uScale: gl.getUniformLocation(program, 'uScale'),
+    uCentre: gl.getUniformLocation(program, 'uCentre'),
+    uColors: gl.getUniformLocation(program, 'uColors'),
+  })
+
+  const programs = {
+    panel: locate(panelProgram),
+    halo: locate(haloProgram),
+    outline: locate(outlineProgram),
   }
+
+  let geometry = buildGeometry(gl, layout)
 
   const flat = new Float32Array(MAX_PANELS * 3)
 
   const fillColors = (colors: Map<number, Color>): void => {
-    layout.panels.forEach((panel, index) => {
+    geometry.layout.panels.forEach((panel, index) => {
       if (index >= MAX_PANELS) return
       const color = colors.get(panel.panelId) ?? { r: 0, g: 0, b: 0 }
       flat[index * 3] = color.r / 255
@@ -161,30 +214,30 @@ export function createWallRenderer(
     })
   }
 
-  const bounds = wallBounds(layout)
-
   /** The current framing: depends on canvas size, so it is recomputed. */
   const currentTransform = (): ViewTransform =>
-    fitTransform(bounds, canvas.height === 0 ? 1 : canvas.width / canvas.height)
+    fitTransform(geometry.bounds, canvas.height === 0 ? 1 : canvas.width / canvas.height)
 
   const drawMesh = (
-    program: WebGLProgram,
+    located: ReturnType<typeof locate>,
     mesh: WallMesh,
-    position: WebGLBuffer,
-    index: WebGLBuffer,
-    offset: WebGLBuffer,
+    prefix: 'panel' | 'halo' | 'outline',
     mode: number = gl.TRIANGLES,
   ): void => {
     if (mesh.vertexCount === 0) return
     const view = currentTransform()
-    gl.useProgram(program)
-    bindAttribute(gl, program, 'aPosition', position, 2)
-    bindAttribute(gl, program, 'aPanelIndex', index, 1)
-    bindAttribute(gl, program, 'aOffset', offset, 2)
-    gl.uniform2fv(gl.getUniformLocation(program, 'uScale'), view.scale)
-    gl.uniform2fv(gl.getUniformLocation(program, 'uCentre'), view.centre)
-    gl.uniform3fv(gl.getUniformLocation(program, 'uColors'), flat)
+    gl.useProgram(located.program)
+    bindAttribute(gl, located.aPosition, geometry.buffers[`${prefix}Position`]!, 2)
+    bindAttribute(gl, located.aPanelIndex, geometry.buffers[`${prefix}Index`]!, 1)
+    bindAttribute(gl, located.aOffset, geometry.buffers[`${prefix}Offset`]!, 2)
+    gl.uniform2fv(located.uScale, view.scale)
+    gl.uniform2fv(located.uCentre, view.centre)
+    gl.uniform3fv(located.uColors, flat)
     gl.drawArrays(mode, 0, mesh.vertexCount)
+  }
+
+  const dropGeometry = (): void => {
+    for (const buffer of Object.values(geometry.buffers)) gl.deleteBuffer(buffer)
   }
 
   return {
@@ -195,23 +248,15 @@ export function createWallRenderer(
       gl.clear(gl.COLOR_BUFFER_BIT)
       gl.enable(gl.BLEND)
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
-      drawMesh(haloProgram, haloMesh, buffers.haloPosition, buffers.haloIndex, buffers.haloOffset)
+      drawMesh(programs.halo, geometry.halo, 'halo')
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-      drawMesh(
-        panelProgram,
-        panelMesh,
-        buffers.panelPosition,
-        buffers.panelIndex,
-        buffers.panelOffset,
-      )
-      drawMesh(
-        outlineProgram,
-        outlineMesh,
-        buffers.outlinePosition,
-        buffers.outlineIndex,
-        buffers.outlineOffset,
-        gl.LINES,
-      )
+      drawMesh(programs.panel, geometry.panel, 'panel')
+      drawMesh(programs.outline, geometry.outline, 'outline', gl.LINES)
+    },
+
+    setLayout(next) {
+      dropGeometry()
+      geometry = buildGeometry(gl, next)
     },
 
     resize() {
@@ -223,7 +268,7 @@ export function createWallRenderer(
     transform: currentTransform,
 
     dispose() {
-      for (const buffer of Object.values(buffers)) gl.deleteBuffer(buffer)
+      dropGeometry()
       gl.deleteProgram(panelProgram)
       gl.deleteProgram(haloProgram)
       gl.deleteProgram(outlineProgram)

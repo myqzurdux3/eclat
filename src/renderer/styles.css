@@ -157,6 +157,17 @@ button {
     rgba(255, 255, 255, 0.015);
 }
 
+.wall-failure {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+}
+
 .wall {
   display: block;
   width: 100%;

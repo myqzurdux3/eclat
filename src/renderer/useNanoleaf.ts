@@ -74,15 +74,19 @@ export interface NanoleafSession {
   pushColors: (source: SourceId, byDevice: Record<string, Color[]>) => void
 }
 
-const normaliseAngle = (degres: number): number =>
-  ((Math.round(degres) % ROTATION_MAX) + ROTATION_MAX) % ROTATION_MAX
+const normaliseAngle = (degrees: number): number =>
+  ((Math.round(degrees) % ROTATION_MAX) + ROTATION_MAX) % ROTATION_MAX
 
 /** The device does not report how the wall hangs: the user decides. */
 function readRotation(deviceId: string | undefined): number {
   if (deviceId === undefined) return 0
   try {
-    const brut = localStorage.getItem(rotationKey(deviceId))
-    return brut === null ? 0 : normaliseAngle(Number(brut))
+    const raw = localStorage.getItem(rotationKey(deviceId))
+    if (raw === null) return 0
+    const degrees = Number(raw)
+    // A corrupted value would poison every panel coordinate with NaN: the
+    // wall would render nothing and no click would ever land on a panel.
+    return Number.isFinite(degrees) ? normaliseAngle(degrees) : 0
   } catch {
     return 0
   }

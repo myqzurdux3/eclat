@@ -40,10 +40,23 @@ function readSettings(): AudioSettings {
   }
 }
 
-function readSource(): number | null {
+/**
+ * The output chosen last time, if it is still the same one.
+ *
+ * `Number(null)` is 0, so an empty slot used to read as node 0 — a fresh
+ * install started with a source nobody picked and a Start button already
+ * enabled. And a PipeWire node id is only good for one session: the name is
+ * stored beside it and checked against what PipeWire reports now.
+ */
+function readSource(): { id: number; name: string } | null {
   try {
-    const raw = Number(localStorage.getItem(SOURCE_KEY))
-    return Number.isInteger(raw) ? raw : null
+    const raw = localStorage.getItem(SOURCE_KEY)
+    if (raw === null) return null
+    const stored: unknown = JSON.parse(raw)
+    if (typeof stored !== 'object' || stored === null) return null
+    const { id, name } = stored as { id?: unknown; name?: unknown }
+    if (!Number.isInteger(id) || typeof name !== 'string') return null
+    return { id: id as number, name }
   } catch {
     return null
   }
@@ -67,7 +80,21 @@ export function useAudioSync(
 ): AudioSync {
   const [active, setActive] = useState(false)
   const [sources, setSources] = useState<AudioSourceInfo[]>([])
-  const [sourceId, setSourceId] = useState<number | null>(readSource)
+  const [remembered, setRemembered] = useState(readSource)
+  const [chosen, setChosen] = useState<number | null>(null)
+
+  /**
+   * The node the capture will read.
+   *
+   * A remembered id is only honoured while PipeWire still reports a source
+   * of that name: node ids are handed out afresh every session, so the id
+   * alone would eventually point at something else entirely.
+   */
+  const sourceId =
+    chosen ??
+    (remembered === null
+      ? null
+      : (sources.find((entry) => entry.name === remembered.name)?.id ?? null))
   const [features, setFeatures] = useState<AudioFeatures | null>(null)
   const [colors, setColors] = useState<Map<string, Map<number, Color>> | null>(null)
   const [settings, setSettingsState] = useState<AudioSettings>(readSettings)
@@ -152,9 +179,11 @@ export function useAudioSync(
     refreshSources,
 
     selectSource: (id) => {
-      setSourceId(id)
+      setChosen(id)
+      const name = sources.find((entry) => entry.id === id)?.name
+      if (name !== undefined) setRemembered({ id, name })
       try {
-        localStorage.setItem(SOURCE_KEY, String(id))
+        if (name !== undefined) localStorage.setItem(SOURCE_KEY, JSON.stringify({ id, name }))
       } catch {
         // Storage unavailable: the choice holds for this session only.
       }
