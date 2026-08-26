@@ -105,3 +105,32 @@ describe('paletteColors', () => {
     expect(paletteColors(frame(16, 16), whole(frame(16, 16)), 3)).toEqual([])
   })
 })
+
+describe('paletteColors — dark scenes', () => {
+  /**
+   * Binning and separating in linear space collapses the dark half of the
+   * image: a linear bin of 1/16 spans sRGB 0 to 70, and a separation of 0.12
+   * linear is a gap of 97 in sRGB. A dark red and a dark blue — plainly two
+   * colours — came back as one.
+   */
+  it('tells a dark red from a dark blue', () => {
+    const width = 16
+    const height = 16
+    const data = new Uint8ClampedArray(width * height * 4)
+    for (let i = 0; i < width * height; i += 1) {
+      const at = i * 4
+      const left = i % width < width / 2
+      data[at] = left ? 40 : 0
+      data[at + 2] = left ? 0 : 40
+      data[at + 3] = 255
+    }
+
+    const palette = paletteColors(
+      { width, height, data },
+      { x: 0, y: 0, width, height },
+      5,
+    )
+
+    expect(palette.length).toBeGreaterThanOrEqual(2)
+  })
+})

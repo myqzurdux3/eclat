@@ -18,9 +18,16 @@ export const BAND_EDGES_HZ = [20, 250, 2000, 16000] as const
 export function bandEnergies(spectrum: Float32Array, sampleRate: number): BandEnergies {
   const binHz = sampleRate / 2 / spectrum.length
 
+  /**
+   * Half-open in frequency, so no bin belongs to two bands.
+   *
+   * Rounding down below and up above made neighbours share their edge bins:
+   * a pure tone sitting on one lit both bands, and fed the beat detector
+   * twice over.
+   */
   const average = (fromHz: number, toHz: number): number => {
-    const first = Math.max(1, Math.floor(fromHz / binHz))
-    const last = Math.min(spectrum.length - 1, Math.ceil(toHz / binHz))
+    const first = Math.max(1, Math.ceil(fromHz / binHz))
+    const last = Math.min(spectrum.length - 1, Math.ceil(toHz / binHz) - 1)
     if (last < first) return 0
 
     let total = 0

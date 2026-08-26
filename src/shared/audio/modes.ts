@@ -63,9 +63,15 @@ const bound = (value: number, min: number, max: number): number =>
  * decide which is first.
  */
 export function horizontalOrder(layout: PanelLayout): number[] {
+  // Panels in one column are the same distance across, but a rotation leaves
+  // them differing in the sixteenth decimal — `cos(π/2)` is 6.1e-17, not
+  // zero. Compared exactly, the tie-break below never runs and the column is
+  // ordered by rounding noise instead of by height.
+  const SAME_COLUMN = 1e-9
+
   return layout.panels
     .map((panel, index) => ({ index, nx: panel.nx, ny: panel.ny }))
-    .sort((a, b) => (a.nx === b.nx ? a.ny - b.ny : a.nx - b.nx))
+    .sort((a, b) => (Math.abs(a.nx - b.nx) < SAME_COLUMN ? a.ny - b.ny : a.nx - b.nx))
     .map((entry) => entry.index)
 }
 

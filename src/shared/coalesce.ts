@@ -21,7 +21,11 @@ export function createCoalescer<T>(send: (value: T) => Promise<unknown>): (value
     const { value } = pending
     pending = null
     inFlight = true
-    void Promise.resolve(send(value))
+    // The call is wrapped, not merely its result: a `send` that throws
+    // synchronously would escape the catch below and leave `inFlight` set
+    // with nothing left to drain — every later value stored and never sent.
+    void Promise.resolve()
+      .then(() => send(value))
       // A lost write is not worth retrying: the next one corrects it.
       .catch(() => undefined)
       .then(drain)

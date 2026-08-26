@@ -29,7 +29,10 @@ export class BeatDetector {
   private sinceLastBeat = Number.POSITIVE_INFINITY
 
   constructor(options: BeatDetectorOptions = {}) {
-    this.history = options.history ?? DEFAULTS.history
+    // At least one block: a history of zero makes the mean a division by
+    // zero, every threshold NaN, and every comparison false — beat detection
+    // switched off for good, with nothing said.
+    this.history = Math.max(1, Math.round(options.history ?? DEFAULTS.history))
     this.sensitivity = options.sensitivity ?? DEFAULTS.sensitivity
     this.refractoryBlocks = options.refractoryBlocks ?? DEFAULTS.refractoryBlocks
   }

@@ -15,9 +15,21 @@ export class Smoother {
   private previous: LinearColor[] | null = null
 
   constructor(
-    private readonly attack: number,
-    private readonly release: number,
+    private attack: number,
+    private release: number,
   ) {}
+
+  /**
+   * Retunes the coefficients, keeping the history.
+   *
+   * Building a new smoother to change a rate loses the previous frame, and
+   * the next one is taken raw: nudging a slider made the wall jump to the
+   * unsmoothed colour, which is exactly what smoothing is there to prevent.
+   */
+  retune(attack: number, release: number): void {
+    this.attack = attack
+    this.release = release
+  }
 
   /** Smooths one frame and returns the result. */
   push(colors: LinearColor[]): LinearColor[] {

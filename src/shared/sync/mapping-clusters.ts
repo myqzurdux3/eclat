@@ -1,10 +1,14 @@
-import { toLinear, type Frame, type LinearColor, type Rect } from './srgb'
+import { toLinear, toSrgb, type Frame, type LinearColor, type Rect } from './srgb'
 
 /** Bins per axis of the 3D histogram. */
 const BINS = 16
 const BLACK: LinearColor = { r: 0, g: 0, b: 0 }
 /** Below this a pixel carries no weight: neither bright nor colourful enough. */
 const MIN_WEIGHT = 1e-4
+
+/** The bin a gamma-encoded channel falls in. */
+const gammaBin = (channel: number): number =>
+  Math.min(BINS - 1, Math.floor((Math.min(255, Math.max(0, channel)) / 256) * BINS))
 
 interface Bin {
   weight: number
@@ -45,10 +49,13 @@ function histogram(frame: Frame, rect: Rect): Map<number, Bin> {
       const weight = max * (0.15 + saturation)
       if (weight < MIN_WEIGHT) continue
 
+      // Binned on gamma-encoded values, not linear ones. A linear bin of
+      // 1/16 spans sRGB 0 to 70: the whole dark half of a picture would land
+      // in one bin and come back as a single colour.
       const key =
-        Math.min(BINS - 1, Math.floor(r * BINS)) * BINS * BINS +
-        Math.min(BINS - 1, Math.floor(g * BINS)) * BINS +
-        Math.min(BINS - 1, Math.floor(b * BINS))
+        gammaBin(frame.data[at]!) * BINS * BINS +
+        gammaBin(frame.data[at + 1]!) * BINS +
+        gammaBin(frame.data[at + 2]!)
 
       const bin = bins.get(key)
       if (bin === undefined) {
@@ -71,9 +78,16 @@ const centroid = (bin: Bin): LinearColor => ({
   b: bin.b / bin.weight,
 })
 
-/** Distance in the linear RGB cube, used to keep clusters apart. */
+/**
+ * How far apart two colours look, on the 0-255 sRGB scale.
+ *
+ * Measured on gamma-encoded values for the same reason the bins are: a gap
+ * that reads as small down in the shadows is a large linear number up in the
+ * highlights, and the reverse. Averaging stays linear — only the judging of
+ * distance moves.
+ */
 const distance = (a: LinearColor, b: LinearColor): number =>
-  Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b)
+  Math.hypot(toSrgb(a.r) - toSrgb(b.r), toSrgb(a.g) - toSrgb(b.g), toSrgb(a.b) - toSrgb(b.b))
 
 /** The colour of the heaviest cluster. Every panel receives it. */
 export function dominantColor(frame: Frame, rect: Rect): LinearColor {
@@ -95,7 +109,8 @@ export function paletteColors(frame: Frame, rect: Rect, count: number): LinearCo
   const bins = [...histogram(frame, rect).values()].sort((a, b) => b.weight - a.weight)
   if (bins.length === 0 || count <= 0) return []
 
-  const MIN_SEPARATION = 0.12
+  // About 30 steps out of 255: three shades of one blue are not a palette.
+  const MIN_SEPARATION = 30
   const kept: LinearColor[] = []
 
   for (const bin of bins) {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ambient, EMPTY_MEMORY, horizontalOrder, meter, pulse, spectrum } from './modes'
 import { DEFAULT_AUDIO_SETTINGS } from './palette'
 import { normalizeLayout } from '../../main/device/layout'
+import { rotateLayout } from '../geometry'
 import type { AudioFeatures } from './analyser'
 
 /** A row of triangles, left to right, so `nx` orders them. */
@@ -37,6 +38,24 @@ describe('horizontalOrder', () => {
 
     const positions = order.map((index) => layout.panels[index]!.nx)
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
+  })
+
+  /**
+   * A rotation leaves panels of one column differing in the sixteenth
+   * decimal, so an exact comparison never reaches the height tie-break and
+   * the column comes out in rounding order.
+   */
+  it('still reads a rotated row from top to bottom', () => {
+    // A quarter turn stands the row up: every panel is now the same distance
+    // across, give or take the sixteenth decimal, so only the tie-break can
+    // order them.
+    const rotated = rotateLayout(row(3), 90)
+    const across = rotated.panels.map((panel) => panel.nx)
+    expect(Math.max(...across) - Math.min(...across)).toBeLessThan(1e-9)
+
+    const heights = horizontalOrder(rotated).map((index) => rotated.panels[index]!.ny)
+
+    expect([...heights].sort((a, b) => a - b)).toEqual(heights)
   })
 
   it('gives every panel exactly one place', () => {

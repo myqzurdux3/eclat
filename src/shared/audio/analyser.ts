@@ -61,16 +61,21 @@ export class AudioAnalyser {
     if (block.length === 0) return { ...SILENT }
 
     // A short block is padded rather than refused: the capture stream does
-    // not align its chunks on our block size.
+    // not align its chunks on our block size. A longer one is analysed on its
+    // first `BLOCK_SIZE` samples — the FFT needs a power of two.
+    const heard = Math.min(block.length, BLOCK_SIZE)
     let samples = block
     if (block.length !== BLOCK_SIZE) {
       samples = new Float32Array(BLOCK_SIZE)
-      samples.set(block.subarray(0, BLOCK_SIZE))
+      samples.set(block.subarray(0, heard))
     }
 
+    // Divided by what was actually heard, not by the padding. Dividing by
+    // the full block would report a short one as quieter than it is, and the
+    // level drives the gate and the meter.
     let sumOfSquares = 0
-    for (const sample of samples) sumOfSquares += sample * sample
-    const level = Math.min(1, Math.sqrt(sumOfSquares / samples.length))
+    for (let i = 0; i < heard; i += 1) sumOfSquares += samples[i]! * samples[i]!
+    const level = Math.min(1, Math.sqrt(sumOfSquares / heard))
 
     if (level === 0) {
       this.smoothed = { bass: 0, mid: 0, treble: 0 }

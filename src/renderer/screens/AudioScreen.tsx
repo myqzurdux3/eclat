@@ -57,7 +57,7 @@ export function AudioScreen({
 
   if (session.device === undefined || !session.device.paired) {
     return (
-      <section className="scene-grid">
+      <section className="stage-grid">
         <p className="empty-state">{t('sync.unpaired')}</p>
       </section>
     )

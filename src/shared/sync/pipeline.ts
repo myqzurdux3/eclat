@@ -21,7 +21,7 @@ const CLUSTERS = 5
  * Only the smoother carries state — the rest is a pure function of the frame.
  */
 export class SyncPipeline {
-  private smoother: Smoother
+  private readonly smoother: Smoother
 
   constructor(
     private readonly layout: PanelLayout,
@@ -32,10 +32,8 @@ export class SyncPipeline {
 
   /** Applies new settings without losing the smoothing history. */
   update(settings: SyncSettings): void {
-    const rateChanged =
-      settings.attack !== this.settings.attack || settings.release !== this.settings.release
     this.settings = settings
-    if (rateChanged) this.smoother = new Smoother(settings.attack, settings.release)
+    this.smoother.retune(settings.attack, settings.release)
   }
 
   reset(): void {

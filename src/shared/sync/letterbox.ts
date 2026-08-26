@@ -1,4 +1,4 @@
-import { toLinear, type Frame, type Rect } from './srgb'
+import { luminance, toLinear, type Frame, type Rect } from './srgb'
 
 /**
  * Linear luminance above which a band no longer counts as black. The bars in
@@ -10,29 +10,38 @@ export const DEFAULT_THRESHOLD = 0.006
 /** Beyond this, it is not letterboxing but a dark scene. */
 const MAX_CROP = 0.45
 
-function rowIsBlack(frame: Frame, y: number, threshold: number): boolean {
+/** Mean luminance of a run of pixels, one every `step` in the data. */
+function meanLuminance(frame: Frame, start: number, count: number, step: number): number {
   let total = 0
-  for (let x = 0; x < frame.width; x += 1) {
-    const at = (y * frame.width + x) * 4
-    total +=
-      0.2126 * toLinear(frame.data[at]!) +
-      0.7152 * toLinear(frame.data[at + 1]!) +
-      0.0722 * toLinear(frame.data[at + 2]!)
+  for (let i = 0; i < count; i += 1) {
+    const at = (start + i * step) * 4
+    total += luminance({
+      r: toLinear(frame.data[at]!),
+      g: toLinear(frame.data[at + 1]!),
+      b: toLinear(frame.data[at + 2]!),
+    })
   }
-  return total / frame.width <= threshold
+  return count === 0 ? 0 : total / count
 }
 
-function columnIsBlack(frame: Frame, x: number, threshold: number): boolean {
-  let total = 0
-  for (let y = 0; y < frame.height; y += 1) {
-    const at = (y * frame.width + x) * 4
-    total +=
-      0.2126 * toLinear(frame.data[at]!) +
-      0.7152 * toLinear(frame.data[at + 1]!) +
-      0.0722 * toLinear(frame.data[at + 2]!)
-  }
-  return total / frame.height <= threshold
-}
+const rowIsBlack = (frame: Frame, y: number, threshold: number): boolean =>
+  meanLuminance(frame, y * frame.width, frame.width, 1) <= threshold
+
+/**
+ * Whether a column is black between two rows.
+ *
+ * The bounds matter: averaged over the whole height, the bars the row scan
+ * has just found drag a dark picture edge under the threshold, and the sides
+ * of the image get thrown away as pillarboxing.
+ */
+const columnIsBlack = (
+  frame: Frame,
+  x: number,
+  top: number,
+  bottom: number,
+  threshold: number,
+): boolean =>
+  meanLuminance(frame, top * frame.width + x, bottom - top + 1, frame.width) <= threshold
 
 /**
  * The useful rectangle of the image, black bars removed.
@@ -58,10 +67,10 @@ export function detectLetterbox(frame: Frame, threshold = DEFAULT_THRESHOLD): Re
   while (bottom > top && rowIsBlack(frame, bottom, threshold)) bottom -= 1
 
   let left = 0
-  while (left < frame.width && columnIsBlack(frame, left, threshold)) left += 1
+  while (left < frame.width && columnIsBlack(frame, left, top, bottom, threshold)) left += 1
 
   let right = frame.width - 1
-  while (right > left && columnIsBlack(frame, right, threshold)) right -= 1
+  while (right > left && columnIsBlack(frame, right, top, bottom, threshold)) right -= 1
 
   const height = bottom - top + 1
   const width = right - left + 1

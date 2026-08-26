@@ -93,3 +93,34 @@ describe('bandEnergies', () => {
     }
   })
 })
+
+describe('band edges', () => {
+  /**
+   * `floor` below and `ceil` above made neighbouring bands share their edge
+   * bins: at 48 kHz the bass ran to bin 6 while the mid started at bin 5, so
+   * a pure 234 Hz tone lit the mid band as well — and fed the beat detector
+   * twice over.
+   */
+  it('gives no bin to two bands at once', () => {
+    const spectrum = new Float32Array(512)
+    const sampleRate = 48000
+
+    const claimed = new Map<number, string[]>()
+    for (const [name, index] of [
+      ['bass', 0],
+      ['mid', 1],
+      ['treble', 2],
+    ] as const) {
+      for (let bin = 0; bin < spectrum.length; bin += 1) {
+        spectrum.fill(0)
+        spectrum[bin] = 1
+        const energies = bandEnergies(spectrum, sampleRate)
+        if (energies[name] > 0) claimed.set(bin, [...(claimed.get(bin) ?? []), name])
+      }
+      void index
+    }
+
+    const shared = [...claimed].filter(([, names]) => names.length > 1)
+    expect(shared).toEqual([])
+  })
+})

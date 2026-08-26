@@ -161,3 +161,26 @@ describe('SyncPipeline', () => {
     expect(pipeline.process(flatRed())).toEqual([])
   })
 })
+
+describe('SyncPipeline — retuning', () => {
+  /**
+   * Changing a rate used to build a new smoother, which starts with no
+   * history and takes the next frame raw. Nudging a slider made the wall
+   * jump to the unsmoothed colour — the one thing smoothing exists to stop.
+   */
+  it('keeps the smoothing history when a rate changes', () => {
+    const layout = normalizeLayout([{ panelId: 1, x: 0, y: 0, o: 0, shapeType: 8 }], 100)
+    const settings = { ...DEFAULT_SYNC_SETTINGS, attack: 0.5, release: 0.5, saturation: 1 }
+    const pipeline = new SyncPipeline(layout, settings)
+
+    const black = frame()
+    settle(pipeline, black)
+
+    pipeline.update({ ...settings, attack: 0.51 })
+    const after = pipeline.process(flatRed())
+
+    // Part of the way, not all of it: the previous frame is still remembered.
+    expect(after[0]!.r).toBeGreaterThan(0)
+    expect(after[0]!.r).toBeLessThan(255)
+  })
+})

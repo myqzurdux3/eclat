@@ -68,3 +68,37 @@ describe('applyCorrection', () => {
     expect(corrected.g).toBeGreaterThanOrEqual(0)
   })
 })
+
+describe('applyCorrection — luminance', () => {
+  /**
+   * The stretch is meant to liven a colour without moving its brightness.
+   * When it drives a channel below zero the clamp puts back light that the
+   * other channels were never asked to give up, so the correction can only
+   * ever brighten — never darken.
+   */
+  it('holds the luminance when a channel would go negative', () => {
+    const settings = { ...DEFAULT_SYNC_SETTINGS, saturation: 1.25, blackFloor: 0 }
+    const before = { r: 0.02, g: 0.5, b: 0.02 }
+
+    const after = applyCorrection(before, settings)
+
+    expect(luminance(after)).toBeCloseTo(luminance(before), 6)
+  })
+
+  it('keeps every channel inside the range', () => {
+    const settings = { ...DEFAULT_SYNC_SETTINGS, saturation: 2, blackFloor: 0 }
+
+    for (const colour of [
+      { r: 0.02, g: 0.5, b: 0.02 },
+      { r: 0.9, g: 0.1, b: 0.4 },
+      { r: 1, g: 1, b: 1 },
+      { r: 0, g: 0, b: 0 },
+    ]) {
+      const after = applyCorrection(colour, settings)
+      for (const channel of [after.r, after.g, after.b]) {
+        expect(channel).toBeGreaterThanOrEqual(0)
+        expect(channel).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+})

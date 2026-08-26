@@ -39,13 +39,15 @@ export function sceneMotion(
     return Array.from({ length: panelCount }, () => ({ ...palette[0]! }))
   }
 
-  const duration = options.durationMs ?? DEFAULT_DURATION
+  // A duration of zero would divide into infinity, index the palette at NaN,
+  // and hand `blend` an undefined colour to read fields off.
+  const duration = Math.max(1, options.durationMs ?? DEFAULT_DURATION)
   const spread = options.spread ?? DEFAULT_SPREAD
   const progress = timeMs / duration
 
   return Array.from({ length: panelCount }, (_, index) => {
     // Each panel lags behind the previous one, so the wave can be seen moving.
-    const offset = panelCount === 1 ? 0 : (index / panelCount) * spread * palette.length
+    const offset = (index / panelCount) * spread * palette.length
     const position = progress + offset
 
     const from = Math.floor(position)

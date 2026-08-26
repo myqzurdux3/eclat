@@ -31,6 +31,37 @@ function column(f: Frame, x0: number, x1: number, value: number): void {
   }
 }
 
+describe('letterbox — the column scan', () => {
+  /**
+   * The bars found by the row scan must be left out of the column means.
+   * Averaged over the whole height they drag a dark picture edge under the
+   * threshold, and the sides of the image are thrown away as pillarboxing.
+   */
+  it('ignores the bars it has already found when scanning columns', () => {
+    const width = 64
+    const height = 36
+    const data = new Uint8ClampedArray(width * height * 4)
+    for (let y = 7; y <= 28; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const at = (y * width + x) * 4
+        const value = x < 3 || x > 60 ? 25 : 60
+        data[at] = value
+        data[at + 1] = value
+        data[at + 2] = value
+        data[at + 3] = 255
+      }
+    }
+
+    const rect = detectLetterbox({ width, height, data })
+
+    expect(rect.y).toBe(7)
+    expect(rect.height).toBe(22)
+    // The dark edge columns are picture, not bars.
+    expect(rect.x).toBe(0)
+    expect(rect.width).toBe(64)
+  })
+})
+
 describe('detectLetterbox', () => {
   it('returns the whole image when it is full', () => {
     const f = frame(64, 36, 200)
