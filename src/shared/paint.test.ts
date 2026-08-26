@@ -20,6 +20,12 @@ describe('toFrameColor', () => {
     expect(toFrameColor(tint, tint)).toEqual(UNLIT)
   })
 
+  it('sends real black rather than invent light the app cannot name', () => {
+    const neutral = { r: 40, g: 42, b: 52 }
+
+    expect(toFrameColor(neutral, tint, neutral)).toEqual(UNLIT)
+  })
+
   it('sends real black for a panel the mock-up knows nothing about', () => {
     expect(toFrameColor(undefined, tint)).toEqual(UNLIT)
   })

@@ -3,8 +3,8 @@ import type { DeviceEventMessage, NanoleafApi, RendererDevice } from '../shared/
 import { createCoalescer } from '../shared/coalesce'
 import { hsbToRgb } from '../shared/color'
 import { rotateLayout } from '../shared/geometry'
-import { isUnlit, nextPaint, toFrameColor } from '../shared/paint'
-import { OFF, wallColors } from '../shared/wall-colors'
+import { isUnlit, nextPaint, toFrameColor, UNLIT } from '../shared/paint'
+import { NEUTRAL, OFF, wallColors } from '../shared/wall-colors'
 import type { Color, DeviceState, EffectPalette, PanelLayout } from '../shared/types'
 
 const ROTATION_KEY = 'nanoleaf.rotation'
@@ -389,9 +389,17 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
         return
       }
 
+      // Only a wall we can see is worth copying. With the power off, or
+      // before the first state has landed, the mock-up shows conventions
+      // rather than light: seeding from those would switch the whole wall on
+      // in a colour it was never showing.
+      const visible = state !== null && state.on
       const seeded = new Map<number, Color>()
       for (const panel of layout?.panels ?? []) {
-        seeded.set(panel.panelId, toFrameColor(colors.get(panel.panelId), OFF))
+        seeded.set(
+          panel.panelId,
+          visible ? toFrameColor(colors.get(panel.panelId), OFF, NEUTRAL) : UNLIT,
+        )
       }
       seeded.set(panelId, next)
 

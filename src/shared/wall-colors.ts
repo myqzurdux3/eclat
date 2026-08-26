@@ -3,7 +3,7 @@ import { isUnlit } from './paint'
 import type { Color, DeviceState, EffectPalette, NormalizedPanel } from './types'
 
 /** Muted grey shown while the device state is still unknown. */
-const NEUTRAL: Color = { r: 40, g: 42, b: 52 }
+export const NEUTRAL: Color = { r: 40, g: 42, b: 52 }
 
 /**
  * What an unlit panel is drawn with.

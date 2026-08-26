@@ -7,7 +7,7 @@
 [![CI](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml/badge.svg)](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-6aa9ff.svg)](LICENSE)
 ![Platform: Linux](https://img.shields.io/badge/platform-Linux-33e0b0.svg)
-![Tests](https://img.shields.io/badge/tests-400%20passing-e0347a.svg)
+![Tests](https://img.shields.io/badge/tests-406%20passing-e0347a.svg)
 
 [Français](README.fr.md) · [Getting started](#getting-started) · [How it works](#architecture) · [What the hardware taught us](#notes-from-the-hardware)
 
@@ -111,7 +111,7 @@ isolation to work around a temporary system setting.
 ## Development
 
 ```bash
-npm test                # 400 unit tests — no hardware, network, GPU or DOM
+npm test                # 406 unit tests — no hardware, network, GPU or DOM
 npm run typecheck       # main process + renderer
 npm run build           # main process + renderer
 npm run dev:renderer    # Vite dev server, then, in another terminal:

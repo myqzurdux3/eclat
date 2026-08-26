@@ -570,6 +570,40 @@ describe('DeviceService — releasing external control', () => {
   })
 
   /**
+   * The power was only ever checked while arming the stream. Now that
+   * painting holds the wall, the stream is already there and the check never
+   * ran: clicking a panel on a wall switched off lit it on screen and left
+   * the room dark.
+   */
+  it('switches the wall back on when a panel is clicked after a power cut', async () => {
+    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
+    await service.setOn('Shapes Lounge', false)
+
+    await service.paintPanel('Shapes Lounge', 2, { r: 0, g: 255, b: 0 })
+
+    expect(device.state.on).toBe(true)
+  })
+
+  /**
+   * And switching the wall back on by hand has to bring the painting with
+   * it: the panels were chosen, the power cut them, and nothing else would
+   * ever send them again.
+   */
+  it('broadcasts the painting again when the wall is switched back on', async () => {
+    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
+    await receiver.waitForFrames(1)
+
+    await service.setOn('Shapes Lounge', false)
+    await service.setOn('Shapes Lounge', true)
+
+    const frames = await receiver.waitForFrames(2)
+    const painted = new Map(frames.at(-1)!.panels.map((panel) => [panel.panelId, panel.color]))
+
+    expect(device.state.on).toBe(true)
+    expect(painted.get(1)).toEqual({ r: 255, g: 0, b: 0 })
+  })
+
+  /**
    * Painting used to expire on a three-second deadline, which read as the
    * wall wiping itself moments after being painted. A panel the user lit
    * stays lit; handing the wall back is something they ask for.

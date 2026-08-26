@@ -1,4 +1,10 @@
-import { buildHaloMesh, buildPanelMesh, MAX_PANELS, type WallMesh } from './mesh'
+import {
+  buildHaloMesh,
+  buildOutlineMesh,
+  buildPanelMesh,
+  MAX_PANELS,
+  type WallMesh,
+} from './mesh'
 import { fitTransform, wallBounds, type ViewTransform } from '../../shared/view'
 import type { Color, PanelLayout } from '../../shared/types'
 
@@ -37,6 +43,19 @@ out vec4 outColor;
 
 void main() {
   outColor = vec4(vColor, 1.0);
+}`
+
+const OUTLINE_FRAGMENT_SHADER = `#version 300 es
+precision highp float;
+in vec3 vColor;
+in vec2 vOffset;
+out vec4 outColor;
+
+void main() {
+  // The outline never falls below a floor: a wall of unlit panels is drawn
+  // in near-black over a near-black stage, and without this there is nothing
+  // on screen to say where the panels are, let alone where to click.
+  outColor = vec4(max(vColor, vec3(0.34)), 1.0);
 }`
 
 const HALO_FRAGMENT_SHADER = `#version 300 es
@@ -98,7 +117,8 @@ function bindAttribute(
 }
 
 /**
- * Draws the wall: a diffuse halo per panel, then the panel itself. Colours
+ * Draws the wall: a diffuse halo per panel, the panel itself, then its
+ * outline. Colours
  * travel through a uniform array indexed by panel, which avoids rebuilding
  * any buffer per frame — only the uniform changes, at 30 Hz.
  */
@@ -111,18 +131,22 @@ export function createWallRenderer(
 
   const panelMesh = buildPanelMesh(layout)
   const haloMesh = buildHaloMesh(layout)
+  const outlineMesh = buildOutlineMesh(layout)
 
   const panelProgram = link(gl, PANEL_FRAGMENT_SHADER)
   const haloProgram = link(gl, HALO_FRAGMENT_SHADER)
+  const outlineProgram = link(gl, OUTLINE_FRAGMENT_SHADER)
 
-  const zeros = new Float32Array(panelMesh.vertexCount * 2)
   const buffers = {
     panelPosition: upload(gl, panelMesh.positions),
     panelIndex: upload(gl, panelMesh.panelIndices),
-    panelOffset: upload(gl, zeros),
+    panelOffset: upload(gl, new Float32Array(panelMesh.vertexCount * 2)),
     haloPosition: upload(gl, haloMesh.positions),
     haloIndex: upload(gl, haloMesh.panelIndices),
     haloOffset: upload(gl, haloMesh.offsets),
+    outlinePosition: upload(gl, outlineMesh.positions),
+    outlineIndex: upload(gl, outlineMesh.panelIndices),
+    outlineOffset: upload(gl, new Float32Array(outlineMesh.vertexCount * 2)),
   }
 
   const flat = new Float32Array(MAX_PANELS * 3)
@@ -149,6 +173,7 @@ export function createWallRenderer(
     position: WebGLBuffer,
     index: WebGLBuffer,
     offset: WebGLBuffer,
+    mode: number = gl.TRIANGLES,
   ): void => {
     if (mesh.vertexCount === 0) return
     const view = currentTransform()
@@ -159,7 +184,7 @@ export function createWallRenderer(
     gl.uniform2fv(gl.getUniformLocation(program, 'uScale'), view.scale)
     gl.uniform2fv(gl.getUniformLocation(program, 'uCentre'), view.centre)
     gl.uniform3fv(gl.getUniformLocation(program, 'uColors'), flat)
-    gl.drawArrays(gl.TRIANGLES, 0, mesh.vertexCount)
+    gl.drawArrays(mode, 0, mesh.vertexCount)
   }
 
   return {
@@ -179,6 +204,14 @@ export function createWallRenderer(
         buffers.panelIndex,
         buffers.panelOffset,
       )
+      drawMesh(
+        outlineProgram,
+        outlineMesh,
+        buffers.outlinePosition,
+        buffers.outlineIndex,
+        buffers.outlineOffset,
+        gl.LINES,
+      )
     },
 
     resize() {
@@ -193,6 +226,7 @@ export function createWallRenderer(
       for (const buffer of Object.values(buffers)) gl.deleteBuffer(buffer)
       gl.deleteProgram(panelProgram)
       gl.deleteProgram(haloProgram)
+      gl.deleteProgram(outlineProgram)
     },
   }
 }

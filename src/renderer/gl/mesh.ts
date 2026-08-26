@@ -78,3 +78,32 @@ export function buildHaloMesh(
     vertexCount: panelIndices.length,
   }
 }
+
+/**
+ * The edges of every panel, as line segments.
+ *
+ * A wall whose panels are all unlit is a wall drawn in near-black over a
+ * near-black stage: nothing on screen says where to click. The fill carries
+ * the state, the outline says where the panels are, whatever the state.
+ */
+export function buildOutlineMesh(layout: PanelLayout): WallMesh {
+  const positions: number[] = []
+  const panelIndices: number[] = []
+
+  layout.panels.forEach((panel, panelIndex) => {
+    const points = panelPolygon(panel, layout.nSideLength)
+
+    for (let corner = 0; corner < points.length; corner += 1) {
+      const from = points[corner]!
+      const to = points[(corner + 1) % points.length]!
+      positions.push(from.x, from.y, to.x, to.y)
+      panelIndices.push(panelIndex, panelIndex)
+    }
+  })
+
+  return {
+    positions: new Float32Array(positions),
+    panelIndices: new Float32Array(panelIndices),
+    vertexCount: panelIndices.length,
+  }
+}

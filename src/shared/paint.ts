@@ -25,13 +25,16 @@ export function nextPaint(chosen: boolean, brush: Color): Color {
  * The colour to actually send for a panel the mock-up is drawing with
  * `shown`.
  *
- * The unlit tint is a screen convention — a panel drawn in pure black over a
- * near-black stage disappears — but the wall is sent real black. A panel the
- * mock-up knows nothing about is unlit too.
+ * The tints passed in are screen conventions, not light: the unlit tint
+ * stands for a panel that is off, the neutral one for a wall whose colours
+ * are unknown. Sending either to the device would invent light — a wall lit
+ * dim grey because the app could not name what it was showing. They become
+ * real black, and so does a panel the mock-up knows nothing about.
  */
-export function toFrameColor(shown: Color | undefined, unlitTint: Color): Color {
+export function toFrameColor(shown: Color | undefined, ...tints: Color[]): Color {
   if (shown === undefined) return UNLIT
-  const isTint =
-    shown.r === unlitTint.r && shown.g === unlitTint.g && shown.b === unlitTint.b
+  const isTint = tints.some(
+    (tint) => shown.r === tint.r && shown.g === tint.g && shown.b === tint.b,
+  )
   return isTint ? UNLIT : shown
 }

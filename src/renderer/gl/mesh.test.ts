@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildHaloMesh, buildPanelMesh } from './mesh'
+import { buildHaloMesh, buildOutlineMesh, buildPanelMesh } from './mesh'
 import { normalizeLayout } from '../../main/device/layout'
 import type { PanelLayout } from '../../shared/types'
 
@@ -83,5 +83,32 @@ describe('buildHaloMesh', () => {
       Math.max(...m.positions) - Math.min(...m.positions)
 
     expect(extent(wide)).toBeGreaterThan(extent(tight))
+  })
+})
+
+describe('buildOutlineMesh', () => {
+  /**
+   * A wall of unlit panels is near-black on a near-black stage. The outline
+   * is the only thing that says where to click, so it has to close around
+   * every panel: three sides, six vertices, for a triangle.
+   */
+  it('closes a segment loop around each panel', () => {
+    const mesh = buildOutlineMesh(triangles(2))
+
+    expect(mesh.vertexCount).toBe(2 * 3 * 2)
+  })
+
+  it('gives every vertex its own panel', () => {
+    const mesh = buildOutlineMesh(triangles(2))
+
+    expect([...mesh.panelIndices]).toEqual([0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
+  })
+
+  it('joins the last corner back to the first', () => {
+    const mesh = buildOutlineMesh(triangles(1))
+    const at = (index: number) => [mesh.positions[index * 2], mesh.positions[index * 2 + 1]]
+
+    // The final segment ends where the first one started.
+    expect(at(mesh.vertexCount - 1)).toEqual(at(0))
   })
 })

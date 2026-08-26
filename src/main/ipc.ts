@@ -53,6 +53,8 @@ export class DeviceService {
   private readonly arbiters = new Map<string, SourceArbiter>()
   /** Pending re-sends of a painting the rate governor refused, per device. */
   private readonly flushes = new Map<string, ReturnType<typeof setTimeout>>()
+  /** What we last knew of each wall's power, to avoid re-reading it. */
+  private readonly powered = new Map<string, boolean>()
   private readonly subscriptions = new Map<string, EventSubscription>()
   private audio: AudioCapture | null = null
   /**
@@ -111,6 +113,7 @@ export class DeviceService {
         token: stored.token,
         deviceId,
         onEvent: (event) => {
+          if (event.kind === 'on') this.powered.set(deviceId, Boolean(event.value))
           if (event.kind === 'effect') {
             void this.noteEffectChange(deviceId, String(event.value)).catch(() => undefined)
           }
@@ -232,9 +235,43 @@ export class DeviceService {
 
   async setOn(deviceId: string, on: boolean): Promise<void> {
     await (await this.client(deviceId)).setOn(on)
+    this.powered.set(deviceId, on)
+
     // A stream in flight restores the power it found at arming: tell it the
     // user has moved that baseline, or its release undoes this command.
-    this.streams.get(deviceId)?.notePower(on)
+    const stream = this.streams.get(deviceId)
+    if (stream === undefined) return
+    stream.notePower(on)
+
+    // Switching the wall back on has to bring the painting with it. The
+    // panels were chosen, the power cut them, and nothing else would ever
+    // send them again — the wall would come back on showing nothing.
+    if (!on) return
+    await stream.arm()
+    if (!(await this.sendPainted(deviceId))) this.scheduleFlush(deviceId)
+  }
+
+  /**
+   * Makes sure a wall has power before anything is painted on it.
+   *
+   * External control lights nothing on a wall that is off. The check used to
+   * live in the arming path, which was enough while a stroke lasted three
+   * seconds and armed its own stream every time; now that painting holds the
+   * wall the stream is already there, and a click after a power cut lit the
+   * panel on screen while the room stayed dark.
+   */
+  private async ensureOn(deviceId: string): Promise<void> {
+    if (this.powered.get(deviceId) === true) return
+
+    const client = await this.client(deviceId)
+    if (this.powered.get(deviceId) === undefined && (await client.getState()).on) {
+      this.powered.set(deviceId, true)
+      return
+    }
+
+    await client.setOn(true)
+    this.powered.set(deviceId, true)
+    this.streams.get(deviceId)?.notePower(true)
   }
 
   async setBrightness(deviceId: string, value: number): Promise<void> {
@@ -351,14 +388,11 @@ export class DeviceService {
   ): Promise<boolean> {
     if (entries.length === 0) return false
 
-    if (!this.streams.has(deviceId)) {
-      // A click on a panel asks for light, and external control lights
-      // nothing on an off wall. Switching the power on here — before the
-      // stream saves its snapshot — also keeps the release from putting the
-      // wall back into the dark three seconds later.
-      const client = await this.client(deviceId)
-      if (!(await client.getState()).on) await client.setOn(true)
+    // Before the stream takes its snapshot, so a later release leaves the
+    // wall lit rather than dropping it back into the dark.
+    await this.ensureOn(deviceId)
 
+    if (!this.streams.has(deviceId)) {
       await this.startStream(deviceId, 'manual')
     }
 
