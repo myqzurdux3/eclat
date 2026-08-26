@@ -273,6 +273,14 @@ Priorité stricte, un seul writer :
 4. Scène / effet du device
 ```
 
+> **Écart assumé, 26 août 2026.** Le relâchement au bout de trois secondes a
+> été retiré : à l'usage il se lisait comme un mur qui s'efface tout seul
+> quelques instants après avoir été peint. La peinture tient désormais le mur
+> jusqu'à ce que quelque chose le reprenne — une scène, une synchro,
+> l'extinction, ou le device qui annonce un effet de lui-même. Les trois
+> secondes restent, mais uniquement comme priorité dans `arbiter.ts` : un
+> trait passe devant une synchro en cours pendant ce délai. Voir `dc40e21`.
+
 Deux modes de sync ne sont jamais actifs en concurrence sur le socket. Un
 mode **combiné** explicite existe — l'écran fournit la teinte, l'audio
 module l'intensité — implémenté comme un producteur unique lisant deux

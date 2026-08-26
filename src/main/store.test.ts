@@ -91,7 +91,7 @@ describe('ConfigStore', () => {
 
   it('tolerates a corrupted file', async () => {
     const flat = join(dir, 'config.json')
-    await writeFile(flat, '{ pas du json', 'utf8')
+    await writeFile(flat, '{ not json', 'utf8')
 
     expect(await new ConfigStore(flat).load()).toEqual({ devices: {}, activeDeviceId: null })
   })

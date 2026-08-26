@@ -7,7 +7,7 @@
 [![CI](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml/badge.svg)](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml)
 [![Licence : MIT](https://img.shields.io/badge/licence-MIT-6aa9ff.svg)](LICENSE)
 ![Plateforme : Linux](https://img.shields.io/badge/plateforme-Linux-33e0b0.svg)
-![Tests](https://img.shields.io/badge/tests-428%20passants-e0347a.svg)
+![Tests](https://img.shields.io/badge/tests-429%20passants-e0347a.svg)
 
 [English](README.md) · [Démarrer](#démarrer) · [Architecture](#architecture) · [Ce que le matériel apprend](#ce-que-le-matériel-apprend)
 
@@ -45,6 +45,12 @@ sans compte cloud, sans SDK propriétaire, sans télémétrie.
 <tr>
 <td align="center"><em>Les scènes, aux couleurs des palettes du device</em></td>
 <td align="center"><em>La synchronisation écran, pipeline à découvert</em></td>
+</tr>
+<tr>
+<td colspan="2"><img src="docs/images/audio.png" alt="Réglages de la synchronisation audio, avec les quatre modes et les niveaux par bande"></td>
+</tr>
+<tr>
+<td colspan="2" align="center"><em>La synchronisation audio, en quatre modes</em></td>
 </tr>
 </table>
 
@@ -125,7 +131,7 @@ l'isolation du renderer pour contourner un réglage système temporaire.
 ## Développement
 
 ```bash
-npm test                # 428 tests unitaires, sans matériel ni réseau
+npm test                # 429 tests unitaires, sans matériel ni réseau
 npm run typecheck       # processus main + renderer
 npm run build           # processus main + renderer
 npm run dev:renderer    # serveur Vite, puis :

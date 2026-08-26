@@ -84,9 +84,16 @@ export function wallColors(
     // them as soon as a scene runs, and they often sit at 0/0 — pure white.
     // Showing that white would suggest a wall lit white when in truth we
     // simply do not know what it is showing.
-    const base = state.colorMode === 'effect' ? NEUTRAL : hsbToRgb(state.hue, state.sat, 100)
-
-    colors.set(panel.panelId, dim(base, factor))
+    //
+    // The neutral tint stands in for that ignorance, and a placeholder is
+    // not light: dimming it by the device's brightness took it below the
+    // tint used for an unlit wall, so the mock-up said "unknown" more
+    // faintly than it says "off".
+    if (state.colorMode === 'effect') {
+      colors.set(panel.panelId, NEUTRAL)
+      return
+    }
+    colors.set(panel.panelId, dim(hsbToRgb(state.hue, state.sat, 100), factor))
   })
 
   return colors

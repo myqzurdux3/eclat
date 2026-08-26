@@ -159,6 +159,22 @@ describe('wallColors', () => {
   })
 
   /**
+   * The neutral tint says "this wall is showing something we cannot name".
+   * Dimming it by the device's brightness made that placeholder darker than
+   * the one for a wall that is off — the mock-up saying "unknown" more
+   * faintly than it says "unlit", which reads as a wall in worse shape than
+   * a switched-off one.
+   */
+  it('never draws an unknown wall darker than an unlit one', () => {
+    const dim = state({ colorMode: 'effect', effect: 'Unknown', brightness: 20 })
+
+    const colors = wallColors(layout.panels, dim, palettes, nothing)
+
+    const shown = colors.get(1)!
+    expect(shown.r + shown.g + shown.b).toBeGreaterThan(OFF.r + OFF.g + OFF.b)
+  })
+
+  /**
    * The stage behind the wall is nearly black. An unlit panel drawn in pure
    * black left nothing on screen to aim at once the wall was switched off.
    */

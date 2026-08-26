@@ -36,7 +36,7 @@ export const fr = {
   'control.colour': 'Couleur',
   'control.externalControl': 'Piloté de l’extérieur',
   'control.colour.underScene':
-    "Une scène est en cours : le device ne rapporte plus de teinte. Choisir une couleur la remplacera.",
+    "Une scène est en cours : le device ne rapporte plus de teinte. La roue colore les panneaux choisis, ou remplace la scène si tu n'en as choisi aucun.",
   'control.orientation': 'Orientation du mur',
   'control.orientation.help':
     "Le device ne dit pas comment le mur est accroché, et rien n'oblige un mur à être posé d'équerre.",

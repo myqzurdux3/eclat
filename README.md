@@ -7,7 +7,7 @@
 [![CI](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml/badge.svg)](https://github.com/myqzurdux3/eclat/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-6aa9ff.svg)](LICENSE)
 ![Platform: Linux](https://img.shields.io/badge/platform-Linux-33e0b0.svg)
-![Tests](https://img.shields.io/badge/tests-428%20passing-e0347a.svg)
+![Tests](https://img.shields.io/badge/tests-429%20passing-e0347a.svg)
 
 [Français](README.fr.md) · [Getting started](#getting-started) · [How it works](#architecture) · [What the hardware taught us](#notes-from-the-hardware)
 
@@ -58,6 +58,12 @@ detail it ran into is written down in [Notes from the hardware](#notes-from-the-
 <tr>
 <td align="center"><em>Scenes, coloured by the device's own palettes</em></td>
 <td align="center"><em>Screen sync, with the pipeline exposed</em></td>
+</tr>
+<tr>
+<td colspan="2"><img src="docs/images/audio.png" alt="Audio sync settings, with the four modes and the band meters"></td>
+</tr>
+<tr>
+<td colspan="2" align="center"><em>Audio sync, in four modes</em></td>
 </tr>
 </table>
 
@@ -111,7 +117,7 @@ isolation to work around a temporary system setting.
 ## Development
 
 ```bash
-npm test                # 428 unit tests — no hardware, network, GPU or DOM
+npm test                # 429 unit tests — no hardware, network, GPU or DOM
 npm run typecheck       # main process + renderer
 npm run build           # main process + renderer
 npm run dev:renderer    # Vite dev server, then, in another terminal:

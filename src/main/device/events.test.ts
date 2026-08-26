@@ -46,7 +46,7 @@ describe('parseEventBlock', () => {
   })
 
   it('survives unreadable JSON', () => {
-    expect(parseEventBlock('1', 'pas du json')).toEqual([])
+    expect(parseEventBlock('1', 'not json')).toEqual([])
   })
 
   it('survives a block with no events', () => {

@@ -32,7 +32,7 @@ export const en: Dictionary = {
   'control.colour': 'Colour',
   'control.externalControl': 'Driven externally',
   'control.colour.underScene':
-    'A scene is running: the device no longer reports a hue. Picking a colour will replace it.',
+    'A scene is running: the device no longer reports a hue. The wheel colours the panels you chose, or replaces the scene when you have chosen none.',
   'control.orientation': 'Wall orientation',
   'control.orientation.help':
     'The device does not report how the wall is mounted, and nothing says a wall has to hang square.',
