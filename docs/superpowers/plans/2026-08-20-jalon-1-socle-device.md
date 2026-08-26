@@ -6,7 +6,7 @@
 
 **Architecture :** Tout le code de ce jalon vit dans le processus main d'Electron et n'a aucune dépendance à React ni au DOM. Chaque module est une unité pure ou injectable : le client REST prend une IP et un token, la découverte prend une fabrique mDNS, l'appairage prend une fonction de temporisation. Les seules E/S non simulables (mDNS réel, matériel réel) sont isolées derrière une interface pour que le reste soit testé sans réseau. La tâche 7 relie l'ensemble à une fenêtre Electron minimale qui n'a d'autre but que de prouver le chemin complet.
 
-**Stack technique :** Electron, TypeScript, React (minimal en tâche 7), Vite, Vitest, bonjour-service, module `node:http` pour le device factice.
+**Stack technique :** Electron, TypeScript, React (minimal en tâche 7), Vite, Vitest, `dns-packet` sur `node:dgram`, module `node:http` pour le device factice.
 
 **Spec:** `docs/superpowers/specs/2026-08-20-nanoleaf-linux-design.md`
 
@@ -17,7 +17,7 @@
 - Port REST du device : **16021**. Base d'URL : `http://<ip>:16021/api/v1/<token>/`.
 - Port UDP de streaming : **60222** (protocole v2) — hors périmètre de ce jalon, ne pas l'implémenter ici.
 - Le token d'authentification ne quitte jamais le processus main. Le renderer ne le reçoit dans aucun message IPC.
-- Le fichier de configuration est écrit avec les permissions `0600`, dans `~/.config/nanoleaf-app/config.json` (répertoire surchargeable par `XDG_CONFIG_HOME`).
+- Le fichier de configuration est écrit avec les permissions `0600`, dans `~/.config/eclat/config.json` (répertoire surchargeable par `XDG_CONFIG_HOME`).
 - Aucun test ne doit dépendre d'un device physique ni du réseau : tout passe par le device factice de la tâche 2 ou par des doublures injectées.
 - Les coordonnées de panneaux sont normalisées dans `[0,1]²`, origine en haut à gauche, rapport d'aspect préservé.
 - Le paquet npm n'a pas de champ `"type"` : le code du main et du preload est compilé en CommonJS, le renderer est bâti par Vite.
@@ -30,7 +30,7 @@
 - Créer : `package.json`
 - Créer : `tsconfig.json`
 - Créer : `tsconfig.main.json`
-- Créer : `vitest.config.ts`
+- Créer : `vitest.config.mts`
 - Créer : `.gitignore` (modifier l'existant)
 - Créer : `src/shared/types.ts`
 - Créer : `src/main/device/layout.ts`
@@ -54,11 +54,11 @@ cd /home/user/Documents/nanoleaf
 npm init -y
 npm pkg delete type
 npm pkg set private=true
-npm pkg set name=nanoleaf-linux
+npm pkg set name=eclat
 npm pkg set version=0.1.0
-npm pkg set main=dist/main/main.js
-npm install react react-dom bonjour-service
-npm install --save-dev electron typescript vite @vitejs/plugin-react vitest @types/react @types/react-dom @types/node
+npm pkg set main=dist/main/main/main.js
+npm install react react-dom dns-packet
+npm install --save-dev electron typescript vite @vitejs/plugin-react vitest @types/react @types/react-dom @types/node @types/dns-packet
 npm pkg set scripts.test="vitest run"
 npm pkg set scripts.build:main="tsc -p tsconfig.main.json"
 npm pkg set scripts.dev:renderer="vite"
@@ -95,8 +95,8 @@ npm pkg set scripts.start="npm run build:main && electron ."
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022"],
-    "module": "CommonJS",
-    "moduleResolution": "node",
+    "module": "Node16",
+    "moduleResolution": "Node16",
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
@@ -110,7 +110,7 @@ npm pkg set scripts.start="npm run build:main && electron ."
 }
 ```
 
-`vitest.config.ts` :
+`vitest.config.mts` :
 
 ```ts
 import { defineConfig } from 'vitest/config'
@@ -323,7 +323,7 @@ Attendu : PASS — 6 tests
 - [x] **Step 8: Commit**
 
 ```bash
-git add package.json package-lock.json tsconfig.json tsconfig.main.json vitest.config.ts .gitignore src/shared/types.ts src/main/device/layout.ts src/main/device/layout.test.ts
+git add package.json package-lock.json tsconfig.json tsconfig.main.json vitest.config.mts .gitignore src/shared/types.ts src/main/device/layout.ts src/main/device/layout.test.ts
 git commit -m "feat: échafaudage du projet et normalisation de la géométrie des panneaux"
 ```
 
@@ -1145,7 +1145,7 @@ git commit -m "feat: appairage du device avec boucle de sollicitation"
 - Produit :
   - `interface StoredDevice { id: string; name: string; ip: string; port: number; token: string }`
   - `interface AppConfig { devices: Record<string, StoredDevice>; activeDeviceId: string | null }`
-  - `defaultConfigPath(): string` — `$XDG_CONFIG_HOME/nanoleaf-app/config.json`, repli `~/.config/...`
+  - `defaultConfigPath(): string` — `$XDG_CONFIG_HOME/eclat/config.json`, repli `~/.config/...`
   - `class ConfigStore { constructor(filePath: string); load(): Promise<AppConfig>; save(config: AppConfig): Promise<void>; upsertDevice(device: StoredDevice): Promise<AppConfig>; }`
 
 - [x] **Step 1: Écrire le test qui échoue**
@@ -1237,7 +1237,7 @@ describe('ConfigStore', () => {
   it('defaultConfigPath respecte XDG_CONFIG_HOME', () => {
     process.env.XDG_CONFIG_HOME = '/tmp/xdg-test'
 
-    expect(defaultConfigPath()).toBe('/tmp/xdg-test/nanoleaf-app/config.json')
+    expect(defaultConfigPath()).toBe('/tmp/xdg-test/eclat/config.json')
   })
 })
 ```
@@ -1274,7 +1274,7 @@ const EMPTY_CONFIG: AppConfig = { devices: {}, activeDeviceId: null }
 /** Chemin du fichier de configuration, conforme à la spec XDG. */
 export function defaultConfigPath(): string {
   const base = process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config')
-  return join(base, 'nanoleaf-app', 'config.json')
+  return join(base, 'eclat', 'config.json')
 }
 
 /**
@@ -1340,6 +1340,7 @@ git commit -m "feat: persistance de la configuration en 0600"
 
 **Fichiers :**
 - Créer : `src/main/device/discovery.ts`
+- Créer : `src/main/device/mdns.ts`
 - Test : `src/main/device/discovery.test.ts`
 
 **Interfaces:**
@@ -1349,7 +1350,7 @@ git commit -m "feat: persistance de la configuration en 0600"
   - `interface MdnsBrowser { on(event: 'up', listener: (service: MdnsService) => void): void; stop(): void }`
   - `interface MdnsFactory { browse(): MdnsBrowser }`
   - `discoverDevices(factory: MdnsFactory, options?: { timeoutMs?: number; sleep?: (ms: number) => Promise<void> }): Promise<DeviceInfo[]>`
-  - `createBonjourFactory(): MdnsFactory` — implémentation réelle sur `bonjour-service`, non couverte par les tests unitaires
+  - `createMdnsFactory(): MdnsFactory` — implémentation réelle sur `node:dgram`, dans `src/main/device/mdns.ts`, non couverte par les tests unitaires
 
 - [x] **Step 1: Écrire le test qui échoue**
 
@@ -1514,37 +1515,20 @@ export async function discoverDevices(
 
   return [...found.values()]
 }
-
-/** Fabrique réelle, adossée à bonjour-service. Non couverte par les tests. */
-export function createBonjourFactory(): MdnsFactory {
-  // Import paresseux : évite d'ouvrir une socket mDNS dans les tests unitaires.
-  const { Bonjour } = require('bonjour-service') as typeof import('bonjour-service')
-  const bonjour = new Bonjour()
-
-  return {
-    browse(): MdnsBrowser {
-      const browser = bonjour.find({ type: 'nanoleafapi', protocol: 'tcp' })
-      return {
-        on(event, listener) {
-          browser.on(event, (service) => {
-            listener({
-              name: service.name,
-              host: service.host,
-              addresses: service.addresses,
-              port: service.port,
-              txt: service.txt as Record<string, string> | undefined,
-            })
-          })
-        },
-        stop() {
-          browser.stop()
-          bonjour.destroy()
-        },
-      }
-    },
-  }
-}
 ```
+
+La fabrique réelle vit à part, dans `src/main/device/mdns.ts` : `discovery.ts`
+ne connaît que l'interface, et reste testable sans socket.
+
+```ts
+/** Fabrique réelle, adossée à `node:dgram`. Non couverte par les tests. */
+export function createMdnsFactory(options?: MdnsFactoryOptions): MdnsFactory
+```
+
+Elle bâtit la requête `_nanoleafapi._tcp.local` avec `dns-packet`, le bit QU
+armé pour obtenir une réponse unicast, et ouvre une socket par interface IPv4
+de la machine. Les réponses sont décodées et rendues sous la forme des
+`MdnsService` ci-dessus.
 
 - [x] **Step 4: Lancer le test et vérifier qu'il passe**
 
@@ -1568,7 +1552,7 @@ git commit -m "feat: découverte mDNS des contrôleurs Nanoleaf"
 - Créer : `src/preload/preload.ts`
 - Créer : `src/shared/ipc-contract.ts`
 - Créer : `index.html`
-- Créer : `vite.config.ts`
+- Créer : `vite.config.mts`
 - Créer : `src/renderer/main.tsx`
 - Créer : `src/renderer/App.tsx`
 - Test : `src/main/ipc.test.ts`
@@ -1946,7 +1930,7 @@ Attendu : PASS — 7 tests
 ```ts
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'node:path'
-import { createBonjourFactory } from './device/discovery'
+import { createMdnsFactory } from './device/mdns'
 import { DeviceService, registerIpc } from './ipc'
 import { ConfigStore, defaultConfigPath } from './store'
 
@@ -1975,7 +1959,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   const service = new DeviceService({
     store: new ConfigStore(defaultConfigPath()),
-    mdnsFactory: createBonjourFactory(),
+    mdnsFactory: createMdnsFactory(),
   })
   registerIpc(ipcMain, service)
   createWindow()
@@ -2015,7 +1999,7 @@ contextBridge.exposeInMainWorld('nanoleaf', api)
 
 Ce renderer n'est **pas** l'interface finale : il ne sert qu'à prouver le chemin complet. Le design du jalon 3 le remplacera.
 
-`vite.config.ts` :
+`vite.config.mts` :
 
 ```ts
 import react from '@vitejs/plugin-react'
@@ -2181,7 +2165,7 @@ Checklist, à cocher une par une :
 5. « Basculer on/off » éteint puis rallume physiquement les panneaux.
 6. Vérifier les permissions du fichier de configuration :
    ```bash
-   stat -c '%a %n' ~/.config/nanoleaf-app/config.json
+   stat -c '%a %n' ~/.config/eclat/config.json
    ```
    Attendu : `600`
 7. Relancer l'application → le device apparaît « appairé » sans redécouverte.
@@ -2189,7 +2173,7 @@ Checklist, à cocher une par une :
 - [x] **Step 10: Commit**
 
 ```bash
-git add src/main/main.ts src/main/ipc.ts src/main/ipc.test.ts src/preload/preload.ts src/shared/ipc-contract.ts src/renderer/main.tsx src/renderer/App.tsx index.html vite.config.ts package.json
+git add src/main/main.ts src/main/ipc.ts src/main/ipc.test.ts src/preload/preload.ts src/shared/ipc-contract.ts src/renderer/main.tsx src/renderer/App.tsx index.html vite.config.mts package.json
 git commit -m "feat: coquille Electron et câblage IPC du socle device"
 ```
 

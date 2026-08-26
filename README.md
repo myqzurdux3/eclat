@@ -42,7 +42,7 @@ detail it ran into is written down in [Notes from the hardware](#notes-from-the-
 | **Discovery** | mDNS (`_nanoleafapi._tcp`), implemented directly on `node:dgram` — [and here is why](#notes-from-the-hardware) |
 | **Pairing** | token stored `0600` in `~/.config/eclat/config.json`, never leaving the Electron main process |
 | **Wall** | WebGL2 without a rendering library: real position, shape, rotation, and a diffuse halo per panel |
-| **Control** | power, brightness, hue/saturation wheel, and click-to-paint on any single panel |
+| **Control** | power, brightness, hue/saturation wheel; click panels to gather a group, colour it with the wheel, click one again to switch it off |
 | **Scenes** | built from the palettes actually stored on the device, not from invented colours |
 | **Screen sync** | Wayland portal capture, analysed in a Worker; spatial, dominant and palette mapping |
 | **Audio sync** | reads the PipeWire monitor of your speakers, in four modes: a colour field, a left-to-right meter with a falling peak, a frequency axis, or a pulse renewed on every beat |
@@ -154,7 +154,7 @@ the portal testable without anyone present.
 
 ```
 main (Node)                          renderer (React)
-├── device/discovery.ts  mDNS        ├── screens/     Control, Scenes, Sync
+├── device/discovery.ts  mDNS        ├── screens/     Control, Scenes, Sync, Audio
 ├── device/pairing.ts    POST /new   ├── gl/          WebGL2 wall
 ├── device/client.ts     REST :16021 └── worker/      frame analysis
 ├── device/stream.ts     UDP :60222        │

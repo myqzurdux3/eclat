@@ -22,6 +22,17 @@
 - Thread UI : **jamais sous 60 fps** pendant un sync.
 - Aucun test ne dépend du matériel, du DOM ni d'un contexte GPU.
 
+> **Écart assumé, 26 août 2026.** Le clic ne peint plus le panneau qu'il
+> touche. Il le met dans une sélection, et c'est la roue qui donne sa couleur
+> au groupe ; le clic suivant ouvre un nouveau groupe, de sorte qu'un mur porte
+> plusieurs couleurs, et recliquer un panneau l'éteint. Peindre au passage de
+> la roue empêchait de peindre proprement à deux couleurs. Le relâchement au
+> bout de trois secondes est tombé avec : la peinture tient le mur jusqu'à ce
+> qu'une scène, une synchro, l'extinction ou le device le reprenne, et les
+> trois secondes ne servent plus que de priorité dans `arbiter.ts`. La copie
+> d'interface qui suit dit encore l'ancien comportement ; celle qui tourne est
+> la clé `control.paint.help`. Voir `dc40e21` et `d652a7c`.
+
 ### Ce que le matériel dit, vérifié avant d'écrire ce plan
 
 Réponse réelle de `GET /panelLayout/layout` sur le Shapes 83DC :
@@ -1492,14 +1503,19 @@ Ajouter ces deux méthodes juste après `sendFrame` :
 
 ```ts
   /**
-   * Peint un panneau et rediffuse le mur entier : le protocole v2 n'a pas de
+   * Peint des panneaux et rediffuse le mur entier : le protocole v2 n'a pas de
    * trame partielle. Les panneaux jamais peints restent noirs — leur couleur
    * d'avant l'armement n'est pas récupérable.
    *
    * Arme le stream au besoin : cliquer un panneau doit suffire, sans avoir à
    * démarrer un sync au préalable.
    */
-  async paintPanel(deviceId: string, panelId: number, color: Color): Promise<boolean> {
+  async paintPanels(
+    deviceId: string,
+    entries: Array<{ panelId: number; color: Color }>,
+  ): Promise<boolean> {
+    if (entries.length === 0) return false
+
     if (!this.streams.has(deviceId)) {
       await this.startStream(deviceId, 'manual')
     }
@@ -1512,7 +1528,7 @@ Ajouter ces deux méthodes juste après `sendFrame` :
       painted = new Map<number, Color>()
       this.painted.set(deviceId, painted)
     }
-    painted.set(panelId, color)
+    for (const { panelId, color } of entries) painted.set(panelId, color)
 
     return this.sendFrame(
       deviceId,
@@ -1521,10 +1537,18 @@ Ajouter ces deux méthodes juste après `sendFrame` :
     )
   }
 
+  /** Un panneau seul est un groupe d'un. */
+  async paintPanel(deviceId: string, panelId: number, color: Color): Promise<boolean> {
+    return this.paintPanels(deviceId, [{ panelId, color }])
+  }
+
+  /**
+   * Une seule requête : `PUT /state` prend teinte et saturation ensemble, et
+   * les envoyer l'une après l'autre fait passer le mur par une couleur
+   * intermédiaire que personne n'a demandée.
+   */
   async setColor(deviceId: string, hue: number, sat: number): Promise<void> {
-    const client = await this.client(deviceId)
-    await client.setHue(hue)
-    await client.setSat(sat)
+    await (await this.client(deviceId)).setHueSat(hue, sat)
   }
 ```
 
@@ -1609,7 +1633,7 @@ git commit -m "feat: peinture d'un panneau au clic et réglage de couleur"
   - `IPC_CHANNELS.windowMinimize = 'window:minimize'`, `IPC_CHANNELS.windowClose = 'window:close'`
   - `NanoleafApi.minimizeWindow(): Promise<void>`, `NanoleafApi.closeWindow(): Promise<void>`
   - `useNanoleaf(bridge: NanoleafApi): NanoleafSession`
-  - `NanoleafSession { device, state, layout, palettes, colors, busy, error, discover, pair, refresh, setOn, setBrightness, setColor, paint, selectEffect }`
+  - `NanoleafSession { device, state, layout, palettes, colors, brush, busy, error, discover, pair, refresh, setOn, setBrightness, setColor, paint, selectEffect }` — la forme telle qu'elle a fini est dans `src/renderer/useNanoleaf.ts`
   - `<WallCanvas layout={PanelLayout} colors={Map<number, Color>} onPaint={(panelId: number) => void} />`
   - `<ControlScreen session={NanoleafSession} />`
 
@@ -1718,7 +1742,7 @@ body {
    Deux calques empilés au fond statique, dont seule l'opacité s'anime : un
    `transition: background` repeindrait un flou de 90 px plein écran à chaque
    frame, ce que la contrainte des 60 fps interdit. */
-.derive {
+.drift {
   position: fixed;
   inset: -30%;
   z-index: 0;
@@ -1729,11 +1753,11 @@ body {
   will-change: opacity;
 }
 
-.derive[data-visible='true'] {
+.drift[data-visible='true'] {
   opacity: 0.5;
 }
 
-.coquille {
+.shell {
   position: relative;
   z-index: 1;
   display: grid;
@@ -1741,7 +1765,7 @@ body {
   height: 100vh;
 }
 
-.barre {
+.titlebar {
   -webkit-app-region: drag;
   display: flex;
   align-items: center;
@@ -1749,18 +1773,18 @@ body {
   padding: 0 8px;
 }
 
-.barre button,
-.onglets button {
+.titlebar button,
+.tabs button {
   -webkit-app-region: no-drag;
 }
 
-.onglets {
+.tabs {
   display: flex;
   gap: 4px;
   margin-left: 12px;
 }
 
-.onglets button {
+.tabs button {
   background: transparent;
   border: 0;
   color: var(--discret);
@@ -1770,18 +1794,18 @@ body {
   cursor: pointer;
 }
 
-.onglets button[aria-selected='true'] {
+.tabs button[aria-selected='true'] {
   background: var(--verre);
   color: var(--texte);
 }
 
-.commandes-fenetre {
+.window-controls {
   margin-left: auto;
   display: flex;
   gap: 6px;
 }
 
-.commandes-fenetre button {
+.window-controls button {
   width: 22px;
   height: 22px;
   border-radius: 50%;
@@ -1793,7 +1817,7 @@ body {
   font-size: 12px;
 }
 
-.verre {
+.glass {
   background: var(--verre);
   border: 1px solid var(--bord);
   backdrop-filter: blur(18px);
@@ -1801,7 +1825,7 @@ body {
   padding: 20px;
 }
 
-.controle {
+.control {
   display: grid;
   grid-template-columns: 1fr 280px;
   gap: 20px;
@@ -1809,13 +1833,13 @@ body {
   min-height: 0;
 }
 
-.mur {
+.wall {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-.grille-scenes {
+.stage-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 14px;
@@ -1823,7 +1847,7 @@ body {
   overflow-y: auto;
 }
 
-.vignette {
+.thumb {
   border: 1px solid var(--bord);
   border-radius: 14px;
   padding: 0;
@@ -1834,15 +1858,15 @@ body {
   transition: transform 160ms ease;
 }
 
-.vignette:hover {
+.thumb:hover {
   transform: scale(1.03);
 }
 
-.vignette[aria-current='true'] {
+.thumb[aria-current='true'] {
   border-color: var(--texte);
 }
 
-.vignette span {
+.thumb span {
   display: block;
   padding: 8px 10px;
   font-size: 13px;
@@ -1879,7 +1903,9 @@ export interface NanoleafSession {
   setOn: (on: boolean) => void
   setBrightness: (value: number) => void
   setColor: (hue: number, sat: number) => void
-  paint: (panelId: number, color: Color) => void
+  /** La couleur qu'un clic pose, choisie dans l'app et non relue du device. */
+  brush: { hue: number; sat: number }
+  paint: (panelId: number) => void
   selectEffect: (name: string) => void
 }
 
@@ -1893,6 +1919,9 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
   const [layout, setLayout] = useState<PanelLayout | null>(null)
   const [palettes, setPalettes] = useState<EffectPalette[]>([])
   const [colors, setColors] = useState<Map<number, Color>>(new Map())
+  // La couleur du pinceau appartient à l'app : le device ne rend pas la
+  // couleur d'un panneau, et la relire donnerait celle du mur entier.
+  const [brush, setBrush] = useState({ hue: 0, sat: 100 })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -1957,13 +1986,16 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
       }),
     setColor: (hue, sat) =>
       run(async () => {
+        setBrush({ hue, sat })
         if (device === undefined) return
         await bridge.setColor(device.id, hue, sat)
         setState((previous) => (previous === null ? previous : { ...previous, hue, sat }))
       }),
-    paint: (panelId, color) =>
+    brush,
+    paint: (panelId) =>
       run(async () => {
         if (device === undefined) return
+        const color = hsbToRgb(brush.hue, brush.sat, 100)
         await bridge.paintPanel(device.id, panelId, color)
         setColors((previous) => new Map(previous).set(panelId, color))
       }),
@@ -2056,7 +2088,7 @@ export function WallCanvas({ layout, colors, onPaint }: WallCanvasProps) {
     if (panel !== null) onPaint(panel.panelId)
   }
 
-  return <canvas ref={canvasRef} className="mur" onClick={handleClick} />
+  return <canvas ref={canvasRef} className="wall" onClick={handleClick} />
 }
 ```
 
@@ -2075,8 +2107,8 @@ export function ControlScreen({ session }: { session: NanoleafSession }) {
 
   if (device === undefined) {
     return (
-      <section className="controle">
-        <div className="verre">
+      <section className="control">
+        <div className="glass">
           <p>Aucun device connu.</p>
           <button disabled={session.busy} onClick={session.discover}>
             Découvrir
@@ -2088,8 +2120,8 @@ export function ControlScreen({ session }: { session: NanoleafSession }) {
 
   if (!device.paired) {
     return (
-      <section className="controle">
-        <div className="verre">
+      <section className="control">
+        <div className="glass">
           <p>{device.name} trouvé, pas encore appairé.</p>
           <p style={{ color: 'var(--discret)' }}>
             Maintiens le bouton power du panneau 5 à 7 secondes, puis lance l&apos;appairage.
@@ -2103,18 +2135,16 @@ export function ControlScreen({ session }: { session: NanoleafSession }) {
   }
 
   return (
-    <section className="controle">
+    <section className="control">
       {layout === null ? <div /> : (
         <WallCanvas
           layout={layout}
           colors={session.colors}
-          onPaint={(panelId) =>
-            session.paint(panelId, hsbToRgb(state?.hue ?? 0, state?.sat ?? 100, 100))
-          }
+          onPaint={(panelId) => session.paint(panelId)}
         />
       )}
 
-      <aside className="verre" style={{ display: 'grid', gap: 18, alignContent: 'start' }}>
+      <aside className="glass" style={{ display: 'grid', gap: 18, alignContent: 'start' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <strong style={{ fontSize: 15 }}>{device.name}</strong>
           <span style={{ color: 'var(--discret)', fontSize: 12 }}>
@@ -2234,14 +2264,14 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
       {calques.map((fond, index) => (
         <div
           key={index}
-          className="derive"
+          className="drift"
           data-visible={index === actif}
           style={{ background: fond }}
         />
       ))}
-      <div className="coquille">
-        <header className="barre">
-          <nav className="onglets">
+      <div className="shell">
+        <header className="titlebar">
+          <nav className="tabs">
             <button
               aria-selected={screen === 'controle'}
               onClick={() => setScreen('controle')}
@@ -2252,7 +2282,7 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
               Scènes
             </button>
           </nav>
-          <div className="commandes-fenetre">
+          <div className="window-controls">
             <button title="Réduire" onClick={() => void bridge.minimizeWindow()}>
               –
             </button>
@@ -2293,7 +2323,7 @@ Checklist :
 3. Le mur affiche 9 triangles à leur position et orientation réelles, halo compris.
 4. Le curseur de luminosité change la luminosité physique des panneaux.
 5. « Éteindre » puis « Allumer » agissent sur les panneaux.
-6. Choisir une couleur sur la roue, puis cliquer un triangle du canvas : ce panneau-là s&apos;allume de cette couleur, et lui seul.
+6. Choisir une couleur sur la roue, puis cliquer un triangle du canvas : ce panneau-là s'allume de cette couleur, et lui seul.
 
 - [x] **Step 9: Commit**
 
@@ -2340,7 +2370,7 @@ function degrade(palette: EffectPalette): string {
 export function ScenesScreen({ session }: { session: NanoleafSession }) {
   if (session.palettes.length === 0) {
     return (
-      <section className="grille-scenes">
+      <section className="stage-grid">
         <p style={{ color: 'var(--discret)' }}>
           {session.device?.paired === true
             ? 'Aucune scène lue pour le moment.'
@@ -2351,11 +2381,11 @@ export function ScenesScreen({ session }: { session: NanoleafSession }) {
   }
 
   return (
-    <section className="grille-scenes">
+    <section className="stage-grid">
       {session.palettes.map((palette) => (
         <button
           key={palette.name}
-          className="vignette"
+          className="thumb"
           aria-current={session.state?.effect === palette.name}
           disabled={session.busy}
           onClick={() => session.selectEffect(palette.name)}
@@ -2398,10 +2428,10 @@ Lancer : `npm start`
 
 Checklist :
 
-1. L&apos;onglet Scènes affiche 16 vignettes, chacune dans les couleurs de son effet — Blaze en oranges, Northern Lights en verts.
-2. La vignette de l&apos;effet courant est entourée.
-3. Cliquer une vignette change l&apos;effet affiché par les panneaux physiques.
-4. Revenir à Contrôle, cliquer un panneau, revenir à Scènes : aucune vignette n&apos;est plus entourée, le device étant passé en mode externe.
+1. L'onglet Scènes affiche 16 vignettes, chacune dans les couleurs de son effet — Blaze en oranges, Northern Lights en verts.
+2. La vignette de l'effet courant est entourée.
+3. Cliquer une vignette change l'effet affiché par les panneaux physiques.
+4. Revenir à Contrôle, cliquer un panneau, revenir à Scènes : aucune vignette n'est plus entourée, le device étant passé en mode externe.
 
 - [x] **Step 5: Commit**
 

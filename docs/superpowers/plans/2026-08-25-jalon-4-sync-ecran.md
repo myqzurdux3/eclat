@@ -102,6 +102,13 @@
 
 **Algorithme :** chaque panneau échantillonne autour de sa position normalisée, pondération gaussienne d'écart-type `radius`, en espace linéaire. Les zones se recouvrent, ce qui adoucit les transitions entre voisins. Le poids est calculé une fois par panneau sur la grille 64×36.
 
+> **Écart assumé, 26 août 2026.** Le poids est en fait évalué à chaque pixel,
+> pour chaque panneau, à chaque frame. Le précalcul supposait un rayon figé,
+> alors qu'il se règle en direct depuis l'écran Sync : il aurait fallu jeter
+> la table à chaque mouvement du curseur. À 2304 pixels et neuf panneaux, une
+> exponentielle par pixel ne se voit pas au profileur, et les poids sous
+> `1e-6` sont sautés.
+
 **Tests :** image moitié rouge / moitié bleue, panneau à gauche → rouge dominant ; panneau à droite → bleu ; un rayon large rapproche les deux couleurs, un rayon étroit les sépare ; un panneau hors cadre prend la couleur du bord la plus proche plutôt que du noir ; layout vide → tableau vide.
 
 - [x] Step 1 : test, échec, implémentation, succès
@@ -165,11 +172,12 @@
 
 **Fichiers :**
 - Créer : `src/renderer/worker/capture.worker.ts`
+- Créer : `src/renderer/useScreenSync.ts`
 - Créer : `src/renderer/screens/SyncScreen.tsx`
 - Modifier : `src/main/main.ts` (`setDisplayMediaRequestHandler`)
 - Modifier : `src/renderer/App.tsx`, `src/renderer/useNanoleaf.ts`, `src/renderer/styles.css`
 
-**Algorithme :** le renderer demande `getDisplayMedia`, le main répond par `setDisplayMediaRequestHandler` en laissant le portail GNOME choisir. La piste vidéo est transférée au Worker, qui la lit par `MediaStreamTrackProcessor`, dessine chaque `VideoFrame` dans un `OffscreenCanvas` 64×36, passe le `ImageData` au pipeline et renvoie les couleurs. Le thread UI relaie vers `stream:frame`.
+**Algorithme :** le renderer demande `getDisplayMedia`, le main répond par `setDisplayMediaRequestHandler` en laissant le portail GNOME choisir. Une `MediaStreamTrack` n'étant pas transférable dans cette version de Chromium, le `MediaStreamTrackProcessor` est construit sur le thread principal et c'est son `ReadableStream` qui passe au Worker. Le Worker dessine chaque `VideoFrame` dans un `OffscreenCanvas` 64×36, passe le `ImageData` au pipeline et renvoie les couleurs. Le thread UI relaie vers `stream:frame`.
 
 **À documenter dans l'UI**, la spec l'exige : pas de vignettes de fenêtres, et la fenêtre doit être re-sélectionnée à chaque lancement, le jeton de restauration du portail n'étant pas exposé par Electron. Le flux reste vivant tant que l'app tourne, donc basculer le sync ne redemande rien.
 

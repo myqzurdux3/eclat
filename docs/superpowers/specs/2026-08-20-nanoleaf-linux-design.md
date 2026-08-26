@@ -1,7 +1,8 @@
 # Nanoleaf Linux — application de contrôle et de synchronisation
 
 Date : 2026-08-20
-Statut : design validé, en attente de relecture
+Statut : design validé, relu et implémenté ; les écarts constatés à la
+construction sont notés dans le texte.
 
 ## 1. Objectif
 
@@ -28,9 +29,9 @@ Deux exigences dominent le design :
 | Matériel | Nanoleaf Shapes / Elements / Lines, firmware 4.x+ |
 | Réseau | panneaux et machine sur le même LAN |
 
-Ces valeurs sont les cibles de développement. X11 et les anciens Light
-Panels ne sont pas des cibles v1, mais rien dans l'architecture ne les
-interdit plus tard.
+Ces valeurs sont celles du poste de développement. X11 et les anciens Light
+Panels restent hors périmètre pour la v1, mais rien dans l'architecture ne
+ferme la porte.
 
 ## 3. Stack
 
@@ -56,15 +57,17 @@ ashpd, coût sans bénéfice ici), Python/GTK4 (marge de design insuffisante).
 ```
 ┌─ main (Node) ───────────────────────────────────────┐
 │  device/discovery.ts   mDNS _nanoleafapi._tcp       │
+│  device/mdns.ts        requête mDNS sur node:dgram  │
 │  device/pairing.ts     POST /api/v1/new             │
-│  device/rest.ts        REST 16021                   │
+│  device/client.ts      REST 16021                   │
+│  device/events.ts      SSE /events                  │
 │  device/stream.ts      dgram UDP → 60222 (v2)       │
 │  device/arbiter.ts     priorité des sources         │
 │  audio/capture.ts      monitor PipeWire → analyse   │
 │  store.ts              config JSON persistée        │
 └──────────────── IPC (contextBridge) ────────────────┘
 ┌─ renderer (React) ──────────────────────────────────┐
-│  UI + LayoutCanvas (WebGL)                          │
+│  UI + WallCanvas (WebGL)                            │
 │  ┌ Worker: VideoFrame → OffscreenCanvas → Color[] ┐ │
 └─────────────────────────────────────────────────────┘
 ```
@@ -83,18 +86,30 @@ ashpd, coût sans bénéfice ici), Python/GTK4 (marge de design insuffisante).
 
 | Canal | Sens | Charge utile |
 |---|---|---|
-| `devices:discover` | R→M | — |
-| `devices:list` | M→R | `DeviceInfo[]` |
-| `devices:pair` | R→M | `{ ip }` |
-| `devices:state` | M→R | `{ on, brightness, hue, sat, ct, effect }` |
-| `devices:setState` | R→M | `Partial<State>` |
-| `devices:layout` | M→R | `PanelLayout` |
-| `effects:list` | M→R | `Effect[]` |
-| `effects:select` | R→M | `{ name }` |
-| `capture:start` / `capture:stop` | R→M | `{ mode }` |
-| `stream:frame` | R→M | `{ colors: Color[], transitionTime }` |
-| `audio:devices` | M→R | `AudioDevice[]` |
-| `audio:features` | R→M | `{ bass, mid, treble, beat }` |
+| `devices:discover` | R→M | — → `RendererDevice[]` |
+| `devices:list` | R→M | — → `RendererDevice[]` |
+| `devices:pair` | R→M | `deviceId` → `RendererDevice` |
+| `devices:getState` | R→M | `deviceId` → `DeviceState` |
+| `devices:setOn` | R→M | `deviceId, on` |
+| `devices:setBrightness` | R→M | `deviceId, value` |
+| `devices:layout` | R→M | `deviceId` → `PanelLayout` |
+| `devices:setColor` | R→M | `deviceId, hue, sat` |
+| `devices:paintPanel` | R→M | `deviceId, panelId, Color` |
+| `devices:paintPanels` | R→M | `deviceId, { panelId, color }[]` |
+| `devices:event` | M→R | `DeviceEventMessage` |
+| `effects:list` | R→M | `deviceId` → `string[]` |
+| `effects:palettes` | R→M | `deviceId` → `EffectPalette[]` |
+| `effects:select` | R→M | `deviceId, name` |
+| `stream:start` / `stream:stop` | R→M | `deviceId, SourceId` |
+| `stream:frame` | R→M | `deviceId, SourceId, Color[], transitionTime?` |
+| `audio:sources` | R→M | — → `AudioSourceInfo[]` |
+| `audio:start` / `audio:stop` | R→M | `sourceId` |
+| `audio:features` | M→R | `AudioFeatures` |
+| `window:minimize` / `window:close` | R→M | — |
+
+Deux canaux seulement vont du main vers le renderer, et ce sont les deux qui
+poussent : `devices:event` et `audio:features`. Tout le reste est un appel du
+renderer qui attend sa réponse.
 
 Ce contrat est étroit par construction : il permet de tester le pipeline
 couleur sans device, et le device sans UI.
@@ -103,9 +118,16 @@ couleur sans device, et le device sans UI.
 
 ### 5.1 Découverte
 
-mDNS sur `_nanoleafapi._tcp.local` (`bonjour-service`). Les TXT records
-donnent le modèle (`md=`) et la version firmware (`srcvers=`). Saisie
-manuelle d'IP en repli si le mDNS est filtré.
+mDNS sur `_nanoleafapi._tcp.local`, requête écrite à la main sur
+`node:dgram` (`device/mdns.ts`). Les TXT records donnent le modèle (`md=`)
+et la version firmware (`srcvers=`). Saisie manuelle d'IP en repli si le
+mDNS est filtré.
+
+> **Écart assumé, 26 août 2026.** La saisie manuelle d'IP n'a pas été
+> construite, et la mitigation du §12 tombe avec elle. La découverte s'est
+> révélée fiable une fois le bit QU armé et une socket ouverte par interface
+> IPv4 : aucun cas de mDNS filtré n'est apparu à l'usage. Le repli reste
+> possible, il n'est pas justifié pour l'instant.
 
 ### 5.2 Appairage
 
@@ -116,7 +138,7 @@ manuelle d'IP en repli si le mDNS est filtré.
 3. Réponse `200` → `{ "auth_token": "..." }`, persisté. Hors fenêtre
    d'appairage le device répond `403`, la boucle est donc inoffensive.
 
-Stockage : `~/.config/nanoleaf-app/config.json`, permissions `0600`.
+Stockage : `~/.config/eclat/config.json`, permissions `0600`.
 
 ### 5.3 REST
 
@@ -173,8 +195,8 @@ Trois contraintes opérationnelles, non négociables :
   mobile, bouton physique). Pendant un sync, `stream.ts` sonde l'état
   toutes les 10 s et réarme si nécessaire.
 
-API exposée : `setPanels(colors: Color[], transitionTime: number)`. Les
-appels sont ignorés si le mode externe n'est pas armé.
+API exposée : `PanelStream.send(panels: PanelColor[], transitionTime = 1)`.
+Les appels sont ignorés si le mode externe n'est pas armé.
 
 ## 6. Pipeline de synchronisation écran
 
@@ -201,6 +223,13 @@ consomme des `VideoFrame` sans passer par le thread UI. Chaque frame est
 dessinée dans un `OffscreenCanvas` **64×36** : le redimensionnement est
 fait par le GPU, l'analyse porte sur 2304 pixels.
 
+> **Écart assumé, 26 août 2026.** Une `MediaStreamTrack` n'est pas
+> transférable dans cette version de Chromium. Le `MediaStreamTrackProcessor`
+> est donc construit sur le thread principal, et c'est son `ReadableStream`
+> qui passe dans le Worker : celui-là se transfère. Le Worker lit les mêmes
+> `VideoFrame`, le thread UI n'en touche toujours aucune. Voir
+> `src/renderer/useScreenSync.ts`.
+
 ### 6.3 Traitement
 
 Ordre imposé :
@@ -226,6 +255,15 @@ Ordre imposé :
 
 Les étapes 2 à 5 sont des fonctions pures de signature
 `(ImageData, PanelLayout, Settings) => Color[]`, testables sur fixtures.
+
+> **Écart assumé, 26 août 2026.** Trois points du §6.3 ont bougé à la
+> construction. Le mode palette demande toujours 5 clusters et les distribue
+> par `index % length` : la permutation lente promettait un mur qui change
+> sans que l'image change, ce qui se lit comme un défaut. La correction fait
+> la saturation et le plancher de noir, pas de gamma par device : le device
+> interpole déjà, et une courbe de plus se réglait à l'aveugle. Le lissage
+> garde une mémoire, donc `SyncPipeline` est une classe et non une fonction
+> pure ; les étapes 2 à 4 le sont restées, et le lisseur se teste seul.
 
 ### 6.4 Réglages exposés
 
@@ -260,7 +298,17 @@ médiums, aigus). Détection de beat par flux d'énergie sur les graves avec
 seuil adaptatif (moyenne glissante et variance) — un seuil fixe ne
 fonctionne que sur un morceau donné.
 
-Sortie : `{ bass, mid, treble, beat }`, valeurs normalisées.
+Sortie : `{ bass, mid, treble, beat, level }`, valeurs normalisées.
+`level` est le RMS du bloc : il sert à éteindre le mur quand rien ne joue.
+
+> **Écart assumé, 26 août 2026.** Le §7 s'est retourné. `enumerateDevices()`
+> n'expose aucune source *monitor* sur cette machine — Chromium ne voit que
+> « Default » et l'entrée analogique — donc le repli est devenu le chemin
+> unique : `pw-record` lancé depuis le processus main, PCM brut lu bloc par
+> bloc. La ligne du §12 qui donne `pw-record` en repli décrit donc le chemin
+> normal. L'analyse suit la capture :
+> elle tourne dans le main en Node, pas dans un `AudioWorklet`, ce qui évite
+> de faire traverser l'IPC au PCM. Voir `0b39062` et `96632de`.
 
 ## 8. Arbitrage des sources
 
@@ -285,6 +333,13 @@ Deux modes de sync ne sont jamais actifs en concurrence sur le socket. Un
 mode **combiné** explicite existe — l'écran fournit la teinte, l'audio
 module l'intensité — implémenté comme un producteur unique lisant deux
 entrées, pas comme deux writers.
+
+> **Écart assumé, 26 août 2026.** Le mode combiné n'a pas été construit.
+> L'arbitre range écran et audio l'un derrière l'autre et s'arrête là. Les
+> deux synchros se sont révélées bonnes chacune de son côté, et les mêler
+> demandait de décider ce qui gagne sur chaque panneau — une question de
+> design, pas de plomberie, qui n'a pas été tranchée. La règle du producteur
+> unique reste valable le jour où elle le sera.
 
 ### 8.1 Restauration d'état
 
@@ -327,6 +382,15 @@ qu'un sync tourne à 30 Hz.
 Interaction notable : clic sur un panneau du canvas pour le peindre
 directement (déclenche l'override du §8).
 
+> **Écart assumé, 26 août 2026.** Quatre écrans ont été livrés, pas trois :
+> l'audio a pris son propre onglet plutôt qu'une ligne dans Sync, ses réglages
+> et ses quatre modes n'y tenant pas. Le clic a changé de sens aussi. Il ne
+> peint plus le panneau touché : il le met dans une sélection, et c'est la roue
+> qui donne sa couleur au groupe. Le clic suivant ouvre un nouveau groupe, de
+> sorte qu'un mur porte plusieurs couleurs ; recliquer un panneau l'éteint.
+> Peindre un panneau au passage de la roue empêchait de peindre proprement à
+> deux couleurs. Voir `d652a7c`.
+
 ## 10. Tests
 
 ### 10.1 Unitaires (Vitest)
@@ -340,6 +404,13 @@ Couverture obligatoire, c'est là que se logent les vrais défauts :
 - EMA asymétrique : réponse à un échelon montant et descendant
 - encodage de trame v2 : comparaison octet à octet avec des vecteurs
   attendus, y compris `nPanels = 0` et valeurs limites
+
+> **Écart assumé, 26 août 2026.** Deux cas du mapping spatial annoncés
+> obligatoires n'ont pas été écrits : le mur à 20 panneaux et le panneau hors
+> cadre. Le code traite bien le second — sans poids survivant il prend le
+> pixel le plus proche plutôt que du noir — mais rien ne le garde. Le mur à 20
+> panneaux ne dit rien de plus que celui à 2, la boucle ne connaissant pas le
+> nombre de panneaux. Le hors-cadre, lui, mérite son test.
 
 ### 10.2 Device factice
 
@@ -373,6 +444,13 @@ raisonnablement. Checklist à tenir à jour :
 - Contrôle hors du réseau local, cloud Nanoleaf
 - Éditeur d'effets personnalisés téléversés vers le device
 - Multi-device simultané avec layouts fusionnés (un device à la fois en v1)
+
+> **Écart assumé, 26 août 2026.** Le multi-device a été livré. Chaque mur
+> appairé garde son arbitre, son stream et sa géométrie, et une seule capture
+> les alimente tous : un arbitre commun aurait fait qu'une synchro sur un mur
+> interdise de peindre sur l'autre. Les layouts ne sont pas fusionnés pour
+> autant — chaque mur reçoit l'image entière, pas sa part. Voir `59a909d` et
+> `18410aa`.
 
 ## 12. Risques
 

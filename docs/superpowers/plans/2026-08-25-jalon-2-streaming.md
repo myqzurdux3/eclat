@@ -4,7 +4,7 @@
 
 **Objectif :** Piloter les panneaux en temps réel — armer le mode External Control v2, encoder et émettre des trames UDP à cadence maîtrisée, arbitrer les sources concurrentes et rendre au device son effet d'origine à l'arrêt.
 
-**Architecture :** Tout vit dans le processus main, dans la continuité du jalon 1. `frame.ts` est un encodeur pur, sans état ni E/S. `rate.ts` est un régulateur de cadence pur, piloté par une horloge injectée. `stream.ts` est le **seul writer** de la socket UDP : il possède l'armement, la sonde de réarmement, l'émission et la restauration d'état. `arbiter.ts` décide qui a le droit d'écrire, sans jamais toucher au réseau. Le renderer ne voit qu'un canal IPC `stream:frame` : il produit des couleurs, il n'ouvre aucune socket.
+**Architecture :** Tout vit dans le processus main, dans la continuité du jalon 1. `frame.ts` est un encodeur pur, sans état ni E/S. `rate.ts` est un régulateur de cadence pur, piloté par une horloge injectée. `stream.ts` est le **seul writer** de la socket UDP : il possède l'armement, la sonde de réarmement, l'émission et la restauration d'état. `arbiter.ts` décide qui a le droit d'écrire, sans jamais toucher au réseau. Le renderer passe ses couleurs par le canal `stream:frame`, après avoir armé par `stream:start` : il produit des couleurs, il n'ouvre aucune socket.
 
 **Stack technique :** TypeScript, `node:dgram`, Vitest. Aucune dépendance nouvelle.
 
@@ -14,14 +14,19 @@
 
 - Cible : Ubuntu 26.04, Wayland/GNOME, Node v26.
 - Port UDP de streaming : **60222**. Encodage **big-endian**.
-- `transitionTime = 1` (100 ms) par défaut, jamais 0 : le device interpole lui-même, à 0 le rendu scintille.
-- Cadence plafonnée à **25-30 Hz**, avec adaptation à la baisse si la cadence réelle dérive.
-- Le mode extControl est **révocable** par l'app mobile ou le bouton physique : sonder l'état toutes les **10 s** pendant un sync et réarmer si nécessaire.
+- Les trois contraintes d'External Control tiennent telles quelles : voir la spec §5.4 — `transitionTime = 1`, plafond 25-30 Hz, sonde d'état toutes les 10 s.
 - `stream.ts` est le seul writer de la socket UDP. Toute source passe par `arbiter.ts`.
 - Le renderer n'ouvre aucune socket réseau et ne reçoit jamais le token.
 - L'effet courant et l'état on/off sont sauvegardés **avant** l'armement et réappliqués à l'arrêt manuel, à la fermeture de la fenêtre et sur `SIGTERM` / `SIGINT`.
 - Aucun test ne dépend du matériel : tout passe par `FakeNanoleaf` (REST) et `FakeStreamReceiver` (UDP), ou par des doublures injectées.
 - Priorité stricte des sources : `manual` (override 3 s) > `screen` > `audio` > effet du device.
+
+> **Écart assumé, 26 août 2026.** Les trois secondes ne relâchent plus rien.
+> Un mur qui s'efface tout seul quelques instants après avoir été peint se lit
+> comme une panne. La peinture tient donc jusqu'à ce qu'une scène, une synchro,
+> l'extinction ou le device lui-même reprenne le mur. Le délai reste, mais
+> uniquement comme priorité : pendant trois secondes un trait passe devant une
+> synchro en cours. Voir `dc40e21`.
 
 ---
 
@@ -630,7 +635,7 @@ git commit -m "feat: régulateur de cadence adaptatif pour le streaming"
   - `UdpSocketLike { send(data, port, address, callback?): void; close(callback?): void }`
   - `SchedulerLike { setInterval(handler, ms): unknown; clearInterval(handle): void }`
   - `PanelStreamOptions { client, ip, port?, socketFactory?, governor?, probeIntervalMs?, scheduler? }`
-  - `class PanelStream` : `get armed(): boolean`, `arm(): Promise<void>`, `send(panels: PanelColor[], transitionTime?: number): boolean`, `probe(): Promise<void>`, `stop(): Promise<void>`
+  - `class PanelStream` : `get armed(): boolean`, `arm(): Promise<void>`, `send(panels: PanelColor[], transitionTime = 1): boolean`, `probe(): Promise<void>`, `notePower(on: boolean): void`, `stop({ restore = true }): Promise<void>`
   - `NanoleafClient.enableExternalControl(): Promise<void>`
   - `FakeNanoleaf.extControlVersion: string | null`
 
@@ -1513,7 +1518,7 @@ export interface DeviceServiceOptions {
   discoverTimeoutMs?: number
   sleep?: (ms: number) => Promise<void>
   pairAttempts?: number
-  arbiter?: SourceArbiter
+  arbiterFactory?: () => SourceArbiter
   /** Injecté par les tests pour viser un récepteur UDP local. */
   streamFactory?: (options: { client: NanoleafClient; ip: string }) => PanelStream
 }

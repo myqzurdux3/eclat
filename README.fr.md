@@ -33,9 +33,9 @@ chaque panneau en temps réel depuis ce qui s'affiche à l'écran.
 
 L'application mobile de Nanoleaf est le seul moyen officiellement pris en
 charge de piloter ces panneaux, et les outils tiers pour bureau que j'ai
-essayés ne fonctionnaient pas sur un poste Wayland/GNOME à jour. Tout ce qui
-suit parle aux panneaux directement, par leur API HTTP locale documentée —
-sans compte cloud, sans SDK propriétaire, sans télémétrie.
+essayés ne fonctionnaient pas sur un poste Wayland/GNOME à jour. Celui-ci est
+donc bâti pour ce poste, et chaque aspérité rencontrée en chemin est écrite
+dans [Ce que le matériel apprend](#ce-que-le-matériel-apprend).
 
 <table>
 <tr>
@@ -63,8 +63,9 @@ sans compte cloud, sans SDK propriétaire, sans télémétrie.
   processus main d'Electron.
 - **Rendu du mur** en WebGL2 sans bibliothèque de rendu : chaque panneau est
   dessiné à sa position, sa forme et sa rotation réelles, halo compris.
-- **Contrôle** : allumage, luminosité, roue teinte/saturation, et peinture d'un
-  panneau au clic.
+- **Contrôle** : allumage, luminosité, roue teinte/saturation ; clique des
+  panneaux pour former un groupe, la roue lui donne sa couleur, un nouveau
+  clic sur l'un d'eux l'éteint.
 - **Scènes** bâties sur les palettes réellement stockées dans le device, pas
   sur des couleurs inventées.
 - **Synchronisation écran** : capture par le portail Wayland, analyse dans un
@@ -131,10 +132,10 @@ l'isolation du renderer pour contourner un réglage système temporaire.
 ## Développement
 
 ```bash
-npm test                # 429 tests unitaires, sans matériel ni réseau
+npm test                # 429 tests unitaires, sans matériel, réseau, GPU ni DOM
 npm run typecheck       # processus main + renderer
 npm run build           # processus main + renderer
-npm run dev:renderer    # serveur Vite, puis :
+npm run dev:renderer    # serveur Vite, puis, dans un autre terminal :
 VITE_DEV_SERVER_URL=http://localhost:5173 npm start
 ```
 
@@ -151,19 +152,26 @@ chemin complet de l'appairage au streaming est couvert en CI. Tout ce qui peut
 pipeline de synchronisation entier — en est une, et se teste sur des images
 fabriquées à la main.
 
-Deux outils couvrent ce que les tests unitaires ne peuvent pas :
+Trois outils couvrent ce que les tests unitaires ne peuvent pas :
 
 ```bash
 npm run build
 CAPTURE_OUT=/tmp/ui.png npx electron tools/capture-ui.cjs   # photographie la fenêtre
 npx electron tools/probe-worker-transfer.cjs                # capture → Worker → couleurs
+npx electron tools/render-svg.cjs assets/logo.svg out.png 512
 ```
+
+Le deuxième mérite un mot : le portail Wayland réclame un clic humain, le
+chemin de capture ne peut donc pas être suivi de bout en bout.
+`canvas.captureStream()` produit une piste vidéo sans aucune demande de
+permission, ce qui rend testable tout ce qui vient après le portail, sans
+personne devant l'écran.
 
 ## Architecture
 
 ```
 main (Node)                          renderer (React)
-├── device/discovery.ts  mDNS        ├── screens/     Contrôle, Scènes, Sync
+├── device/discovery.ts  mDNS        ├── screens/     Contrôle, Scènes, Sync, Audio
 ├── device/pairing.ts    POST /new   ├── gl/          mur WebGL2
 ├── device/client.ts     REST :16021 └── worker/      analyse des frames
 ├── device/stream.ts     UDP :60222        │
@@ -183,6 +191,10 @@ Trois règles tiennent l'ensemble :
    ou le device lui-même le reprenne.
 3. **Le traitement pixel vit dans un Worker.** Le thread UI ne touche jamais
    une frame.
+
+Le pipeline de synchronisation écran suit un ordre fixe, et cet ordre n'est pas
+interchangeable : détection du letterbox, moyenne en lumière linéaire, mapping,
+correction, puis lissage temporel asymétrique.
 
 ## Ce que le matériel apprend
 
@@ -214,6 +226,17 @@ Des choses que la documentation ne dit pas, trouvées à la mesure :
   sur `/events` annonce l'allumage, la luminosité, la couleur et l'effet — y
   compris quand la commande vient de l'app mobile ou du bouton. Éclat le suit,
   son affichage ne se périme donc jamais.
+- **Une `MediaStreamTrack` ne se transfère pas** dans cette version de
+  Chromium. Le `MediaStreamTrackProcessor` est construit sur le thread
+  principal, et c'est son `ReadableStream` qui passe dans le Worker.
+- **`enumerateDevices()` n'expose aucune source monitor**, donc l'audio système
+  ne se capture pas du tout par les API du navigateur. Éclat lit le monitor du
+  sink directement dans PipeWire. Attention : PipeWire applique le volume du
+  sink *avant* la prise du monitor, une sortie coupée n'enregistre donc que du
+  silence.
+- **L'adresse d'un panneau ne se garde pas.** Un bail DHCP renouvelé la
+  déplace, et une adresse mémorisée condamnerait l'appairage ; la découverte la
+  rafraîchit.
 
 ## Feuille de route
 
@@ -230,7 +253,8 @@ Des choses que la documentation ne dit pas, trouvées à la mesure :
 
 Les tickets et les pull requests sont les bienvenus. Le code, ses commentaires
 et les tests sont en anglais. Les notes de conception et les plans
-d'implémentation sont dans `docs/superpowers/`, en français.
+d'implémentation sont dans `docs/superpowers/`, en français — voir
+[docs/README.md](docs/README.md).
 
 Avant d'ouvrir une pull request :
 
