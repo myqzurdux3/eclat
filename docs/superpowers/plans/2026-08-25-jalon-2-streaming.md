@@ -1,16 +1,16 @@
 # Jalon 2 — Streaming : plan d'implémentation
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Pour les agents :** SOUS-COMPÉTENCE REQUISE : utiliser superpowers:subagent-driven-development (recommandé) ou superpowers:executing-plans pour dérouler ce plan tâche par tâche. Les étapes se suivent par cases à cocher (`- [ ]`).
 
-**Goal:** Piloter les panneaux en temps réel — armer le mode External Control v2, encoder et émettre des trames UDP à cadence maîtrisée, arbitrer les sources concurrentes et rendre au device son effet d'origine à l'arrêt.
+**Objectif :** Piloter les panneaux en temps réel — armer le mode External Control v2, encoder et émettre des trames UDP à cadence maîtrisée, arbitrer les sources concurrentes et rendre au device son effet d'origine à l'arrêt.
 
-**Architecture:** Tout vit dans le processus main, dans la continuité du jalon 1. `frame.ts` est un encodeur pur, sans état ni E/S. `rate.ts` est un régulateur de cadence pur, piloté par une horloge injectée. `stream.ts` est le **seul writer** de la socket UDP : il possède l'armement, la sonde de réarmement, l'émission et la restauration d'état. `arbiter.ts` décide qui a le droit d'écrire, sans jamais toucher au réseau. Le renderer ne voit qu'un canal IPC `stream:frame` : il produit des couleurs, il n'ouvre aucune socket.
+**Architecture :** Tout vit dans le processus main, dans la continuité du jalon 1. `frame.ts` est un encodeur pur, sans état ni E/S. `rate.ts` est un régulateur de cadence pur, piloté par une horloge injectée. `stream.ts` est le **seul writer** de la socket UDP : il possède l'armement, la sonde de réarmement, l'émission et la restauration d'état. `arbiter.ts` décide qui a le droit d'écrire, sans jamais toucher au réseau. Le renderer ne voit qu'un canal IPC `stream:frame` : il produit des couleurs, il n'ouvre aucune socket.
 
-**Tech Stack:** TypeScript, `node:dgram`, Vitest. Aucune dépendance nouvelle.
+**Stack technique :** TypeScript, `node:dgram`, Vitest. Aucune dépendance nouvelle.
 
 **Spec:** `docs/superpowers/specs/2026-08-20-nanoleaf-linux-design.md` — sections 5.4 (streaming), 8 (arbitrage), 8.1 (restauration d'état), 10.1 et 10.2 (tests).
 
-## Global Constraints
+## Contraintes globales
 
 - Cible : Ubuntu 26.04, Wayland/GNOME, Node v26.
 - Port UDP de streaming : **60222**. Encodage **big-endian**.
@@ -27,14 +27,14 @@
 
 ### Task 1: Encodage de trame External Control v2
 
-**Files:**
-- Create: `src/main/device/frame.ts`
-- Modify: `src/shared/types.ts`
-- Test: `src/main/device/frame.test.ts`
+**Fichiers :**
+- Créer : `src/main/device/frame.ts`
+- Modifier : `src/shared/types.ts`
+- Test : `src/main/device/frame.test.ts`
 
 **Interfaces:**
-- Consumes: `Color` (`src/shared/types.ts`, jalon 1)
-- Produces:
+- Consomme : `Color` (`src/shared/types.ts`, jalon 1)
+- Produit :
   - `PanelColor { panelId: number; color: Color }`
   - `EXT_CONTROL_EFFECT = '*ExtControl*'` (dans `src/shared/types.ts`)
   - `encodeFrameV2(panels: PanelColor[], transitionTime?: number): Buffer`
@@ -109,8 +109,8 @@ describe('encodeFrameV2', () => {
 
 - [x] **Step 3: Lancer le test et vérifier qu'il échoue**
 
-Run: `npx vitest run src/main/device/frame.test.ts`
-Expected: FAIL — `Failed to resolve import "./frame"`
+Lancer : `npx vitest run src/main/device/frame.test.ts`
+Attendu : FAIL — `Failed to resolve import "./frame"`
 
 - [x] **Step 4: Écrire l'encodeur**
 
@@ -168,8 +168,8 @@ export function encodeFrameV2(panels: PanelColor[], transitionTime = 1): Buffer 
 
 - [x] **Step 5: Lancer le test et vérifier qu'il passe**
 
-Run: `npx vitest run src/main/device/frame.test.ts`
-Expected: PASS — 7 tests
+Lancer : `npx vitest run src/main/device/frame.test.ts`
+Attendu : PASS — 7 tests
 
 - [x] **Step 6: Commit**
 
@@ -182,13 +182,13 @@ git commit -m "feat: encodage de trame External Control v2"
 
 ### Task 2: Récepteur UDP factice
 
-**Files:**
-- Create: `src/test-support/fake-stream.ts`
-- Test: `src/test-support/fake-stream.test.ts`
+**Fichiers :**
+- Créer : `src/test-support/fake-stream.ts`
+- Test : `src/test-support/fake-stream.test.ts`
 
 **Interfaces:**
-- Consumes: `encodeFrameV2`, `PanelColor`, `FRAME_HEADER_BYTES`, `FRAME_PANEL_BYTES` (tâche 1)
-- Produces:
+- Consomme : `encodeFrameV2`, `PanelColor`, `FRAME_HEADER_BYTES`, `FRAME_PANEL_BYTES` (tâche 1)
+- Produit :
   - `DecodedFrame { transitionTime: number; panels: PanelColor[] }`
   - `class FakeStreamReceiver` : `frames: DecodedFrame[]`, `port: number`, `start()`, `stop()`, `waitForFrames(count: number, timeoutMs?: number): Promise<DecodedFrame[]>`
 
@@ -270,8 +270,8 @@ describe('FakeStreamReceiver', () => {
 
 - [x] **Step 2: Lancer le test et vérifier qu'il échoue**
 
-Run: `npx vitest run src/test-support/fake-stream.test.ts`
-Expected: FAIL — `Failed to resolve import "./fake-stream"`
+Lancer : `npx vitest run src/test-support/fake-stream.test.ts`
+Attendu : FAIL — `Failed to resolve import "./fake-stream"`
 
 - [x] **Step 3: Écrire le récepteur factice**
 
@@ -374,8 +374,8 @@ function decodeFrame(message: Buffer): DecodedFrame | null {
 
 - [x] **Step 4: Lancer le test et vérifier qu'il passe**
 
-Run: `npx vitest run src/test-support/fake-stream.test.ts`
-Expected: PASS — 5 tests
+Lancer : `npx vitest run src/test-support/fake-stream.test.ts`
+Attendu : PASS — 5 tests
 
 - [x] **Step 5: Commit**
 
@@ -388,13 +388,13 @@ git commit -m "test: récepteur UDP factice décodant les trames v2"
 
 ### Task 3: Régulateur de cadence
 
-**Files:**
-- Create: `src/main/device/rate.ts`
-- Test: `src/main/device/rate.test.ts`
+**Fichiers :**
+- Créer : `src/main/device/rate.ts`
+- Test : `src/main/device/rate.test.ts`
 
 **Interfaces:**
-- Consumes: rien
-- Produces:
+- Consomme : rien
+- Produit :
   - `RateGovernorOptions { targetHz?: number; minHz?: number; now?: () => number; driftRatio?: number; patience?: number }`
   - `class RateGovernor` : `shouldSend(): boolean`, `recordSent(): void`, `get hz(): number`, `get intervalMs(): number`
 
@@ -509,8 +509,8 @@ describe('RateGovernor', () => {
 
 - [x] **Step 2: Lancer le test et vérifier qu'il échoue**
 
-Run: `npx vitest run src/main/device/rate.test.ts`
-Expected: FAIL — `Failed to resolve import "./rate"`
+Lancer : `npx vitest run src/main/device/rate.test.ts`
+Attendu : FAIL — `Failed to resolve import "./rate"`
 
 - [x] **Step 3: Écrire le régulateur**
 
@@ -604,8 +604,8 @@ export class RateGovernor {
 
 - [x] **Step 4: Lancer le test et vérifier qu'il passe**
 
-Run: `npx vitest run src/main/device/rate.test.ts`
-Expected: PASS — 8 tests
+Lancer : `npx vitest run src/main/device/rate.test.ts`
+Attendu : PASS — 8 tests
 
 - [x] **Step 5: Commit**
 
@@ -618,15 +618,15 @@ git commit -m "feat: régulateur de cadence adaptatif pour le streaming"
 
 ### Task 4: Armement, émission et restauration d'état
 
-**Files:**
-- Create: `src/main/device/stream.ts`
-- Modify: `src/main/device/client.ts` (ajout de `enableExternalControl`)
-- Modify: `src/test-support/fake-nanoleaf.ts` (prise en charge de `write.animType = extControl`)
-- Test: `src/main/device/stream.test.ts`
+**Fichiers :**
+- Créer : `src/main/device/stream.ts`
+- Modifier : `src/main/device/client.ts` (ajout de `enableExternalControl`)
+- Modifier : `src/test-support/fake-nanoleaf.ts` (prise en charge de `write.animType = extControl`)
+- Test : `src/main/device/stream.test.ts`
 
 **Interfaces:**
-- Consumes: `encodeFrameV2`, `PanelColor` (tâche 1), `FakeStreamReceiver` (tâche 2), `RateGovernor` (tâche 3), `NanoleafClient` (jalon 1), `EXT_CONTROL_EFFECT`, `DeviceState` (`src/shared/types.ts`)
-- Produces:
+- Consomme : `encodeFrameV2`, `PanelColor` (tâche 1), `FakeStreamReceiver` (tâche 2), `RateGovernor` (tâche 3), `NanoleafClient` (jalon 1), `EXT_CONTROL_EFFECT`, `DeviceState` (`src/shared/types.ts`)
+- Produit :
   - `UdpSocketLike { send(data, port, address, callback?): void; close(callback?): void }`
   - `SchedulerLike { setInterval(handler, ms): unknown; clearInterval(handle): void }`
   - `PanelStreamOptions { client, ip, port?, socketFactory?, governor?, probeIntervalMs?, scheduler? }`
@@ -879,8 +879,8 @@ describe('PanelStream', () => {
 
 - [x] **Step 4: Lancer le test et vérifier qu'il échoue**
 
-Run: `npx vitest run src/main/device/stream.test.ts`
-Expected: FAIL — `Failed to resolve import "./stream"`
+Lancer : `npx vitest run src/main/device/stream.test.ts`
+Attendu : FAIL — `Failed to resolve import "./stream"`
 
 - [x] **Step 5: Écrire le streamer**
 
@@ -1042,13 +1042,13 @@ export class PanelStream {
 
 - [x] **Step 6: Lancer le test et vérifier qu'il passe**
 
-Run: `npx vitest run src/main/device/stream.test.ts`
-Expected: PASS — 11 tests
+Lancer : `npx vitest run src/main/device/stream.test.ts`
+Attendu : PASS — 11 tests
 
 - [x] **Step 7: Vérifier que la suite complète passe toujours**
 
-Run: `npx vitest run`
-Expected: PASS — le device factice modifié ne casse aucun test du jalon 1
+Lancer : `npx vitest run`
+Attendu : PASS — le device factice modifié ne casse aucun test du jalon 1
 
 - [x] **Step 8: Commit**
 
@@ -1061,14 +1061,14 @@ git commit -m "feat: armement extControl v2, émission UDP et restauration d'ét
 
 ### Task 5: Arbitre de sources
 
-**Files:**
-- Create: `src/main/device/arbiter.ts`
-- Modify: `src/shared/types.ts`
-- Test: `src/main/device/arbiter.test.ts`
+**Fichiers :**
+- Créer : `src/main/device/arbiter.ts`
+- Modifier : `src/shared/types.ts`
+- Test : `src/main/device/arbiter.test.ts`
 
 **Interfaces:**
-- Consumes: rien
-- Produces:
+- Consomme : rien
+- Produit :
   - `type SourceId = 'manual' | 'screen' | 'audio'` (dans `src/shared/types.ts`, car le contrat IPC en dépend et le renderer ne doit rien importer du processus main)
   - `MANUAL_HOLD_MS = 3000`
   - `ArbiterOptions { now?: () => number; manualHoldMs?: number }`
@@ -1200,8 +1200,8 @@ describe('SourceArbiter', () => {
 
 - [x] **Step 3: Lancer le test et vérifier qu'il échoue**
 
-Run: `npx vitest run src/main/device/arbiter.test.ts`
-Expected: FAIL — `Failed to resolve import "./arbiter"`
+Lancer : `npx vitest run src/main/device/arbiter.test.ts`
+Attendu : FAIL — `Failed to resolve import "./arbiter"`
 
 - [x] **Step 4: Écrire l'arbitre**
 
@@ -1289,8 +1289,8 @@ export class SourceArbiter {
 
 - [x] **Step 5: Lancer le test et vérifier qu'il passe**
 
-Run: `npx vitest run src/main/device/arbiter.test.ts`
-Expected: PASS — 10 tests
+Lancer : `npx vitest run src/main/device/arbiter.test.ts`
+Attendu : PASS — 10 tests
 
 - [x] **Step 6: Commit**
 
@@ -1303,17 +1303,17 @@ git commit -m "feat: arbitrage des sources de streaming par priorité stricte"
 
 ### Task 6: Câblage IPC, arrêt propre et démonstration bout en bout
 
-**Files:**
-- Modify: `src/shared/ipc-contract.ts`
-- Modify: `src/main/ipc.ts`
-- Modify: `src/preload/preload.ts`
-- Modify: `src/main/main.ts`
-- Modify: `src/renderer/App.tsx`
-- Test: `src/main/ipc.test.ts` (ajout d'un bloc `describe`)
+**Fichiers :**
+- Modifier : `src/shared/ipc-contract.ts`
+- Modifier : `src/main/ipc.ts`
+- Modifier : `src/preload/preload.ts`
+- Modifier : `src/main/main.ts`
+- Modifier : `src/renderer/App.tsx`
+- Test : `src/main/ipc.test.ts` (ajout d'un bloc `describe`)
 
 **Interfaces:**
-- Consumes: `PanelStream` (tâche 4), `SourceArbiter`, `SourceId` (tâche 5), `NanoleafClient`, `ConfigStore`, `StoredDevice`, `DeviceService` (jalon 1), `FakeStreamReceiver` (tâche 2)
-- Produces:
+- Consomme : `PanelStream` (tâche 4), `SourceArbiter`, `SourceId` (tâche 5), `NanoleafClient`, `ConfigStore`, `StoredDevice`, `DeviceService` (jalon 1), `FakeStreamReceiver` (tâche 2)
+- Produit :
   - `IPC_CHANNELS.startStream = 'stream:start'`, `IPC_CHANNELS.stopStream = 'stream:stop'`, `IPC_CHANNELS.frame = 'stream:frame'`
   - `NanoleafApi.startStream(deviceId, source)`, `.stopStream(deviceId, source)`, `.sendFrame(deviceId, source, colors, transitionTime?)`
   - `DeviceServiceOptions.arbiter?`, `DeviceServiceOptions.streamFactory?`
@@ -1485,8 +1485,8 @@ describe('DeviceService — streaming', () => {
 
 - [x] **Step 3: Lancer le test et vérifier qu'il échoue**
 
-Run: `npx vitest run src/main/ipc.test.ts`
-Expected: FAIL — `service.startStream is not a function`
+Lancer : `npx vitest run src/main/ipc.test.ts`
+Attendu : FAIL — `service.startStream is not a function`
 
 - [x] **Step 4: Étendre `DeviceService`**
 
@@ -1652,8 +1652,8 @@ Ajouter les trois canaux dans `registerIpc`, avant la parenthèse fermante :
 
 - [x] **Step 5: Lancer le test et vérifier qu'il passe**
 
-Run: `npx vitest run src/main/ipc.test.ts`
-Expected: PASS — 15 tests
+Lancer : `npx vitest run src/main/ipc.test.ts`
+Attendu : PASS — 15 tests
 
 - [x] **Step 6: Exposer les canaux au renderer**
 
@@ -1795,8 +1795,8 @@ Ajouter ces deux boutons dans la barre d'actions, après « Basculer on/off » :
 
 - [x] **Step 9: Vérifier la compilation et la suite complète**
 
-Run: `npm run build:main && npx tsc -p tsconfig.json --noEmit && npm run build:renderer && npx vitest run`
-Expected: aucune erreur, tous les tests passent
+Lancer : `npm run build:main && npx tsc -p tsconfig.json --noEmit && npm run build:renderer && npx vitest run`
+Attendu : aucune erreur, tous les tests passent
 
 - [ ] **Step 10: Vérification manuelle contre le matériel réel** — points 1, 3 et 4 déjà validés en tête-à-tête avec le matériel (armement, réarmement après reprise externe, restauration de l'effet) ; les points 2, 5, 6 et 7 demandent l'interface et un œil humain.
 

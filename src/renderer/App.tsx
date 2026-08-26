@@ -87,8 +87,12 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
     [session.layouts],
   )
 
-  const sync = useScreenSync(walls, session.pushColors)
-  const audio = useAudioSync(bridge, walls, session.pushColors)
+  // Each sync names itself: the arbiter ranks by source, and two syncs
+  // claiming to be the same one release each other's stream.
+  const sync = useScreenSync(walls, (byDevice) => session.pushColors('screen', byDevice))
+  const audio = useAudioSync(bridge, walls, (byDevice) =>
+    session.pushColors('audio', byDevice),
+  )
   const [screen, setScreen] = useState<Tab>(readTab)
 
   const chooseTab = (value: Tab): void => {
@@ -171,8 +175,12 @@ function Shell({ bridge }: { bridge: NanoleafApi }) {
 
         {screen === 'controle' && <ControlScreen session={session} colors={wallColours} />}
         {screen === 'scenes' && <ScenesScreen session={session} />}
-        {screen === 'sync' && <SyncScreen session={session} sync={sync} />}
-        {screen === 'audio' && <AudioScreen session={session} audio={audio} />}
+        {screen === 'sync' && (
+          <SyncScreen session={session} sync={sync} stopOther={audio.stop} />
+        )}
+        {screen === 'audio' && (
+          <AudioScreen session={session} audio={audio} stopOther={sync.stop} />
+        )}
       </div>
     </>
   )

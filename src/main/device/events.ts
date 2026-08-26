@@ -72,6 +72,14 @@ export interface SubscribeOptions {
   deviceId: string
   onEvent: (event: DeviceEvent) => void
   onError?: (cause: unknown) => void
+  /**
+   * The stream ended on its own — the device closed it, or the network did.
+   *
+   * Not called when the caller closes the subscription. Without this signal a
+   * dead stream is indistinguishable from a quiet one, and the application
+   * would go on believing it hears the device.
+   */
+  onClosed?: () => void
   signal?: AbortSignal
 }
 
@@ -119,6 +127,8 @@ export function subscribeToEvents(options: SubscribeOptions): EventSubscription 
       }
     } catch (cause) {
       if (!signal.aborted) options.onError?.(cause)
+    } finally {
+      if (!signal.aborted) options.onClosed?.()
     }
   })()
 

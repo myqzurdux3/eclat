@@ -1,16 +1,16 @@
 # Jalon 5 — Synchronisation audio : plan d'implémentation
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Pour les agents :** SOUS-COMPÉTENCE REQUISE : utiliser superpowers:subagent-driven-development (recommandé) ou superpowers:executing-plans pour dérouler ce plan tâche par tâche. Les étapes se suivent par cases à cocher (`- [ ]`).
 
-**Goal:** Faire réagir les panneaux au son qui sort des enceintes — capture du monitor PipeWire, analyse spectrale, et une couleur par panneau qui suit graves, médiums, aigus et battements.
+**Objectif :** Faire réagir les panneaux au son qui sort des enceintes — capture du monitor PipeWire, analyse spectrale, et une couleur par panneau qui suit graves, médiums, aigus et battements.
 
-**Architecture:** L'analyse est faite de fonctions pures prenant un bloc de PCM et rendant des grandeurs normalisées : FFT, bandes logarithmiques, détection de battement à seuil adaptatif. Elles se testent sur des signaux fabriqués, sans carte son. Autour, une fine couche d'entrées-sorties : le processus main lance `pw-record`, découpe le flux en blocs, et pousse les grandeurs vers le renderer, qui les transforme en couleurs et les envoie par le canal `stream:frame` du jalon 2 — source `audio`, déjà connue de l'arbitre.
+**Architecture :** L'analyse est faite de fonctions pures prenant un bloc de PCM et rendant des grandeurs normalisées : FFT, bandes logarithmiques, détection de battement à seuil adaptatif. Elles se testent sur des signaux fabriqués, sans carte son. Autour, une fine couche d'entrées-sorties : le processus main lance `pw-record`, découpe le flux en blocs, et pousse les grandeurs vers le renderer, qui les transforme en couleurs et les envoie par le canal `stream:frame` du jalon 2 — source `audio`, déjà connue de l'arbitre.
 
-**Tech Stack:** Electron, TypeScript, `pw-record` (PipeWire), Vitest. Aucune dépendance nouvelle.
+**Stack technique :** Electron, TypeScript, `pw-record` (PipeWire), Vitest. Aucune dépendance nouvelle.
 
 **Spec:** `docs/superpowers/specs/2026-08-20-nanoleaf-linux-design.md` — sections 7 (audio), 8 (arbitrage), 10.1 (tests).
 
-## Global Constraints
+## Contraintes globales
 
 - Cible : Ubuntu 26.04, Wayland/GNOME, PipeWire.
 - Analyse par blocs de **1024 échantillons**, bandes espacées **logarithmiquement**.
@@ -40,9 +40,9 @@
 
 ### Task 1: Transformée de Fourier
 
-**Files:** `src/shared/audio/fft.ts`, `+ .test.ts`
+**Fichiers :** `src/shared/audio/fft.ts`, `+ .test.ts`
 
-**Produces:**
+**Produit :**
 - `nextPowerOfTwo(value: number): number`
 - `hannWindow(size: number): Float32Array`
 - `magnitudeSpectrum(samples: Float32Array): Float32Array` — rend `size / 2` amplitudes
@@ -58,11 +58,11 @@
 
 ### Task 2: Bandes logarithmiques
 
-**Files:** `src/shared/audio/bands.ts`, `+ .test.ts`
+**Fichiers :** `src/shared/audio/bands.ts`, `+ .test.ts`
 
-**Consumes:** `magnitudeSpectrum` (tâche 1)
+**Consomme :** `magnitudeSpectrum` (tâche 1)
 
-**Produces:**
+**Produit :**
 - `BandEnergies { bass: number; mid: number; treble: number }`
 - `bandEnergies(spectrum: Float32Array, sampleRate: number): BandEnergies`
 - `BAND_EDGES_HZ = [20, 250, 2000, 16000]`
@@ -78,9 +78,9 @@
 
 ### Task 3: Détection de battement
 
-**Files:** `src/shared/audio/beat.ts`, `+ .test.ts`
+**Fichiers :** `src/shared/audio/beat.ts`, `+ .test.ts`
 
-**Produces:** `class BeatDetector { push(bassEnergy: number): boolean; reset(): void }`
+**Produit :** `class BeatDetector { push(bassEnergy: number): boolean; reset(): void }`
 
 **Algorithme :** historique glissant de l'énergie des graves ; un battement est déclaré quand l'énergie courante dépasse la moyenne de plus de `k` écarts-types, avec une période réfractaire pour ne pas compter deux fois le même coup. Le seuil suit le morceau : un passage calme abaisse la barre, un passage dense la relève.
 
@@ -93,11 +93,11 @@
 
 ### Task 4: Analyseur
 
-**Files:** `src/shared/audio/analyser.ts`, `+ .test.ts`
+**Fichiers :** `src/shared/audio/analyser.ts`, `+ .test.ts`
 
-**Consumes:** tâches 1 à 3
+**Consomme :** tâches 1 à 3
 
-**Produces:**
+**Produit :**
 - `AudioFeatures { bass: number; mid: number; treble: number; beat: boolean; level: number }`
 - `class AudioAnalyser { constructor(sampleRate: number); push(block: Float32Array): AudioFeatures; reset(): void }`
 - `pcmToMono(buffer: Buffer, channels: number): Float32Array` — s16 entrelacé vers mono `[-1,1]`
@@ -113,11 +113,11 @@
 
 ### Task 5: Couleurs depuis le son
 
-**Files:** `src/shared/audio/palette.ts`, `+ .test.ts`
+**Fichiers :** `src/shared/audio/palette.ts`, `+ .test.ts`
 
-**Consumes:** `AudioFeatures` (tâche 4), `PanelLayout`, `Color`
+**Consomme :** `AudioFeatures` (tâche 4), `PanelLayout`, `Color`
 
-**Produces:** `audioColors(features: AudioFeatures, layout: PanelLayout, settings: AudioSettings): Color[]`, `AudioSettings { palette: Color[]; sensitivity: number; beatFlash: number }`
+**Produit :** `audioColors(features: AudioFeatures, layout: PanelLayout, settings: AudioSettings): Color[]`, `AudioSettings { palette: Color[]; sensitivity: number; beatFlash: number }`
 
 **Algorithme :** les trois bandes pilotent une teinte, la position du panneau décale la phase — les graves en bas, les aigus en haut, ce que l'oreille attend. Un battement pousse brièvement la luminosité de tous les panneaux. `level` proche de zéro éteint le mur plutôt que d'afficher du bruit.
 
@@ -130,9 +130,9 @@
 
 ### Task 6: Capture PipeWire
 
-**Files:** `src/main/audio/sources.ts`, `src/main/audio/capture.ts`, `+ tests`
+**Fichiers :** `src/main/audio/sources.ts`, `src/main/audio/capture.ts`, `+ tests`
 
-**Produces:**
+**Produit :**
 - `AudioSource { id: number; name: string; description: string }`
 - `parsePipewireDump(json: string): AudioSource[]` — pur, donc testable
 - `listAudioSources(): Promise<AudioSource[]>` — appelle `pw-dump`
@@ -150,7 +150,7 @@
 
 ### Task 7: IPC et interface
 
-**Files:** `src/main/ipc.ts`, `src/shared/ipc-contract.ts`, `src/preload/preload.ts`, `src/renderer/useAudioSync.ts`, `src/renderer/screens/SyncScreen.tsx`, dictionnaires
+**Fichiers :** `src/main/ipc.ts`, `src/shared/ipc-contract.ts`, `src/preload/preload.ts`, `src/renderer/useAudioSync.ts`, `src/renderer/screens/SyncScreen.tsx`, dictionnaires
 
 **Algorithme :** l'écran Sync gagne un choix de source — écran ou audio — et, pour l'audio, la liste des sorties PipeWire. Les grandeurs remontent par un canal poussé, comme les événements du device, et le renderer les transforme en couleurs qu'il envoie par `sendFrame(deviceId, 'audio', colors)`.
 

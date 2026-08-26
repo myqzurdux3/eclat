@@ -12,7 +12,13 @@ import {
   type Brush,
 } from '../shared/paint'
 import { NEUTRAL, OFF, wallColors } from '../shared/wall-colors'
-import type { Color, DeviceState, EffectPalette, PanelLayout } from '../shared/types'
+import type {
+  Color,
+  DeviceState,
+  EffectPalette,
+  PanelLayout,
+  SourceId,
+} from '../shared/types'
 
 const ROTATION_KEY = 'nanoleaf.rotation'
 
@@ -55,11 +61,17 @@ export interface NanoleafSession {
   brush: Brush
   paint: (panelId: number) => void
   selectEffect: (name: string) => void
-  /** Arms external control for the screen source, on every paired wall. */
-  armScreen: () => Promise<void>
-  disarmScreen: () => Promise<void>
-  /** Broadcasts a frame from the screen sync, device by device. */
-  pushColors: (byDevice: Record<string, Color[]>) => void
+  /**
+   * Arms external control for one source, on every paired wall.
+   *
+   * The source travels because the arbiter ranks by it: two syncs declaring
+   * themselves the same are indistinguishable to it, and stopping either one
+   * releases the wall under the other.
+   */
+  arm: (source: SourceId) => Promise<void>
+  disarm: (source: SourceId) => Promise<void>
+  /** Broadcasts a frame from one sync, device by device. */
+  pushColors: (source: SourceId, byDevice: Record<string, Color[]>) => void
 }
 
 const normaliseAngle = (degres: number): number =>
@@ -319,7 +331,21 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
 
     discover: () => run(async () => setDevices(await bridge.discover())),
 
+    /**
+     * Moves to another wall.
+     *
+     * The painting is dropped with the wall it belonged to: its panel ids
+     * mean nothing here. Kept, they would draw this wall as dead — every
+     * panel falls to the unlit branch — and the next click would paint it
+     * without seeding, which the v2 protocol turns into a real blackout of
+     * every panel left out of the frame.
+     */
     selectDevice: (id) => {
+      if (id !== deviceId) {
+        setPainted(new Map())
+        forgetPainting()
+        setLive(false)
+      }
       setChosen(id)
       try {
         localStorage.setItem(ACTIVE_KEY, id)
@@ -474,16 +500,16 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
       })
     },
 
-    armScreen: async () => {
+    arm: async (source) => {
       const paired = devices.filter((entry) => entry.paired)
       if (paired.length === 0) return
-      await Promise.all(paired.map((entry) => bridge.startStream(entry.id, 'screen')))
+      await Promise.all(paired.map((entry) => bridge.startStream(entry.id, source)))
       setLive(true)
     },
 
-    disarmScreen: async () => {
+    disarm: async (source) => {
       const paired = devices.filter((entry) => entry.paired)
-      await Promise.all(paired.map((entry) => bridge.stopStream(entry.id, 'screen')))
+      await Promise.all(paired.map((entry) => bridge.stopStream(entry.id, source)))
       setLive(false)
       setPainted(new Map())
       forgetPainting()
@@ -492,9 +518,9 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
 
     // The result is not awaited: the next frame corrects it anyway, and
     // waiting would drag the analysis loop.
-    pushColors: (byDevice) => {
+    pushColors: (source, byDevice) => {
       for (const [id, colors] of Object.entries(byDevice)) {
-        void bridge.sendFrame(id, 'screen', colors).catch(report)
+        void bridge.sendFrame(id, source, colors).catch(report)
       }
     },
 

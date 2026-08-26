@@ -100,10 +100,11 @@ export const ambient: Mode = (features, layout, settings, memory) => {
   const flash = features.beat ? settings.beatFlash : 0
 
   const colors = layout.panels.map((panel) => {
-    // `ny` is 0 at the top of the wall: the low end belongs at the bottom.
-    const height = 1 - panel.ny
+    // `ny` is 0 at the top of the wall, and the shift runs towards the cool
+    // end: the top takes it, so the warm low end stays at the bottom where
+    // the ear puts it.
     return hsbToRgb(
-      baseHue + (1 - height) * 40,
+      baseHue + (1 - panel.ny) * 40,
       bound(60 + energy * 40, 0, 100),
       bound((0.25 + energy * 0.75 + flash) * 100, 0, 100),
     )

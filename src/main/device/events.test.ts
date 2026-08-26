@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { parseEventBlock } from './events'
+import { parseEventBlock, subscribeToEvents } from './events'
+import { FakeNanoleaf } from '../../test-support/fake-nanoleaf'
 
 describe('parseEventBlock', () => {
   it('reads a brightness change', () => {
@@ -55,5 +56,55 @@ describe('parseEventBlock', () => {
 
   it('ignores a missing value', () => {
     expect(parseEventBlock('1', '{"events":[{"attr":2}]}')).toEqual([])
+  })
+})
+
+describe('subscribeToEvents — the end of a stream', () => {
+  /**
+   * A dead stream is indistinguishable from a quiet one. Without this signal
+   * the application goes on believing it hears the device and never re-opens,
+   * so a Wi-Fi blip costs it every later event for the rest of the session.
+   */
+  it('says so when the stream ends on its own', async () => {
+    const device = new FakeNanoleaf({ token: 'tok' })
+    await device.start()
+
+    // The fake serves no `/events` route: the request is refused, which is
+    // exactly how an unreachable wall ends a stream.
+    const closed = new Promise<void>((resolve) => {
+      subscribeToEvents({
+        ip: '127.0.0.1',
+        port: device.port,
+        token: 'tok',
+        deviceId: 'Shapes',
+        onEvent: () => undefined,
+        onClosed: resolve,
+      })
+    })
+
+    await closed
+    await device.stop()
+  })
+
+  it('stays silent when the caller closes it', async () => {
+    const device = new FakeNanoleaf({ token: 'tok' })
+    await device.start()
+
+    let closedItself = false
+    subscribeToEvents({
+      ip: '127.0.0.1',
+      port: device.port,
+      token: 'tok',
+      deviceId: 'Shapes',
+      onEvent: () => undefined,
+      onClosed: () => {
+        closedItself = true
+      },
+    }).close()
+
+    await new Promise((resolve) => setTimeout(resolve, 60))
+
+    expect(closedItself).toBe(false)
+    await device.stop()
   })
 })

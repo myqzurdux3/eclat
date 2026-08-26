@@ -159,6 +159,34 @@ describe('pulse', () => {
 })
 
 describe('ambient', () => {
+  /**
+   * The ear puts the low end at the bottom of a wall, and the low end is the
+   * warm one. The code used to add the cool shift to the bottom row, which
+   * is the opposite of what its own comment promised.
+   */
+  it('keeps the warm end at the bottom of the wall', () => {
+    const layout = normalizeLayout(
+      [
+        { panelId: 1, x: 0, y: 200, o: 0, shapeType: 8 },
+        { panelId: 2, x: 0, y: 0, o: 0, shapeType: 8 },
+      ],
+      100,
+    )
+    const [top, bottom] = layout.panels[0]!.ny < layout.panels[1]!.ny ? [0, 1] : [1, 0]
+
+    const { colors } = ambient(
+      features({ bass: 1, mid: 0, treble: 0 }),
+      layout,
+      DEFAULT_AUDIO_SETTINGS,
+      EMPTY_MEMORY,
+    )
+
+    // Both hues saturate red and floor blue, so green is what separates
+    // them: it climbs as the hue leaves the warm end.
+    expect(colors[bottom]!.g).toBeLessThan(colors[top]!.g)
+  })
+
+
   it('still answers the way it always has', () => {
     const layout = row(3)
 

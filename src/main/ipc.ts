@@ -23,6 +23,8 @@ export interface DeviceServiceOptions {
   arbiterFactory?: () => SourceArbiter
   /** How long a stored device has to answer before it counts as absent. */
   probeTimeoutMs?: number
+  /** Injected by tests: the wait before re-opening a dead event stream. */
+  retrackDelayMs?: number
   /** Receives whatever the device reports of its own accord. */
   onDeviceEvent?: (event: DeviceEvent) => void
   /** Receives the analysed audio, block by block. */
@@ -36,6 +38,15 @@ export interface DeviceServiceOptions {
  * at its 30 Hz cap, with a little room to spare.
  */
 const RETRY_DELAY_MS = 40
+
+/**
+ * How long to wait before re-opening an event stream that died.
+ *
+ * Long enough that a wall switched off at the socket is not retried in a
+ * tight loop, short enough that a Wi-Fi blip costs a few seconds of
+ * deafness rather than the rest of the session.
+ */
+const RETRACK_DELAY_MS = 5000
 
 /**
  * The business logic behind the IPC channels. No dependency on Electron,
@@ -55,6 +66,8 @@ export class DeviceService {
   private readonly flushes = new Map<string, ReturnType<typeof setTimeout>>()
   /** What we last knew of each wall's power, to avoid re-reading it. */
   private readonly powered = new Map<string, boolean>()
+  /** Pending re-openings of an event stream that died, per device. */
+  private readonly retries = new Map<string, ReturnType<typeof setTimeout>>()
   private readonly subscriptions = new Map<string, EventSubscription>()
   private audio: AudioCapture | null = null
   /**
@@ -104,7 +117,19 @@ export class DeviceService {
     if (this.options.onDeviceEvent === undefined) return
     if (this.subscriptions.has(deviceId)) return
 
-    const stored = await this.stored(deviceId)
+    // Claimed before the first await: `pair()` and `watchPairedDevices()` can
+    // both reach this for one device, and two subscriptions would leave one
+    // of them running with nobody holding its handle.
+    this.subscriptions.set(deviceId, { close: () => undefined })
+
+    let stored
+    try {
+      stored = await this.stored(deviceId)
+    } catch (cause) {
+      this.subscriptions.delete(deviceId)
+      throw cause
+    }
+
     this.subscriptions.set(
       deviceId,
       subscribeToEvents({
@@ -112,6 +137,7 @@ export class DeviceService {
         port: stored.port,
         token: stored.token,
         deviceId,
+        onClosed: () => this.retrack(deviceId),
         onEvent: (event) => {
           if (event.kind === 'on') this.powered.set(deviceId, Boolean(event.value))
           if (event.kind === 'effect') {
@@ -121,6 +147,29 @@ export class DeviceService {
         },
       }),
     )
+  }
+
+  /**
+   * Re-opens an event stream that ended on its own.
+   *
+   * A stream dies on a Wi-Fi blip, a controller reboot, or a wall switched
+   * off at the socket. Left dead, the application stops hearing the device
+   * for the rest of the session: it never learns of a power cut made on the
+   * button, and it never stands down when a scene is chosen from the phone —
+   * so its re-arm probe overwrites that scene ten seconds later.
+   *
+   * The delay keeps an unreachable wall from being retried in a tight loop.
+   */
+  private retrack(deviceId: string): void {
+    if (!this.subscriptions.has(deviceId)) return
+    this.subscriptions.delete(deviceId)
+
+    const timer = setTimeout(() => {
+      this.retries.delete(deviceId)
+      void this.track(deviceId).catch(() => undefined)
+    }, this.options.retrackDelayMs ?? RETRACK_DELAY_MS)
+
+    this.retries.set(deviceId, timer)
   }
 
   async listDevices(): Promise<RendererDevice[]> {
@@ -309,24 +358,30 @@ export class DeviceService {
       port: stored.port,
     })
 
-    let stream = this.streams.get(deviceId)
-    if (stream === undefined) {
-      stream =
-        this.options.streamFactory?.({ client, ip: stored.ip }) ??
-        new PanelStream({ client, ip: stored.ip })
+    const existing = this.streams.get(deviceId)
+    const stream =
+      existing ??
+      this.options.streamFactory?.({ client, ip: stored.ip }) ??
+      new PanelStream({ client, ip: stored.ip })
+
+    // Filed only once it is usable. A wall that goes quiet between the layout
+    // read and the arming would otherwise leave an unarmed stream with no
+    // panel ids in the map, and every later stroke would take the "already
+    // streaming" branch and do nothing, for the rest of the session.
+    try {
+      const panelIds =
+        this.panelIds.get(deviceId) ??
+        (await client.getLayout()).panels.map((panel) => panel.panelId)
+
+      await stream.arm()
+
       this.streams.set(deviceId, stream)
+      this.panelIds.set(deviceId, panelIds)
+      this.arbiter(deviceId).activate(source)
+    } catch (cause) {
+      if (existing === undefined) await stream.stop({ restore: false }).catch(() => undefined)
+      throw cause
     }
-
-    if (!this.panelIds.has(deviceId)) {
-      const layout = await client.getLayout()
-      this.panelIds.set(
-        deviceId,
-        layout.panels.map((panel) => panel.panelId),
-      )
-    }
-
-    await stream.arm()
-    this.arbiter(deviceId).activate(source)
   }
 
   /** Removes the source; only disarms once nobody is writing. */
@@ -523,6 +578,9 @@ export class DeviceService {
   async shutdown(): Promise<void> {
     this.audio?.stop()
     this.audio = null
+
+    for (const timer of this.retries.values()) clearTimeout(timer)
+    this.retries.clear()
 
     for (const subscription of this.subscriptions.values()) subscription.close()
     this.subscriptions.clear()

@@ -51,11 +51,18 @@ export class FakeNanoleaf {
     return (address as AddressInfo).port
   }
 
-  async start(): Promise<void> {
+  /**
+   * Listens on `port`, or on any free one when it is omitted.
+   *
+   * Naming the port lets a test stop the device and bring it back where the
+   * application still believes it is — the only way to exercise a wall that
+   * goes away and returns.
+   */
+  async start(port = 0): Promise<void> {
     this.server = createServer((req, res) => {
       void this.handle(req, res)
     })
-    await new Promise<void>((resolve) => this.server!.listen(0, '127.0.0.1', resolve))
+    await new Promise<void>((resolve) => this.server!.listen(port, '127.0.0.1', resolve))
   }
 
   async stop(): Promise<void> {

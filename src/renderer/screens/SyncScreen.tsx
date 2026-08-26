@@ -52,9 +52,12 @@ function PreviewCanvas({ sync }: { sync: ScreenSync }) {
 export function SyncScreen({
   session,
   sync,
+  stopOther,
 }: {
   session: NanoleafSession
   sync: ScreenSync
+  /** Ends the audio sync: the spec allows one source on the socket at a time. */
+  stopOther: () => void
 }) {
   const t = useT()
 
@@ -69,10 +72,16 @@ export function SyncScreen({
   const toggle = (): void => {
     if (sync.active) {
       sync.stop()
-      void session.disarmScreen()
+      void session.disarm('screen').catch(() => undefined)
       return
     }
-    void session.armScreen().then(() => sync.start())
+    // Only one source writes at a time. Left running, the other would keep
+    // saying it is live while the arbiter refused every frame it sent.
+    stopOther()
+    void session
+      .arm('screen')
+      .then(() => sync.start())
+      .catch(() => undefined)
   }
 
   return (

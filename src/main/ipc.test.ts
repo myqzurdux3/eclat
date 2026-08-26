@@ -570,6 +570,22 @@ describe('DeviceService — releasing external control', () => {
   })
 
   /**
+   * The stream used to be filed before it was usable. A wall that went quiet
+   * between the two left an unarmed stream in the map with no panel ids, and
+   * every later click took the "already streaming" branch and did nothing —
+   * for the rest of the session.
+   */
+  it('files no stream when arming it fails', async () => {
+    const port = device.port
+    await device.stop()
+
+    await expect(service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })).rejects.toThrow()
+
+    await device.start(port)
+    expect(await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })).toBe(true)
+  })
+
+  /**
    * The power was only ever checked while arming the stream. Now that
    * painting holds the wall, the stream is already there and the check never
    * ran: clicking a panel on a wall switched off lit it on screen and left

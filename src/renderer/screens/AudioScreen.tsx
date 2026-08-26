@@ -46,9 +46,12 @@ function Meters({ audio }: { audio: AudioSync }) {
 export function AudioScreen({
   session,
   audio,
+  stopOther,
 }: {
   session: NanoleafSession
   audio: AudioSync
+  /** Ends the screen sync: the spec allows one source on the socket at a time. */
+  stopOther: () => void
 }) {
   const t = useT()
 
@@ -63,10 +66,16 @@ export function AudioScreen({
   const toggle = (): void => {
     if (audio.active) {
       audio.stop()
-      void session.disarmScreen()
+      void session.disarm('audio').catch(() => undefined)
       return
     }
-    void session.armScreen().then(() => audio.start())
+    // Only one source writes at a time. Left running, the other would keep
+    // saying it is live while the arbiter refused every frame it sent.
+    stopOther()
+    void session
+      .arm('audio')
+      .then(() => audio.start())
+      .catch(() => undefined)
   }
 
   return (

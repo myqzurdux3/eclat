@@ -1,16 +1,16 @@
 # Jalon 3 — UI de contrôle : plan d'implémentation
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Pour les agents :** SOUS-COMPÉTENCE REQUISE : utiliser superpowers:subagent-driven-development (recommandé) ou superpowers:executing-plans pour dérouler ce plan tâche par tâche. Les étapes se suivent par cases à cocher (`- [ ]`).
 
-**Goal:** Donner à l'application sa première interface présentable — le mur de panneaux rendu en WebGL2 à sa géométrie réelle, une roue chromatique, la luminosité, l'allumage, la peinture d'un panneau au clic, et une grille de scènes bâtie sur les palettes réelles du device.
+**Objectif :** Donner à l'application sa première interface présentable — le mur de panneaux rendu en WebGL2 à sa géométrie réelle, une roue chromatique, la luminosité, l'allumage, la peinture d'un panneau au clic, et une grille de scènes bâtie sur les palettes réelles du device.
 
-**Architecture:** Le processus main ne gagne qu'une chose : la lecture des palettes d'effets et la peinture d'un panneau, toutes deux derrière l'IPC existant. Tout le reste vit dans le renderer. La géométrie des panneaux et les conversions de couleur sont des fonctions pures placées dans `src/shared/`, testées sans DOM ni GPU ; le rendu WebGL2 se réduit à un module qui consomme ces fonctions, et seule sa partie non graphique est couverte par les tests. Les écrans sont deux composants React frères sous une navigation triviale.
+**Architecture :** Le processus main ne gagne qu'une chose : la lecture des palettes d'effets et la peinture d'un panneau, toutes deux derrière l'IPC existant. Tout le reste vit dans le renderer. La géométrie des panneaux et les conversions de couleur sont des fonctions pures placées dans `src/shared/`, testées sans DOM ni GPU ; le rendu WebGL2 se réduit à un module qui consomme ces fonctions, et seule sa partie non graphique est couverte par les tests. Les écrans sont deux composants React frères sous une navigation triviale.
 
-**Tech Stack:** Electron, React, TypeScript, WebGL2 sans bibliothèque tierce, Vite, Vitest. Aucune dépendance nouvelle.
+**Stack technique :** Electron, React, TypeScript, WebGL2 sans bibliothèque tierce, Vite, Vitest. Aucune dépendance nouvelle.
 
 **Spec:** `docs/superpowers/specs/2026-08-20-nanoleaf-linux-design.md` — sections 3 (stack), 5.3 (REST), 8 (arbitrage), 9 (interface).
 
-## Global Constraints
+## Contraintes globales
 
 - Cible : Ubuntu 26.04, Wayland/GNOME, Node v26.
 - Rendu du layout en **WebGL2 sans bibliothèque tierce**.
@@ -54,20 +54,20 @@ Réponse réelle de `PUT /effects` avec `{"write":{"command":"requestAll"}}` :
 
 ### Task 1: Palettes des effets
 
-**Files:**
-- Create: `src/shared/color.ts`
-- Test: `src/shared/color.test.ts`
-- Modify: `src/shared/types.ts`
-- Modify: `src/main/device/client.ts`
-- Modify: `src/test-support/fake-nanoleaf.ts`
-- Modify: `src/main/ipc.ts`
-- Modify: `src/shared/ipc-contract.ts`
-- Modify: `src/preload/preload.ts`
-- Test: `src/main/ipc.test.ts` (ajout d'un bloc `describe`)
+**Fichiers :**
+- Créer : `src/shared/color.ts`
+- Test : `src/shared/color.test.ts`
+- Modifier : `src/shared/types.ts`
+- Modifier : `src/main/device/client.ts`
+- Modifier : `src/test-support/fake-nanoleaf.ts`
+- Modifier : `src/main/ipc.ts`
+- Modifier : `src/shared/ipc-contract.ts`
+- Modifier : `src/preload/preload.ts`
+- Test : `src/main/ipc.test.ts` (ajout d'un bloc `describe`)
 
 **Interfaces:**
-- Consumes: `Color`, `NanoleafClient`, `DeviceService`, `IPC_CHANNELS`, `NanoleafApi` (jalons 1-2)
-- Produces:
+- Consomme : `Color`, `NanoleafClient`, `DeviceService`, `IPC_CHANNELS`, `NanoleafApi` (jalons 1-2)
+- Produit :
   - `EffectPalette { name: string; colors: Color[] }` (dans `src/shared/types.ts`)
   - `hsbToRgb(hue: number, saturation: number, brightness: number): Color` (dans `src/shared/color.ts`)
   - `NanoleafClient.getEffectPalettes(): Promise<EffectPalette[]>`
@@ -125,8 +125,8 @@ describe('hsbToRgb', () => {
 
 - [x] **Step 3: Lancer le test et vérifier qu'il échoue**
 
-Run: `npx vitest run src/shared/color.test.ts`
-Expected: FAIL — `Failed to resolve import "./color"`
+Lancer : `npx vitest run src/shared/color.test.ts`
+Attendu : FAIL — `Failed to resolve import "./color"`
 
 - [x] **Step 4: Écrire la conversion**
 
@@ -170,8 +170,8 @@ export function hsbToRgb(hue: number, saturation: number, brightness: number): C
 
 - [x] **Step 5: Lancer le test et vérifier qu'il passe**
 
-Run: `npx vitest run src/shared/color.test.ts`
-Expected: PASS — 5 tests
+Lancer : `npx vitest run src/shared/color.test.ts`
+Attendu : PASS — 5 tests
 
 - [x] **Step 6: Faire servir les palettes par le device factice**
 
@@ -257,8 +257,8 @@ describe('DeviceService — palettes', () => {
 
 - [x] **Step 8: Lancer le test et vérifier qu'il échoue**
 
-Run: `npx vitest run src/main/ipc.test.ts`
-Expected: FAIL — `service.getEffectPalettes is not a function`
+Lancer : `npx vitest run src/main/ipc.test.ts`
+Attendu : FAIL — `service.getEffectPalettes is not a function`
 
 - [x] **Step 9: Lire les palettes depuis le client REST**
 
@@ -358,8 +358,8 @@ Dans `src/preload/preload.ts`, ajouter cette entrée à l'objet `api`, après `g
 
 - [x] **Step 11: Lancer les tests et vérifier qu'ils passent**
 
-Run: `npx vitest run`
-Expected: PASS — les 107 tests du jalon 2 plus 7 nouveaux
+Lancer : `npx vitest run`
+Attendu : PASS — les 107 tests du jalon 2 plus 7 nouveaux
 
 - [x] **Step 12: Commit**
 
@@ -372,16 +372,16 @@ git commit -m "feat: lecture des palettes d'effets du device"
 
 ### Task 2: Géométrie de rendu des panneaux
 
-**Files:**
-- Create: `src/shared/geometry.ts`
-- Test: `src/shared/geometry.test.ts`
-- Modify: `src/shared/types.ts`
-- Modify: `src/main/device/layout.ts`
-- Modify: `src/main/device/layout.test.ts`
+**Fichiers :**
+- Créer : `src/shared/geometry.ts`
+- Test : `src/shared/geometry.test.ts`
+- Modifier : `src/shared/types.ts`
+- Modifier : `src/main/device/layout.ts`
+- Modifier : `src/main/device/layout.test.ts`
 
 **Interfaces:**
-- Consumes: `NormalizedPanel`, `PanelLayout` (jalon 1)
-- Produces:
+- Consomme : `NormalizedPanel`, `PanelLayout` (jalon 1)
+- Produit :
   - `PanelLayout.nSideLength: number` — côté d'un panneau dans le même espace normalisé que `nx`/`ny`
   - `Point { x: number; y: number }` (dans `src/shared/geometry.ts`)
   - `SHAPE_GEOMETRY: Record<number, { sides: number; baseAngleDeg: number }>`
@@ -479,8 +479,8 @@ describe('panelPolygon', () => {
 
 - [x] **Step 2: Lancer le test et vérifier qu'il échoue**
 
-Run: `npx vitest run src/shared/geometry.test.ts`
-Expected: FAIL — `Failed to resolve import "./geometry"`
+Lancer : `npx vitest run src/shared/geometry.test.ts`
+Attendu : FAIL — `Failed to resolve import "./geometry"`
 
 - [x] **Step 3: Écrire la géométrie**
 
@@ -547,8 +547,8 @@ export function panelPolygon(panel: NormalizedPanel, nSideLength: number): Point
 
 - [x] **Step 4: Lancer le test et vérifier qu'il passe**
 
-Run: `npx vitest run src/shared/geometry.test.ts`
-Expected: PASS — 11 tests
+Lancer : `npx vitest run src/shared/geometry.test.ts`
+Attendu : PASS — 11 tests
 
 - [x] **Step 5: Écrire le test du côté normalisé qui échoue**
 
@@ -583,8 +583,8 @@ describe('normalizeLayout — côté normalisé', () => {
 
 - [x] **Step 6: Lancer le test et vérifier qu'il échoue**
 
-Run: `npx vitest run src/main/device/layout.test.ts`
-Expected: FAIL — `expected undefined to be close to 0.5`
+Lancer : `npx vitest run src/main/device/layout.test.ts`
+Attendu : FAIL — `expected undefined to be close to 0.5`
 
 - [x] **Step 7: Publier le côté normalisé**
 
@@ -621,8 +621,8 @@ Dans `src/main/device/layout.ts`, remplacer les trois `return` de la fonction pa
 
 - [x] **Step 8: Lancer la suite complète et vérifier qu'elle passe**
 
-Run: `npx vitest run`
-Expected: PASS — aucun test du jalon 1 ou 2 ne casse
+Lancer : `npx vitest run`
+Attendu : PASS — aucun test du jalon 1 ou 2 ne casse
 
 - [x] **Step 9: Commit**
 
@@ -635,14 +635,14 @@ git commit -m "feat: géométrie de rendu des panneaux"
 
 ### Task 3: Maillage du mur et rendu WebGL2
 
-**Files:**
-- Create: `src/renderer/gl/mesh.ts`
-- Test: `src/renderer/gl/mesh.test.ts`
-- Create: `src/renderer/gl/wall.ts`
+**Fichiers :**
+- Créer : `src/renderer/gl/mesh.ts`
+- Test : `src/renderer/gl/mesh.test.ts`
+- Créer : `src/renderer/gl/wall.ts`
 
 **Interfaces:**
-- Consumes: `panelPolygon`, `Point` (tâche 2), `PanelLayout`, `Color`
-- Produces:
+- Consomme : `panelPolygon`, `Point` (tâche 2), `PanelLayout`, `Color`
+- Produit :
   - `WallMesh { positions: Float32Array; panelIndices: Float32Array; vertexCount: number }`
   - `buildPanelMesh(layout: PanelLayout): WallMesh`
   - `buildHaloMesh(layout: PanelLayout, spread?: number): WallMesh & { offsets: Float32Array }`
@@ -746,8 +746,8 @@ describe('buildHaloMesh', () => {
 
 - [x] **Step 2: Lancer le test et vérifier qu'il échoue**
 
-Run: `npx vitest run src/renderer/gl/mesh.test.ts`
-Expected: FAIL — `Failed to resolve import "./mesh"`
+Lancer : `npx vitest run src/renderer/gl/mesh.test.ts`
+Attendu : FAIL — `Failed to resolve import "./mesh"`
 
 - [x] **Step 3: Écrire le maillage**
 
@@ -838,8 +838,8 @@ export function buildHaloMesh(
 
 - [x] **Step 4: Lancer le test et vérifier qu'il passe**
 
-Run: `npx vitest run src/renderer/gl/mesh.test.ts`
-Expected: PASS — 8 tests
+Lancer : `npx vitest run src/renderer/gl/mesh.test.ts`
+Attendu : PASS — 8 tests
 
 - [x] **Step 5: Écrire le rendu WebGL2**
 
@@ -1045,8 +1045,8 @@ export function createWallRenderer(
 
 - [x] **Step 6: Vérifier la compilation et la suite complète**
 
-Run: `npx tsc -p tsconfig.json --noEmit && npx vitest run`
-Expected: aucune erreur, tous les tests passent
+Lancer : `npx tsc -p tsconfig.json --noEmit && npx vitest run`
+Attendu : aucune erreur, tous les tests passent
 
 - [x] **Step 7: Commit**
 
@@ -1059,14 +1059,14 @@ git commit -m "feat: maillage du mur et rendu WebGL2"
 
 ### Task 4: Roue chromatique
 
-**Files:**
-- Modify: `src/shared/color.ts`
-- Modify: `src/shared/color.test.ts`
-- Create: `src/renderer/components/ColorWheel.tsx`
+**Fichiers :**
+- Modifier : `src/shared/color.ts`
+- Modifier : `src/shared/color.test.ts`
+- Créer : `src/renderer/components/ColorWheel.tsx`
 
 **Interfaces:**
-- Consumes: `hsbToRgb` (tâche 1)
-- Produces:
+- Consomme : `hsbToRgb` (tâche 1)
+- Produit :
   - `WheelPosition { hue: number; sat: number }`
   - `wheelToHsv(dx: number, dy: number, radius: number): WheelPosition | null`
   - `hsvToWheel(hue: number, sat: number, radius: number): { dx: number; dy: number }`
@@ -1118,8 +1118,8 @@ describe('hsvToWheel', () => {
 
 - [x] **Step 2: Lancer le test et vérifier qu'il échoue**
 
-Run: `npx vitest run src/shared/color.test.ts`
-Expected: FAIL — `wheelToHsv is not a function`
+Lancer : `npx vitest run src/shared/color.test.ts`
+Attendu : FAIL — `wheelToHsv is not a function`
 
 - [x] **Step 3: Écrire les conversions de la roue**
 
@@ -1161,8 +1161,8 @@ export function hsvToWheel(hue: number, sat: number, radius: number): { dx: numb
 
 - [x] **Step 4: Lancer le test et vérifier qu'il passe**
 
-Run: `npx vitest run src/shared/color.test.ts`
-Expected: PASS — 12 tests
+Lancer : `npx vitest run src/shared/color.test.ts`
+Attendu : PASS — 12 tests
 
 - [x] **Step 5: Écrire le composant**
 
@@ -1256,8 +1256,8 @@ export function ColorWheel({ hue, sat, size, onPick }: ColorWheelProps) {
 
 - [x] **Step 6: Vérifier la compilation**
 
-Run: `npx tsc -p tsconfig.json --noEmit`
-Expected: aucune erreur
+Lancer : `npx tsc -p tsconfig.json --noEmit`
+Attendu : aucune erreur
 
 - [x] **Step 7: Commit**
 
@@ -1270,17 +1270,17 @@ git commit -m "feat: roue chromatique teinte et saturation"
 
 ### Task 5: Peinture d'un panneau et réglage de couleur
 
-**Files:**
-- Modify: `src/shared/geometry.ts`
-- Modify: `src/shared/geometry.test.ts`
-- Modify: `src/main/ipc.ts`
-- Modify: `src/shared/ipc-contract.ts`
-- Modify: `src/preload/preload.ts`
-- Test: `src/main/ipc.test.ts` (ajout d'un bloc `describe`)
+**Fichiers :**
+- Modifier : `src/shared/geometry.ts`
+- Modifier : `src/shared/geometry.test.ts`
+- Modifier : `src/main/ipc.ts`
+- Modifier : `src/shared/ipc-contract.ts`
+- Modifier : `src/preload/preload.ts`
+- Test : `src/main/ipc.test.ts` (ajout d'un bloc `describe`)
 
 **Interfaces:**
-- Consumes: `panelPolygon`, `Point` (tâche 2), `DeviceService`, `SourceArbiter`, `PanelStream` (jalon 2)
-- Produces:
+- Consomme : `panelPolygon`, `Point` (tâche 2), `DeviceService`, `SourceArbiter`, `PanelStream` (jalon 2)
+- Produit :
   - `pointInPolygon(point: Point, polygon: Point[]): boolean`
   - `panelAt(layout: PanelLayout, point: Point): NormalizedPanel | null`
   - `DeviceService.paintPanel(deviceId: string, panelId: number, color: Color): Promise<boolean>`
@@ -1341,8 +1341,8 @@ describe('panelAt', () => {
 
 - [x] **Step 2: Lancer le test et vérifier qu'il échoue**
 
-Run: `npx vitest run src/shared/geometry.test.ts`
-Expected: FAIL — `pointInPolygon is not a function`
+Lancer : `npx vitest run src/shared/geometry.test.ts`
+Attendu : FAIL — `pointInPolygon is not a function`
 
 - [x] **Step 3: Écrire la désignation**
 
@@ -1381,8 +1381,8 @@ export function panelAt(layout: PanelLayout, point: Point): NormalizedPanel | nu
 
 - [x] **Step 4: Lancer le test et vérifier qu'il passe**
 
-Run: `npx vitest run src/shared/geometry.test.ts`
-Expected: PASS — 16 tests
+Lancer : `npx vitest run src/shared/geometry.test.ts`
+Attendu : PASS — 16 tests
 
 - [x] **Step 5: Écrire le test de peinture qui échoue**
 
@@ -1476,8 +1476,8 @@ describe('DeviceService — peinture manuelle', () => {
 
 - [x] **Step 6: Lancer le test et vérifier qu'il échoue**
 
-Run: `npx vitest run src/main/ipc.test.ts`
-Expected: FAIL — `service.paintPanel is not a function`
+Lancer : `npx vitest run src/main/ipc.test.ts`
+Attendu : FAIL — `service.paintPanel is not a function`
 
 - [x] **Step 7: Écrire la peinture et le réglage de couleur**
 
@@ -1577,8 +1577,8 @@ Dans `src/preload/preload.ts`, ajouter ces entrées à l'objet `api` :
 
 - [x] **Step 8: Lancer la suite complète et vérifier qu'elle passe**
 
-Run: `npx vitest run`
-Expected: PASS — tous les tests, y compris les 5 nouveaux
+Lancer : `npx vitest run`
+Attendu : PASS — tous les tests, y compris les 5 nouveaux
 
 - [x] **Step 9: Commit**
 
@@ -1591,21 +1591,21 @@ git commit -m "feat: peinture d'un panneau au clic et réglage de couleur"
 
 ### Task 6: Coquille frameless et écran Contrôle
 
-**Files:**
-- Create: `src/renderer/styles.css`
-- Create: `src/renderer/useNanoleaf.ts`
-- Create: `src/renderer/components/WallCanvas.tsx`
-- Create: `src/renderer/screens/ControlScreen.tsx`
-- Modify: `src/renderer/main.tsx`
-- Modify: `src/renderer/App.tsx`
-- Modify: `src/main/main.ts`
-- Modify: `src/main/ipc.ts`
-- Modify: `src/shared/ipc-contract.ts`
-- Modify: `src/preload/preload.ts`
+**Fichiers :**
+- Créer : `src/renderer/styles.css`
+- Créer : `src/renderer/useNanoleaf.ts`
+- Créer : `src/renderer/components/WallCanvas.tsx`
+- Créer : `src/renderer/screens/ControlScreen.tsx`
+- Modifier : `src/renderer/main.tsx`
+- Modifier : `src/renderer/App.tsx`
+- Modifier : `src/main/main.ts`
+- Modifier : `src/main/ipc.ts`
+- Modifier : `src/shared/ipc-contract.ts`
+- Modifier : `src/preload/preload.ts`
 
 **Interfaces:**
-- Consumes: `createWallRenderer`, `WallRenderer` (tâche 3), `ColorWheel`, `WheelPosition` (tâche 4), `panelAt` (tâche 5), `NanoleafApi`, `RendererDevice`, `DeviceState`, `PanelLayout`, `Color`
-- Produces:
+- Consomme : `createWallRenderer`, `WallRenderer` (tâche 3), `ColorWheel`, `WheelPosition` (tâche 4), `panelAt` (tâche 5), `NanoleafApi`, `RendererDevice`, `DeviceState`, `PanelLayout`, `Color`
+- Produit :
   - `IPC_CHANNELS.windowMinimize = 'window:minimize'`, `IPC_CHANNELS.windowClose = 'window:close'`
   - `NanoleafApi.minimizeWindow(): Promise<void>`, `NanoleafApi.closeWindow(): Promise<void>`
   - `useNanoleaf(bridge: NanoleafApi): NanoleafSession`
@@ -2279,12 +2279,12 @@ L'onglet Scènes rend provisoirement l'écran Contrôle ; la tâche 7 le remplac
 
 - [x] **Step 7: Vérifier la compilation et la suite complète**
 
-Run: `npm run build:main && npx tsc -p tsconfig.json --noEmit && npm run build:renderer && npx vitest run`
-Expected: aucune erreur, tous les tests passent
+Lancer : `npm run build:main && npx tsc -p tsconfig.json --noEmit && npm run build:renderer && npx vitest run`
+Attendu : aucune erreur, tous les tests passent
 
 - [ ] **Step 8: Vérification manuelle contre le matériel réel** — demande l'interface et un œil humain.
 
-Run: `npm start`
+Lancer : `npm start`
 
 Checklist :
 
@@ -2306,13 +2306,13 @@ git commit -m "feat: coquille frameless et écran de contrôle"
 
 ### Task 7: Écran Scènes
 
-**Files:**
-- Create: `src/renderer/screens/ScenesScreen.tsx`
-- Modify: `src/renderer/App.tsx`
+**Fichiers :**
+- Créer : `src/renderer/screens/ScenesScreen.tsx`
+- Modifier : `src/renderer/App.tsx`
 
 **Interfaces:**
-- Consumes: `EffectPalette` (tâche 1), `NanoleafSession` (tâche 6)
-- Produces: `<ScenesScreen session={NanoleafSession} />`
+- Consomme : `EffectPalette` (tâche 1), `NanoleafSession` (tâche 6)
+- Produit : `<ScenesScreen session={NanoleafSession} />`
 
 - [x] **Step 1: Écrire l'écran**
 
@@ -2389,12 +2389,12 @@ et remplacer la ligne de rendu conditionnel par :
 
 - [x] **Step 3: Vérifier la compilation et la suite complète**
 
-Run: `npx tsc -p tsconfig.json --noEmit && npm run build:renderer && npx vitest run`
-Expected: aucune erreur, tous les tests passent
+Lancer : `npx tsc -p tsconfig.json --noEmit && npm run build:renderer && npx vitest run`
+Attendu : aucune erreur, tous les tests passent
 
 - [ ] **Step 4: Vérification manuelle contre le matériel réel** — demande l'interface et un œil humain.
 
-Run: `npm start`
+Lancer : `npm start`
 
 Checklist :
 

@@ -1,12 +1,12 @@
 # Jalon 4 — Synchronisation écran : plan d'implémentation
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Pour les agents :** SOUS-COMPÉTENCE REQUISE : utiliser superpowers:subagent-driven-development (recommandé) ou superpowers:executing-plans pour dérouler ce plan tâche par tâche. Les étapes se suivent par cases à cocher (`- [ ]`).
 
-**Goal:** Faire suivre aux panneaux ce qui s'affiche à l'écran — capture par le portail Wayland, analyse dans un Worker, et un pipeline couleur qui transforme chaque frame en une couleur par panneau.
+**Objectif :** Faire suivre aux panneaux ce qui s'affiche à l'écran — capture par le portail Wayland, analyse dans un Worker, et un pipeline couleur qui transforme chaque frame en une couleur par panneau.
 
-**Architecture:** Le pipeline entier est fait de fonctions pures prenant une image, la géométrie du mur et des réglages, et rendant des couleurs. Il ne connaît ni le DOM, ni le GPU, ni le réseau : il se teste sur des images fabriquées à la main. Autour de ce noyau, une fine couche d'entrées-sorties — un Worker qui lit les `VideoFrame` et les réduit en 64×36, l'écran Sync qui règle les paramètres, et le canal `stream:frame` du jalon 2 qui envoie le résultat aux panneaux.
+**Architecture :** Le pipeline entier est fait de fonctions pures prenant une image, la géométrie du mur et des réglages, et rendant des couleurs. Il ne connaît ni le DOM, ni le GPU, ni le réseau : il se teste sur des images fabriquées à la main. Autour de ce noyau, une fine couche d'entrées-sorties — un Worker qui lit les `VideoFrame` et les réduit en 64×36, l'écran Sync qui règle les paramètres, et le canal `stream:frame` du jalon 2 qui envoie le résultat aux panneaux.
 
-**Tech Stack:** Electron, React, TypeScript, `MediaStreamTrackProcessor`, `OffscreenCanvas`, Web Worker, Vitest. Aucune dépendance nouvelle.
+**Stack technique :** Electron, React, TypeScript, `MediaStreamTrackProcessor`, `OffscreenCanvas`, Web Worker, Vitest. Aucune dépendance nouvelle.
 
 **Spec:** `docs/superpowers/specs/2026-08-20-nanoleaf-linux-design.md` — sections 6 (pipeline), 6.4 (réglages), 8 (arbitrage), 10.1 (tests).
 
@@ -16,7 +16,7 @@
 > écrits pour être repris par quelqu'un d'autre, portaient le code des tests
 > en entier.
 
-## Global Constraints
+## Contraintes globales
 
 - Cible : Ubuntu 26.04, Wayland/GNOME, Node v26.
 - Analyse sur un `OffscreenCanvas` **64×36** : le redimensionnement est fait par le GPU, l'analyse porte sur 2304 pixels.
@@ -50,11 +50,11 @@
 
 ### Task 1: Réglages et espace colorimétrique
 
-**Files:**
-- Create: `src/shared/sync/settings.ts`, `src/shared/sync/settings.test.ts`
-- Create: `src/shared/sync/srgb.ts`, `src/shared/sync/srgb.test.ts`
+**Fichiers :**
+- Créer : `src/shared/sync/settings.ts`, `src/shared/sync/settings.test.ts`
+- Créer : `src/shared/sync/srgb.ts`, `src/shared/sync/srgb.test.ts`
 
-**Produces:**
+**Produit :**
 - `MappingMode = 'spatial' | 'dominant' | 'palette'`
 - `SyncSettings { mode; radius; saturation; blackFloor; attack; release; hz }`
 - `DEFAULT_SYNC_SETTINGS: SyncSettings`
@@ -75,11 +75,11 @@
 
 ### Task 2: Détection du letterbox
 
-**Files:** `src/shared/sync/letterbox.ts`, `src/shared/sync/letterbox.test.ts`
+**Fichiers :** `src/shared/sync/letterbox.ts`, `src/shared/sync/letterbox.test.ts`
 
-**Consumes:** `Frame`, `toLinear` (tâche 1)
+**Consomme :** `Frame`, `toLinear` (tâche 1)
 
-**Produces:**
+**Produit :**
 - `Rect { x: number; y: number; width: number; height: number }`
 - `detectLetterbox(frame: Frame, threshold?: number): Rect`
 
@@ -94,11 +94,11 @@
 
 ### Task 3: Mapping spatial
 
-**Files:** `src/shared/sync/mapping-spatial.ts`, `+ .test.ts`
+**Fichiers :** `src/shared/sync/mapping-spatial.ts`, `+ .test.ts`
 
-**Consumes:** `Frame`, `Rect`, `LinearColor`, `toLinear` (tâches 1-2), `PanelLayout`
+**Consomme :** `Frame`, `Rect`, `LinearColor`, `toLinear` (tâches 1-2), `PanelLayout`
 
-**Produces:** `mapSpatial(frame, rect, layout, radius): LinearColor[]`
+**Produit :** `mapSpatial(frame, rect, layout, radius): LinearColor[]`
 
 **Algorithme :** chaque panneau échantillonne autour de sa position normalisée, pondération gaussienne d'écart-type `radius`, en espace linéaire. Les zones se recouvrent, ce qui adoucit les transitions entre voisins. Le poids est calculé une fois par panneau sur la grille 64×36.
 
@@ -111,9 +111,9 @@
 
 ### Task 4: Mapping dominant et palette
 
-**Files:** `src/shared/sync/mapping-clusters.ts`, `+ .test.ts`
+**Fichiers :** `src/shared/sync/mapping-clusters.ts`, `+ .test.ts`
 
-**Produces:**
+**Produit :**
 - `dominantColor(frame, rect): LinearColor`
 - `paletteColors(frame, rect, count): LinearColor[]`
 
@@ -128,9 +128,9 @@
 
 ### Task 5: Correction et lissage temporel
 
-**Files:** `src/shared/sync/correction.ts`, `src/shared/sync/smoothing.ts`, `+ tests`
+**Fichiers :** `src/shared/sync/correction.ts`, `src/shared/sync/smoothing.ts`, `+ tests`
 
-**Produces:**
+**Produit :**
 - `applyCorrection(color: LinearColor, settings): LinearColor` — boost de saturation, plancher de noir, gamma
 - `class Smoother` : `push(colors: LinearColor[]): LinearColor[]`, `reset()`
 
@@ -146,11 +146,11 @@
 
 ### Task 6: Assemblage du pipeline
 
-**Files:** `src/shared/sync/pipeline.ts`, `+ .test.ts`
+**Fichiers :** `src/shared/sync/pipeline.ts`, `+ .test.ts`
 
-**Consumes:** tâches 1 à 5
+**Consomme :** tâches 1 à 5
 
-**Produces:** `class SyncPipeline { constructor(layout, settings); update(settings): void; process(frame: Frame): Color[]; reset(): void }`
+**Produit :** `class SyncPipeline { constructor(layout, settings); update(settings): void; process(frame: Frame): Color[]; reset(): void }`
 
 **Algorithme :** enchaîne l'ordre imposé — letterbox, mapping selon le mode, correction, lissage, retour en sRGB. Le lisseur vit dans l'instance : c'est la seule partie qui a une mémoire.
 
@@ -163,11 +163,11 @@
 
 ### Task 7: Capture, Worker et écran Sync
 
-**Files:**
-- Create: `src/renderer/worker/capture.worker.ts`
-- Create: `src/renderer/screens/SyncScreen.tsx`
-- Modify: `src/main/main.ts` (`setDisplayMediaRequestHandler`)
-- Modify: `src/renderer/App.tsx`, `src/renderer/useNanoleaf.ts`, `src/renderer/styles.css`
+**Fichiers :**
+- Créer : `src/renderer/worker/capture.worker.ts`
+- Créer : `src/renderer/screens/SyncScreen.tsx`
+- Modifier : `src/main/main.ts` (`setDisplayMediaRequestHandler`)
+- Modifier : `src/renderer/App.tsx`, `src/renderer/useNanoleaf.ts`, `src/renderer/styles.css`
 
 **Algorithme :** le renderer demande `getDisplayMedia`, le main répond par `setDisplayMediaRequestHandler` en laissant le portail GNOME choisir. La piste vidéo est transférée au Worker, qui la lit par `MediaStreamTrackProcessor`, dessine chaque `VideoFrame` dans un `OffscreenCanvas` 64×36, passe le `ImageData` au pipeline et renvoie les couleurs. Le thread UI relaie vers `stream:frame`.
 
