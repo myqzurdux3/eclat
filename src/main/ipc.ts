@@ -12,6 +12,16 @@ import { AudioCapture } from './audio/capture'
 import { listAudioSources, type AudioSource } from './audio/sources'
 import type { AudioFeatures } from '../shared/audio/analyser'
 import type { ConfigStore, StoredDevice } from './store'
+import {
+  asBoolean,
+  asColor,
+  asColors,
+  asDeviceId,
+  asNumber,
+  asPaintEntries,
+  asSource,
+  asText,
+} from '../shared/ipc-guards'
 
 export interface DeviceServiceOptions {
   store: ConfigStore
@@ -336,10 +346,6 @@ export class DeviceService {
     return (await this.client(deviceId)).getLayout()
   }
 
-  async getEffects(deviceId: string): Promise<string[]> {
-    return (await this.client(deviceId)).getEffects()
-  }
-
   async getEffectPalettes(deviceId: string): Promise<EffectPalette[]> {
     return (await this.client(deviceId)).getEffectPalettes()
   }
@@ -655,47 +661,57 @@ export interface IpcMainLike {
 export function registerIpc(ipcMain: IpcMainLike, service: DeviceService): void {
   ipcMain.handle(IPC_CHANNELS.discover, () => service.discover())
   ipcMain.handle(IPC_CHANNELS.list, () => service.listDevices())
-  ipcMain.handle(IPC_CHANNELS.pair, (_event, id: string) => service.pair(id))
-  ipcMain.handle(IPC_CHANNELS.getState, (_event, id: string) => service.getState(id))
-  ipcMain.handle(IPC_CHANNELS.setOn, (_event, id: string, on: boolean) => service.setOn(id, on))
-  ipcMain.handle(IPC_CHANNELS.setBrightness, (_event, id: string, value: number) =>
-    service.setBrightness(id, value),
+  ipcMain.handle(IPC_CHANNELS.pair, (_event, id: unknown) => service.pair(asDeviceId(id)))
+  ipcMain.handle(IPC_CHANNELS.getState, (_event, id: unknown) => service.getState(asDeviceId(id)))
+  ipcMain.handle(IPC_CHANNELS.setOn, (_event, id: unknown, on: unknown) =>
+    service.setOn(asDeviceId(id), asBoolean(on, 'on')),
   )
-  ipcMain.handle(IPC_CHANNELS.getLayout, (_event, id: string) => service.getLayout(id))
-  ipcMain.handle(IPC_CHANNELS.getEffects, (_event, id: string) => service.getEffects(id))
-  ipcMain.handle(IPC_CHANNELS.effectPalettes, (_event, id: string) =>
-    service.getEffectPalettes(id),
+  ipcMain.handle(IPC_CHANNELS.setBrightness, (_event, id: unknown, value: unknown) =>
+    service.setBrightness(asDeviceId(id), asNumber(value, 'brightness', 0, 100)),
   )
-  ipcMain.handle(IPC_CHANNELS.selectEffect, (_event, id: string, name: string) =>
-    service.selectEffect(id, name),
+  ipcMain.handle(IPC_CHANNELS.getLayout, (_event, id: unknown) => service.getLayout(asDeviceId(id)))
+  ipcMain.handle(IPC_CHANNELS.effectPalettes, (_event, id: unknown) =>
+    service.getEffectPalettes(asDeviceId(id)),
+  )
+  ipcMain.handle(IPC_CHANNELS.selectEffect, (_event, id: unknown, name: unknown) =>
+    service.selectEffect(asDeviceId(id), asText(name, 'effect name')),
   )
   ipcMain.handle(IPC_CHANNELS.audioSources, () => service.listAudioSources())
-  ipcMain.handle(IPC_CHANNELS.audioStart, (_event, sourceId: number) =>
-    service.startAudioCapture(sourceId),
+  ipcMain.handle(IPC_CHANNELS.audioStart, (_event, sourceId: unknown) =>
+    service.startAudioCapture(asNumber(sourceId, 'sourceId', 0, Number.MAX_SAFE_INTEGER)),
   )
   ipcMain.handle(IPC_CHANNELS.audioStop, () => service.stopAudioCapture())
   ipcMain.handle(
     IPC_CHANNELS.paintPanel,
-    (_event, id: string, panelId: number, color: Color) =>
-      service.paintPanel(id, panelId, color),
+    (_event, id: unknown, panelId: unknown, color: unknown) =>
+      service.paintPanel(
+        asDeviceId(id),
+        asNumber(panelId, 'panelId', 0, Number.MAX_SAFE_INTEGER),
+        asColor(color),
+      ),
   )
-  ipcMain.handle(
-    IPC_CHANNELS.paintPanels,
-    (_event, id: string, entries: Array<{ panelId: number; color: Color }>) =>
-      service.paintPanels(id, entries),
+  ipcMain.handle(IPC_CHANNELS.paintPanels, (_event, id: unknown, entries: unknown) =>
+    service.paintPanels(asDeviceId(id), asPaintEntries(entries)),
   )
-  ipcMain.handle(IPC_CHANNELS.setColor, (_event, id: string, hue: number, sat: number) =>
-    service.setColor(id, hue, sat),
+  ipcMain.handle(IPC_CHANNELS.setColor, (_event, id: unknown, hue: unknown, sat: unknown) =>
+    service.setColor(asDeviceId(id), asNumber(hue, 'hue', 0, 360), asNumber(sat, 'sat', 0, 100)),
   )
-  ipcMain.handle(IPC_CHANNELS.startStream, (_event, id: string, source: SourceId) =>
-    service.startStream(id, source),
+  ipcMain.handle(IPC_CHANNELS.startStream, (_event, id: unknown, source: unknown) =>
+    service.startStream(asDeviceId(id), asSource(source)),
   )
-  ipcMain.handle(IPC_CHANNELS.stopStream, (_event, id: string, source: SourceId) =>
-    service.stopStream(id, source),
+  ipcMain.handle(IPC_CHANNELS.stopStream, (_event, id: unknown, source: unknown) =>
+    service.stopStream(asDeviceId(id), asSource(source)),
   )
   ipcMain.handle(
     IPC_CHANNELS.frame,
-    (_event, id: string, source: SourceId, colors: Color[], transitionTime?: number) =>
-      service.sendFrame(id, source, colors, transitionTime),
+    (_event, id: unknown, source: unknown, colors: unknown, transitionTime?: unknown) =>
+      service.sendFrame(
+        asDeviceId(id),
+        asSource(source),
+        asColors(colors),
+        transitionTime === undefined
+          ? undefined
+          : asNumber(transitionTime, 'transitionTime', 0, 65535),
+      ),
   )
 }

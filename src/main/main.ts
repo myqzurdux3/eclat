@@ -8,7 +8,7 @@ import { IPC_CHANNELS } from '../shared/ipc-contract'
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
 
 /** Beyond this, assume enumerating the sources will never answer. */
-const REPLI_CAPTURE_MS = 4000
+const CAPTURE_FALLBACK_MS = 4000
 
 /**
  * Opens screen capture to the renderer.
@@ -17,7 +17,7 @@ const REPLI_CAPTURE_MS = 4000
  * picker opens, and `desktopCapturer.getSources()` does not return the real
  * list of windows. The fallback below therefore only serves X11 sessions.
  */
-function autoriserCaptureEcran(): void {
+function allowScreenCapture(): void {
   session.defaultSession.setDisplayMediaRequestHandler(
     (_request, callback) => {
       // On Wayland the system picker answers in our stead and this handler
@@ -30,22 +30,70 @@ function autoriserCaptureEcran(): void {
         return
       }
 
-      const minuterie = setTimeout(() => callback({}), REPLI_CAPTURE_MS)
+      const timeout = setTimeout(() => callback({}), CAPTURE_FALLBACK_MS)
       void desktopCapturer
         .getSources({ types: ['screen', 'window'] })
         .then((sources) => {
-          clearTimeout(minuterie)
-          const premiere = sources[0]
-          callback(premiere === undefined ? {} : { video: premiere })
+          clearTimeout(timeout)
+          // The whole screen, named: handing over `sources[0]` shared
+          // whichever window happened to come first, which the user never
+          // chose. Sharing a screen should not be a surprise.
+          const screen = sources.find((source) => source.id.startsWith('screen:'))
+          callback(screen === undefined ? {} : { video: screen })
         })
         .catch(() => {
-          clearTimeout(minuterie)
+          clearTimeout(timeout)
           callback({})
         })
     },
     { useSystemPicker: true },
   )
 }
+
+/**
+ * Shuts the doors the application never uses.
+ *
+ * It renders no remote content and opens no windows of its own, so every one
+ * of these is a door that only an accident or an attack could walk through.
+ * The device's own strings — panel names, effect names — do reach the
+ * renderer, and React escapes them, but that is one layer, not a policy.
+ */
+function hardenWindow(window: BrowserWindow): void {
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+
+  window.webContents.on('will-navigate', (event, url) => {
+    if (DEV_SERVER_URL !== undefined && url.startsWith(DEV_SERVER_URL)) return
+    event.preventDefault()
+  })
+
+  window.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [CONTENT_SECURITY_POLICY],
+      },
+    })
+  })
+}
+
+/**
+ * Everything the interface needs and nothing more.
+ *
+ * `'unsafe-inline'` for styles is Vite's doing: it injects the stylesheet as
+ * a tag. `blob:` covers the Worker, which is bundled as one.
+ */
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "worker-src 'self' blob:",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "frame-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+].join('; ')
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -61,9 +109,16 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // A sandboxed preload cannot `require` a relative module, and this one
+      // imports the IPC contract it shares with the renderer: turning the
+      // sandbox on gives "module not found: ../shared/ipc-contract" and no
+      // bridge at all. Enabling it means bundling the preload into a single
+      // file first. Measured, not assumed.
       sandbox: false,
     },
   })
+
+  hardenWindow(window)
 
   if (DEV_SERVER_URL !== undefined) {
     void window.loadURL(DEV_SERVER_URL)
@@ -104,7 +159,7 @@ app.whenReady().then(() => {
     BrowserWindow.fromWebContents(event.sender)?.close()
   })
 
-  autoriserCaptureEcran()
+  allowScreenCapture()
   createWindow()
 
   app.on('activate', () => {

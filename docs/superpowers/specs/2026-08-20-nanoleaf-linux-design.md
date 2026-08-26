@@ -97,7 +97,6 @@ ashpd, coût sans bénéfice ici), Python/GTK4 (marge de design insuffisante).
 | `devices:paintPanel` | R→M | `deviceId, panelId, Color` |
 | `devices:paintPanels` | R→M | `deviceId, { panelId, color }[]` |
 | `devices:event` | M→R | `DeviceEventMessage` |
-| `effects:list` | R→M | `deviceId` → `string[]` |
 | `effects:palettes` | R→M | `deviceId` → `EffectPalette[]` |
 | `effects:select` | R→M | `deviceId, name` |
 | `stream:start` / `stream:stop` | R→M | `deviceId, SourceId` |

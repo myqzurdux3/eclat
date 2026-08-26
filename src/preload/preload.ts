@@ -14,7 +14,6 @@ const api: NanoleafApi = {
   setOn: (deviceId, on) => ipcRenderer.invoke(IPC_CHANNELS.setOn, deviceId, on),
   setBrightness: (deviceId, value) => ipcRenderer.invoke(IPC_CHANNELS.setBrightness, deviceId, value),
   getLayout: (deviceId) => ipcRenderer.invoke(IPC_CHANNELS.getLayout, deviceId),
-  getEffects: (deviceId) => ipcRenderer.invoke(IPC_CHANNELS.getEffects, deviceId),
   getEffectPalettes: (deviceId) => ipcRenderer.invoke(IPC_CHANNELS.effectPalettes, deviceId),
   selectEffect: (deviceId, name) => ipcRenderer.invoke(IPC_CHANNELS.selectEffect, deviceId, name),
   startStream: (deviceId, source) => ipcRenderer.invoke(IPC_CHANNELS.startStream, deviceId, source),

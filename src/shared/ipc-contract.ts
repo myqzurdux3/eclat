@@ -34,7 +34,6 @@ export interface NanoleafApi {
   setOn(deviceId: string, on: boolean): Promise<void>
   setBrightness(deviceId: string, value: number): Promise<void>
   getLayout(deviceId: string): Promise<PanelLayout>
-  getEffects(deviceId: string): Promise<string[]>
   getEffectPalettes(deviceId: string): Promise<EffectPalette[]>
   selectEffect(deviceId: string, name: string): Promise<void>
   startStream(deviceId: string, source: SourceId): Promise<void>
@@ -71,7 +70,6 @@ export const IPC_CHANNELS = {
   setOn: 'devices:setOn',
   setBrightness: 'devices:setBrightness',
   getLayout: 'devices:layout',
-  getEffects: 'effects:list',
   effectPalettes: 'effects:palettes',
   selectEffect: 'effects:select',
   startStream: 'stream:start',

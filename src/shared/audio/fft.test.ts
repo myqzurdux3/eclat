@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hannWindow, magnitudeSpectrum, nextPowerOfTwo } from './fft'
+import { hannWindow, magnitudeSpectrum } from './fft'
 
 /** A pure sine sitting exactly on bin `bin` of a `size`-point transform. */
 function sine(size: number, bin: number, amplitude = 1): Float32Array {
@@ -14,21 +14,6 @@ function sine(size: number, bin: number, amplitude = 1): Float32Array {
 const peakBin = (spectrum: Float32Array): number =>
   spectrum.reduce((best, value, index) => (value > spectrum[best]! ? index : best), 0)
 
-describe('nextPowerOfTwo', () => {
-  it('leaves a power of two alone', () => {
-    expect(nextPowerOfTwo(1024)).toBe(1024)
-  })
-
-  it('rounds up to the next power of two', () => {
-    expect(nextPowerOfTwo(1000)).toBe(1024)
-    expect(nextPowerOfTwo(3)).toBe(4)
-  })
-
-  it('never returns less than one', () => {
-    expect(nextPowerOfTwo(0)).toBe(1)
-    expect(nextPowerOfTwo(-5)).toBe(1)
-  })
-})
 
 describe('hannWindow', () => {
   it('starts at zero and peaks in the middle', () => {

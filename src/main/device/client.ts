@@ -129,9 +129,7 @@ export class NanoleafClient {
     await this.request('PUT', '/state', { ct: { value: clamp(Math.round(value), 1200, 6500) } })
   }
 
-  async getEffects(): Promise<string[]> {
-    return this.request<string[]>('GET', '/effects/effectsList')
-  }
+
 
   async selectEffect(name: string): Promise<void> {
     await this.request('PUT', '/effects', { select: name })

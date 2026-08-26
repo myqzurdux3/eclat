@@ -1,8 +1,3 @@
-/** The smallest power of two greater than or equal to `value`, at least 1. */
-export function nextPowerOfTwo(value: number): number {
-  if (!Number.isFinite(value) || value <= 1) return 1
-  return 2 ** Math.ceil(Math.log2(value))
-}
 
 const windowCache = new Map<number, Float32Array>()
 

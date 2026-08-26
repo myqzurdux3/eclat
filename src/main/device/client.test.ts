@@ -72,13 +72,6 @@ describe('NanoleafClient', () => {
     expect(device.state.ct).toBe(3000)
   })
 
-  it('lists and selects an effect', async () => {
-    const effects = await client.getEffects()
-    expect(effects).toContain('Northern Lights')
-
-    await client.selectEffect('Northern Lights')
-    expect(device.state.effect).toBe('Northern Lights')
-  })
 
   it('returns a normalised layout', async () => {
     const layout = await client.getLayout()
