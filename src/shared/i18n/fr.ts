@@ -42,7 +42,8 @@ export const fr = {
     "Le device ne dit pas comment le mur est accroché, et rien n'oblige un mur à être posé d'équerre.",
   'control.motion.approximate':
     "Le mur est animé d'après les couleurs de la scène. Le device ne publie pas l'état de ses LED : c'est une approximation, pas un reflet.",
-  'control.paint.help': 'Clique un panneau du mur pour le peindre de la couleur choisie.',
+  'control.paint.help':
+    "Clique un panneau pour l'allumer, clique-le encore pour l'éteindre. La roue recolore les panneaux allumés, ou tout le mur s'il n'y en a aucun.",
   'control.wallUnavailable': 'Rendu du mur indisponible',
 
   'scenes.empty': 'Aucune scène lue pour le moment.',

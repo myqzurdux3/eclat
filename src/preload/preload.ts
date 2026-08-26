@@ -23,6 +23,8 @@ const api: NanoleafApi = {
     ipcRenderer.invoke(IPC_CHANNELS.frame, deviceId, source, colors, transitionTime),
   paintPanel: (deviceId, panelId, color) =>
     ipcRenderer.invoke(IPC_CHANNELS.paintPanel, deviceId, panelId, color),
+  paintPanels: (deviceId, entries) =>
+    ipcRenderer.invoke(IPC_CHANNELS.paintPanels, deviceId, entries),
   setColor: (deviceId, hue, sat) => ipcRenderer.invoke(IPC_CHANNELS.setColor, deviceId, hue, sat),
   onDeviceEvent: (listener) => {
     const relais = (_event: unknown, message: DeviceEventMessage): void => listener(message)

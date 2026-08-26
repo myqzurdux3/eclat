@@ -500,6 +500,55 @@ describe('DeviceService — releasing external control', () => {
   })
 
   /**
+   * Recolouring a selection has to arrive as one frame. Sent panel by panel
+   * the rate governor refuses all but the first, and the wall ends up
+   * showing half the change.
+   */
+  it('paints a whole selection in a single frame', async () => {
+    expect(
+      await service.paintPanels('Shapes Lounge', [
+        { panelId: 1, color: { r: 255, g: 0, b: 0 } },
+        { panelId: 2, color: { r: 255, g: 0, b: 0 } },
+      ]),
+    ).toBe(true)
+
+    const frames = await receiver.waitForFrames(1)
+
+    expect(frames).toHaveLength(1)
+  })
+
+  /**
+   * The rate governor caps the stream at 30 Hz, and refuses anything closer.
+   * A click is not a stream frame: dropping it loses a deliberate action and
+   * the panel simply never lights. Two clicks in the same breath must both
+   * reach the wall.
+   */
+  it('lands a click the rate governor would have refused', async () => {
+    await service.paintPanel('Shapes Lounge', 1, { r: 255, g: 0, b: 0 })
+    await service.paintPanel('Shapes Lounge', 2, { r: 0, g: 255, b: 0 })
+
+    const frames = await receiver.waitForFrames(2)
+    const painted = new Map(frames.at(-1)!.panels.map((panel) => [panel.panelId, panel.color]))
+
+    expect(painted.get(2)).toEqual({ r: 0, g: 255, b: 0 })
+  })
+
+  it('keeps the panels painted earlier when a selection is recoloured', async () => {
+    await service.paintPanel('Shapes Lounge', 1, { r: 0, g: 255, b: 0 })
+    await receiver.waitForFrames(1)
+    await fire()
+
+    await service.paintPanels('Shapes Lounge', [{ panelId: 2, color: { r: 255, g: 0, b: 0 } }])
+    const frames = await receiver.waitForFrames(2)
+
+    const painted = new Map(
+      frames.at(-1)!.panels.map((panel) => [panel.panelId, panel.color]),
+    )
+    expect(painted.get(1)).toEqual({ r: 0, g: 255, b: 0 })
+    expect(painted.get(2)).toEqual({ r: 255, g: 0, b: 0 })
+  })
+
+  /**
    * Painting used to expire on a three-second deadline, which read as the
    * wall wiping itself moments after being painted. A panel the user lit
    * stays lit; handing the wall back is something they ask for.

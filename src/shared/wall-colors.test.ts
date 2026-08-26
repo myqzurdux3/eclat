@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { wallColors } from './wall-colors'
+import { OFF, wallColors } from './wall-colors'
 import { normalizeLayout } from '../main/device/layout'
 import type { Color, DeviceState, EffectPalette } from './types'
 
@@ -79,7 +79,7 @@ describe('wallColors', () => {
   it('switches the panels off when the device is off', () => {
     const colors = wallColors(layout.panels, state({ on: false }), palettes, nothing)
 
-    expect(colors.get(1)).toEqual({ r: 0, g: 0, b: 0 })
+    expect(colors.get(1)).toEqual(OFF)
   })
 
   it('stays neutral when the effect palette is unknown', () => {
@@ -112,7 +112,7 @@ describe('wallColors', () => {
     const colors = wallColors(layout.panels, null, palettes, nothing)
 
     expect(colors.get(1)).toBeDefined()
-    expect(colors.get(1)).not.toEqual({ r: 0, g: 0, b: 0 })
+    expect(colors.get(1)).not.toEqual(OFF)
   })
 
   /**
@@ -126,14 +126,14 @@ describe('wallColors', () => {
     const colors = wallColors(layout.panels, state({ colorMode: 'effect', effect: 'Blaze' }), palettes, painted)
 
     expect(colors.get(2)).toEqual({ r: 255, g: 0, b: 0 })
-    expect(colors.get(1)).toEqual({ r: 0, g: 0, b: 0 })
-    expect(colors.get(3)).toEqual({ r: 0, g: 0, b: 0 })
+    expect(colors.get(1)).toEqual(OFF)
+    expect(colors.get(3)).toEqual(OFF)
   })
 
   it('leaves the effect alone while nothing is painted', () => {
     const colors = wallColors(layout.panels, state({ colorMode: 'effect', effect: 'Blaze' }), palettes, nothing)
 
-    expect(colors.get(1)).not.toEqual({ r: 0, g: 0, b: 0 })
+    expect(colors.get(1)).not.toEqual(OFF)
   })
 
   /**
@@ -144,11 +144,15 @@ describe('wallColors', () => {
   it('switches painted panels off along with the device', () => {
     const painted = new Map([[1, { r: 255, g: 255, b: 255 }]])
 
-    expect(wallColors(layout.panels, state({ on: false }), palettes, painted).get(1)).toEqual({
-      r: 0,
-      g: 0,
-      b: 0,
-    })
+    expect(wallColors(layout.panels, state({ on: false }), palettes, painted).get(1)).toEqual(OFF)
+  })
+
+  /**
+   * The stage behind the wall is nearly black. An unlit panel drawn in pure
+   * black left nothing on screen to aim at once the wall was switched off.
+   */
+  it('keeps an unlit panel visible against the stage', () => {
+    expect(OFF).not.toEqual({ r: 0, g: 0, b: 0 })
   })
 
   it('paints again as soon as the device comes back on', () => {

@@ -38,7 +38,8 @@ export const en: Dictionary = {
     'The device does not report how the wall is mounted, and nothing says a wall has to hang square.',
   'control.motion.approximate':
     'The wall is animated from the scene\u2019s colours. The device does not publish its LED state: this is an approximation, not a mirror.',
-  'control.paint.help': 'Click a panel on the wall to paint it with the chosen colour.',
+  'control.paint.help':
+    'Click a panel to light it, click it again to switch it off. The wheel recolours the lit panels, or the whole wall when none are lit.',
   'control.wallUnavailable': 'Wall rendering unavailable',
 
   'scenes.empty': 'No scenes read yet.',

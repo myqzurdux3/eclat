@@ -3,7 +3,16 @@ import type { Color, DeviceState, EffectPalette, NormalizedPanel } from './types
 
 /** Muted grey shown while the device state is still unknown. */
 const NEUTRAL: Color = { r: 40, g: 42, b: 52 }
-const OFF: Color = { r: 0, g: 0, b: 0 }
+
+/**
+ * What an unlit panel is drawn with.
+ *
+ * Not black: the stage behind the wall is nearly black itself, and panels
+ * painted in pure black left the whole wall invisible the moment it was
+ * switched off — there was nothing left to click. This reads as unlit while
+ * still showing where the panels are.
+ */
+export const OFF: Color = { r: 26, g: 28, b: 36 }
 
 const dim = (color: Color, factor: number): Color => ({
   r: Math.round(color.r * factor),

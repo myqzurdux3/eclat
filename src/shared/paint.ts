@@ -3,7 +3,8 @@ import type { Color } from './types'
 /** What the frame carries for a panel the user has switched off. */
 export const UNLIT: Color = { r: 0, g: 0, b: 0 }
 
-const isUnlit = (color: Color): boolean => color.r === 0 && color.g === 0 && color.b === 0
+/** A panel the user has switched off carries no light at all. */
+export const isUnlit = (color: Color): boolean => color.r === 0 && color.g === 0 && color.b === 0
 
 /**
  * The colour a click on a panel should write.

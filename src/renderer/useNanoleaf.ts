@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { DeviceEventMessage, NanoleafApi, RendererDevice } from '../shared/ipc-contract'
 import { createCoalescer } from '../shared/coalesce'
+import { hsbToRgb } from '../shared/color'
 import { rotateLayout } from '../shared/geometry'
-import { nextPaint } from '../shared/paint'
+import { isUnlit, nextPaint } from '../shared/paint'
 import { wallColors } from '../shared/wall-colors'
 import type { Color, DeviceState, EffectPalette, PanelLayout } from '../shared/types'
 
@@ -143,6 +144,14 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
     () =>
       createCoalescer<{ id: string; hue: number; sat: number }>(({ id, hue, sat }) =>
         bridge.setColor(id, hue, sat).catch(report),
+      ),
+    [bridge, report],
+  )
+
+  const pushSelection = useMemo(
+    () =>
+      createCoalescer<{ id: string; entries: Array<{ panelId: number; color: Color }> }>(
+        ({ id, entries }) => bridge.paintPanels(id, entries).catch(report),
       ),
     [bridge, report],
   )
@@ -300,16 +309,42 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
       if (deviceId !== undefined) pushBrightness({ id: deviceId, value })
     },
 
-    // Setting a colour pulls the device out of its effect: it switches to
-    // `hs` mode and reports `*Solid*`. Reflecting that at once stops the
-    // mock-up from showing the palette of a scene already replaced.
+    /**
+     * Recolours the painted panels when there are any, the whole wall
+     * otherwise.
+     *
+     * Painting holds the wall through external control, and the solid colour
+     * goes over REST: sending one while the other owns the panels made two
+     * writers fight — the wall flashed the new colour, then the re-arm probe
+     * put the painted frame back, and the interface showed neither.
+     *
+     * On the whole wall, setting a colour pulls the device out of its
+     * effect: it switches to `hs` mode and reports `*Solid*`. Reflecting
+     * that at once stops the mock-up from showing the palette of a scene
+     * already replaced.
+     */
     setColor: (hue, sat) => {
+      if (deviceId === undefined) return
+
+      const lit = [...painted].filter(([, colour]) => !isUnlit(colour)).map(([id]) => id)
+      if (lit.length > 0) {
+        const colour = hsbToRgb(hue, sat, 100)
+        setPainted((previous) => {
+          const next = new Map(previous)
+          for (const id of lit) next.set(id, colour)
+          return next
+        })
+        setState((previous) => (previous === null ? previous : { ...previous, hue, sat }))
+        pushSelection({ id: deviceId, entries: lit.map((panelId) => ({ panelId, color: colour })) })
+        return
+      }
+
       setState((previous) =>
         previous === null
           ? previous
           : { ...previous, hue, sat, colorMode: 'hs', effect: SOLIDE },
       )
-      if (deviceId !== undefined) pushColour({ id: deviceId, hue, sat })
+      pushColour({ id: deviceId, hue, sat })
     },
 
     // A click either lights a panel or switches it back off. Painting an off

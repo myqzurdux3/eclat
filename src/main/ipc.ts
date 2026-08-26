@@ -32,6 +32,12 @@ export interface DeviceServiceOptions {
 }
 
 /**
+ * How long a refused stroke waits before trying again: one governor interval
+ * at its 30 Hz cap, with a little room to spare.
+ */
+const RETRY_DELAY_MS = 40
+
+/**
  * The business logic behind the IPC channels. No dependency on Electron,
  * so it stays testable outside the application.
  */
@@ -327,6 +333,22 @@ export class DeviceService {
    * need to start a sync first.
    */
   async paintPanel(deviceId: string, panelId: number, color: Color): Promise<boolean> {
+    return this.paintPanels(deviceId, [{ panelId, color }])
+  }
+
+  /**
+   * Paints several panels in one frame.
+   *
+   * Recolouring a selection has to arrive as a single frame: sent one panel
+   * at a time the rate governor would refuse all but the first, and the wall
+   * would end up showing half the change.
+   */
+  async paintPanels(
+    deviceId: string,
+    entries: Array<{ panelId: number; color: Color }>,
+  ): Promise<boolean> {
+    if (entries.length === 0) return false
+
     if (!this.streams.has(deviceId)) {
       // A click on a panel asks for light, and external control lights
       // nothing on an off wall. Switching the power on here — before the
@@ -346,13 +368,20 @@ export class DeviceService {
       painted = new Map<number, Color>()
       this.painted.set(deviceId, painted)
     }
-    painted.set(panelId, color)
+    for (const entry of entries) painted.set(entry.panelId, entry.color)
 
-    return this.sendFrame(
-      deviceId,
-      'manual',
-      panelIds.map((id) => painted.get(id) ?? { r: 0, g: 0, b: 0 }),
-    )
+    const frame = (): Color[] =>
+      panelIds.map((id) => painted.get(id) ?? { r: 0, g: 0, b: 0 })
+
+    if (await this.sendFrame(deviceId, 'manual', frame())) return true
+
+    // The rate governor caps the stream and refuses anything closer than its
+    // interval. A click is not a stream frame — dropping it loses a
+    // deliberate action and the panel simply never lights — so wait the
+    // interval out and send once more. The frame is rebuilt from `painted`,
+    // which by then holds every stroke made in the meantime.
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
+    return this.sendFrame(deviceId, 'manual', frame())
   }
 
   async setColor(deviceId: string, hue: number, sat: number): Promise<void> {
@@ -488,6 +517,11 @@ export function registerIpc(ipcMain: IpcMainLike, service: DeviceService): void 
     IPC_CHANNELS.paintPanel,
     (_event, id: string, panelId: number, color: Color) =>
       service.paintPanel(id, panelId, color),
+  )
+  ipcMain.handle(
+    IPC_CHANNELS.paintPanels,
+    (_event, id: string, entries: Array<{ panelId: number; color: Color }>) =>
+      service.paintPanels(id, entries),
   )
   ipcMain.handle(IPC_CHANNELS.setColor, (_event, id: string, hue: number, sat: number) =>
     service.setColor(id, hue, sat),

@@ -46,6 +46,11 @@ export interface NanoleafApi {
     transitionTime?: number,
   ): Promise<boolean>
   paintPanel(deviceId: string, panelId: number, color: Color): Promise<boolean>
+  /** Recolours several panels in a single frame. */
+  paintPanels(
+    deviceId: string,
+    entries: Array<{ panelId: number; color: Color }>,
+  ): Promise<boolean>
   setColor(deviceId: string, hue: number, sat: number): Promise<void>
   /** Subscribes to device-reported changes. Returns the unsubscribe function. */
   onDeviceEvent(listener: (event: DeviceEventMessage) => void): () => void
@@ -73,6 +78,7 @@ export const IPC_CHANNELS = {
   stopStream: 'stream:stop',
   frame: 'stream:frame',
   paintPanel: 'devices:paintPanel',
+  paintPanels: 'devices:paintPanels',
   setColor: 'devices:setColor',
   deviceEvent: 'devices:event',
   audioSources: 'audio:sources',
