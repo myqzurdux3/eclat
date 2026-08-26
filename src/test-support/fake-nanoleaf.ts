@@ -91,6 +91,11 @@ export class FakeNanoleaf {
     const route = path.slice(prefix.length) || '/'
 
     if (method === 'GET' && route === '/') return sendJson(res, 200, this.fullState())
+    // The smallest route the controller serves; the app uses it to ask
+    // nothing more than "are you there".
+    if (method === 'GET' && route === '/state/on') {
+      return sendJson(res, 200, { value: this.state.on })
+    }
     if (method === 'GET' && route === '/panelLayout/layout') {
       return sendJson(res, 200, this.layout())
     }

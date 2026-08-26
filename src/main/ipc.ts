@@ -241,17 +241,12 @@ export class DeviceService {
    * over a power cut would charge the user that dance every time.
    */
   private async answers(device: StoredDevice): Promise<boolean> {
-    try {
-      await new NanoleafClient({
-        ip: device.ip,
-        port: device.port,
-        token: device.token,
-        timeoutMs: this.options.probeTimeoutMs ?? 1500,
-      }).getState()
-      return true
-    } catch {
-      return false
-    }
+    return new NanoleafClient({
+      ip: device.ip,
+      port: device.port,
+      token: device.token,
+      timeoutMs: this.options.probeTimeoutMs ?? 1500,
+    }).isReachable()
   }
 
   async pair(deviceId: string): Promise<RendererDevice> {

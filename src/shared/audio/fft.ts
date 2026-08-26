@@ -31,6 +31,25 @@ export function hannWindow(size: number): Float32Array {
  * imaginary arrays. Only the first half is returned: for a real input the
  * second half mirrors it and carries nothing new.
  */
+/**
+ * The transform's working arrays, kept between blocks.
+ *
+ * `magnitudeSpectrum` runs about forty-seven times a second and used to
+ * allocate two arrays of the block size each time. They are entirely
+ * internal — only the magnitudes are handed back, and those stay freshly
+ * allocated so a caller can hold on to them.
+ */
+const buffers = new Map<number, { real: Float64Array; imaginary: Float64Array }>()
+
+function scratch(size: number): { real: Float64Array; imaginary: Float64Array } {
+  let held = buffers.get(size)
+  if (held === undefined) {
+    held = { real: new Float64Array(size), imaginary: new Float64Array(size) }
+    buffers.set(size, held)
+  }
+  return held
+}
+
 export function magnitudeSpectrum(samples: Float32Array): Float32Array {
   const size = samples.length
   if (size < 2 || (size & (size - 1)) !== 0) {
@@ -38,9 +57,12 @@ export function magnitudeSpectrum(samples: Float32Array): Float32Array {
   }
 
   const window = hannWindow(size)
-  const real = new Float64Array(size)
-  const imaginary = new Float64Array(size)
-  for (let i = 0; i < size; i += 1) real[i] = samples[i]! * window[i]!
+  const { real, imaginary } = scratch(size)
+
+  for (let i = 0; i < size; i += 1) {
+    real[i] = samples[i]! * window[i]!
+    imaginary[i] = 0
+  }
 
   // Bit-reversal permutation, so the butterflies below can run in place.
   for (let i = 1, j = 0; i < size; i += 1) {
@@ -48,8 +70,15 @@ export function magnitudeSpectrum(samples: Float32Array): Float32Array {
     for (; (j & bit) !== 0; bit >>= 1) j ^= bit
     j ^= bit
     if (i < j) {
-      ;[real[i], real[j]] = [real[j]!, real[i]!]
-      ;[imaginary[i], imaginary[j]] = [imaginary[j]!, imaginary[i]!]
+      // Swapped through a scalar. Destructuring allocates two arrays per
+      // swap, and there are some five hundred swaps per block, forty-seven
+      // blocks a second.
+      const swapReal = real[i]!
+      real[i] = real[j]!
+      real[j] = swapReal
+      const swapImaginary = imaginary[i]!
+      imaginary[i] = imaginary[j]!
+      imaginary[j] = swapImaginary
     }
   }
 

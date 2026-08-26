@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DeviceEventMessage, NanoleafApi, RendererDevice } from '../shared/ipc-contract'
 import { createCoalescer } from '../shared/coalesce'
 import { hsbToRgb } from '../shared/color'
@@ -245,7 +245,11 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
    */
   useEffect(() => {
     run(async () => {
+      // Already-paired walls first, so the interface is useful straight away.
       setDevices(await bridge.listDevices())
+      // Then a discovery pass, which ends by listing again on its own: a
+      // panel added since the last session has to show up without being
+      // asked for.
       setDevices(await bridge.discover())
     })
   }, [bridge, run])
@@ -307,17 +311,26 @@ export function useNanoleaf(bridge: NanoleafApi): NanoleafSession {
    * The other paired walls' geometry is loaded in the background: one sync
    * feeds them all, and without their layout we would not know what to send.
    */
+  const asked = useRef(new Set<string>())
+
   useEffect(() => {
     for (const entry of devices) {
-      if (!entry.paired || entry.id === deviceId || rawLayouts[entry.id] !== undefined) continue
+      if (!entry.paired || entry.id === deviceId) continue
+      // Tracked separately from `rawLayouts`, which this effect writes:
+      // depending on it made every arriving layout re-run the effect while
+      // the others were still in flight, so N walls cost N²/2 real requests
+      // to the controllers.
+      if (asked.current.has(entry.id)) continue
+      asked.current.add(entry.id)
+
       void bridge
         .getLayout(entry.id)
         .then((geometry) =>
           setRawLayouts((previous) => ({ ...previous, [entry.id]: geometry })),
         )
-        .catch(() => undefined)
+        .catch(() => asked.current.delete(entry.id))
     }
-  }, [devices, deviceId, rawLayouts, bridge])
+  }, [devices, deviceId, bridge])
 
   return {
     devices,

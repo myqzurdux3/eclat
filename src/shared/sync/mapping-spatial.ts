@@ -1,4 +1,4 @@
-import { toLinear, type Frame, type LinearColor, type Rect } from './srgb'
+import { toLinear, TO_LINEAR, type Frame, type LinearColor, type Rect } from './srgb'
 import type { PanelLayout } from '../types'
 
 /**
@@ -33,27 +33,43 @@ export function mapSpatial(
   const sigma = Math.max(radius, 0.5 / Math.max(width, height))
   const twoSigmaSquared = 2 * sigma * sigma
 
+  // The Gaussian factorises: exp(-(dx² + dy²)/2σ²) is exp(-dx²/2σ²) times
+  // exp(-dy²/2σ²). Evaluated per pixel it costs one `exp` for each of the
+  // 2304 pixels, per panel, per frame; split into a row table and a column
+  // table it costs 64 + 36. The arithmetic is the same to the last bit — the
+  // exponentials are simply not recomputed for every pixel of a row.
+  const columnWeights = new Float64Array(width)
+  const rowWeights = new Float64Array(height)
+
   return layout.panels.map((panel) => {
+    for (let x = 0; x < width; x += 1) {
+      const dx = (x + 0.5) / width - panel.nx
+      columnWeights[x] = Math.exp(-(dx * dx) / twoSigmaSquared)
+    }
+    for (let y = 0; y < height; y += 1) {
+      const dy = (y + 0.5) / height - panel.ny
+      rowWeights[y] = Math.exp(-(dy * dy) / twoSigmaSquared)
+    }
+
     let r = 0
     let g = 0
     let b = 0
     let totalWeight = 0
 
     for (let y = y0; y < y1; y += 1) {
-      // Pixel centre, mapped into [0,1] over the useful rectangle.
-      const ny = (y - y0 + 0.5) / height
-      const dy = ny - panel.ny
+      const rowWeight = rowWeights[y - y0]!
 
       for (let x = x0; x < x1; x += 1) {
-        const nx = (x - x0 + 0.5) / width
-        const dx = nx - panel.nx
-        const weight = Math.exp(-(dx * dx + dy * dy) / twoSigmaSquared)
+        const weight = rowWeight * columnWeights[x - x0]!
         if (weight < 1e-6) continue
 
+        // The table is indexed directly: the frame's channels are already
+        // whole numbers in range, so `toLinear`'s clamping would be three
+        // redundant calls per pixel, per panel, per frame.
         const at = (y * frame.width + x) * 4
-        r += weight * toLinear(frame.data[at]!)
-        g += weight * toLinear(frame.data[at + 1]!)
-        b += weight * toLinear(frame.data[at + 2]!)
+        r += weight * TO_LINEAR[frame.data[at]!]!
+        g += weight * TO_LINEAR[frame.data[at + 1]!]!
+        b += weight * TO_LINEAR[frame.data[at + 2]!]!
         totalWeight += weight
       }
     }

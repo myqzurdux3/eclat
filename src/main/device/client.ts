@@ -69,6 +69,22 @@ export class NanoleafClient {
     }
   }
 
+  /**
+   * Whether the device answers, without reading its whole state.
+   *
+   * `GET /` returns the full document — every effect, the whole layout —
+   * about 1.3 kB where 14 bytes will do. The round trip dominates either
+   * way, but there is no reason to pay for the rest.
+   */
+  async isReachable(): Promise<boolean> {
+    try {
+      await this.request('GET', '/state/on')
+      return true
+    } catch {
+      return false
+    }
+  }
+
   async getInfo(): Promise<{ name: string; model: string; firmware: string; serial: string }> {
     const body = await this.request<FullStateResponse>('GET', '/')
     return {

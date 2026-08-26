@@ -26,8 +26,14 @@ export interface LinearColor {
 
 const BLACK: LinearColor = { r: 0, g: 0, b: 0 }
 
-/** Conversion table: 256 entries, computed once. */
-const TO_LINEAR = new Float64Array(256)
+/**
+ * Conversion table: 256 entries, computed once.
+ *
+ * Exported for the hot loops, which read `Uint8ClampedArray` data: the
+ * clamping and rounding `toLinear` does are provably redundant there, and it
+ * runs three times per pixel per panel per frame.
+ */
+export const TO_LINEAR = new Float64Array(256)
 for (let value = 0; value < 256; value += 1) {
   const channel = value / 255
   TO_LINEAR[value] = channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
