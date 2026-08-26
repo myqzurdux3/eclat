@@ -4,6 +4,17 @@ import type { PanelLayout } from '../../shared/types'
 /** The most panels the uniform array can address. */
 export const MAX_PANELS = 128
 
+/**
+ * The panels a mesh may cover.
+ *
+ * The vertex shader reads `uColors[aPanelIndex]`, an array of `MAX_PANELS`.
+ * Emitting vertices past that end asks the shader to read outside it, which
+ * GLSL leaves undefined — the panels beyond come out in whatever colour the
+ * driver felt like. Better to draw the wall we can colour.
+ */
+const drawable = (layout: PanelLayout): PanelLayout['panels'] =>
+  layout.panels.slice(0, MAX_PANELS)
+
 export interface WallMesh {
   /** x,y pairs in normalised space. */
   positions: Float32Array
@@ -21,7 +32,7 @@ export function buildPanelMesh(layout: PanelLayout): WallMesh {
   const positions: number[] = []
   const panelIndices: number[] = []
 
-  layout.panels.forEach((panel, panelIndex) => {
+  drawable(layout).forEach((panel, panelIndex) => {
     const points = panelPolygon(panel, layout.nSideLength)
 
     for (let corner = 1; corner < points.length - 1; corner += 1) {
@@ -63,7 +74,7 @@ export function buildHaloMesh(
   ]
   const reach = layout.nSideLength * spread
 
-  layout.panels.forEach((panel, panelIndex) => {
+  drawable(layout).forEach((panel, panelIndex) => {
     for (const [ox, oy] of corners) {
       positions.push(panel.nx + ox * reach, panel.ny + oy * reach)
       offsets.push(ox, oy)
@@ -90,7 +101,7 @@ export function buildOutlineMesh(layout: PanelLayout): WallMesh {
   const positions: number[] = []
   const panelIndices: number[] = []
 
-  layout.panels.forEach((panel, panelIndex) => {
+  drawable(layout).forEach((panel, panelIndex) => {
     const points = panelPolygon(panel, layout.nSideLength)
 
     for (let corner = 0; corner < points.length; corner += 1) {

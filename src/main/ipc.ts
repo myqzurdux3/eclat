@@ -25,6 +25,8 @@ export interface DeviceServiceOptions {
   probeTimeoutMs?: number
   /** Injected by tests: the wait before re-opening a dead event stream. */
   retrackDelayMs?: number
+  /** Injected by tests: how long `shutdown` waits on the walls. */
+  shutdownTimeoutMs?: number
   /** Receives whatever the device reports of its own accord. */
   onDeviceEvent?: (event: DeviceEvent) => void
   /** Receives the analysed audio, block by block. */
@@ -47,6 +49,9 @@ const RETRY_DELAY_MS = 40
  * deafness rather than the rest of the session.
  */
 const RETRACK_DELAY_MS = 5000
+
+/** How long quitting waits for the walls to take their effects back. */
+const SHUTDOWN_TIMEOUT_MS = 3000
 
 /**
  * The business logic behind the IPC channels. No dependency on Electron,
@@ -93,6 +98,11 @@ export class DeviceService {
       timeoutMs: this.options.discoverTimeoutMs ?? 3000,
       sleep: this.options.sleep,
     })
+
+    // Replaced, not merged: a wall that has left the network must stop being
+    // offered for pairing, or the click runs fifteen attempts against
+    // nothing and ends by blaming the user for the power button.
+    this.seen.clear()
 
     for (const device of found) {
       this.seen.set(device.id, {
@@ -403,9 +413,14 @@ export class DeviceService {
     source: SourceId,
     colors: Color[],
     transitionTime?: number,
+    internal = false,
   ): Promise<boolean> {
     const arbiter = this.arbiter(deviceId)
-    if (source === 'manual') arbiter.touchManual()
+    // A stroke from the user takes the wall for a moment. The service's own
+    // re-broadcasts — restoring a painting after a power-on, or a frame the
+    // rate governor refused — must not: they would steal three seconds from
+    // a running sync every time the wall was switched on.
+    if (source === 'manual' && !internal) arbiter.touchManual()
     if (!arbiter.accepts(source)) return false
 
     const stream = this.streams.get(deviceId)
@@ -461,7 +476,7 @@ export class DeviceService {
     }
     for (const entry of entries) painted.set(entry.panelId, entry.color)
 
-    if (await this.sendPainted(deviceId)) return true
+    if (await this.sendPainted(deviceId, false)) return true
 
     // The rate governor caps the stream and refuses anything closer than its
     // interval. A stroke is not a stream frame — dropping it loses a
@@ -473,8 +488,14 @@ export class DeviceService {
     return true
   }
 
-  /** Broadcasts what is currently painted on a wall. */
-  private async sendPainted(deviceId: string): Promise<boolean> {
+  /**
+   * Broadcasts what is currently painted on a wall.
+   *
+   * `internal` tells the arbiter whether this is the user acting. A stroke
+   * takes the wall for a moment; the service's own re-broadcasts must not,
+   * or switching the wall on would steal three seconds from a running sync.
+   */
+  private async sendPainted(deviceId: string, internal = true): Promise<boolean> {
     const panelIds = this.panelIds.get(deviceId)
     const painted = this.painted.get(deviceId)
     if (panelIds === undefined || painted === undefined) return false
@@ -483,6 +504,8 @@ export class DeviceService {
       deviceId,
       'manual',
       panelIds.map((id) => painted.get(id) ?? { r: 0, g: 0, b: 0 }),
+      undefined,
+      internal,
     )
   }
 
@@ -593,7 +616,19 @@ export class DeviceService {
     this.panelIds.clear()
     this.painted.clear()
     this.arbiters.clear()
-    await Promise.all(streams.map((stream) => stream.stop()))
+    this.powered.clear()
+    this.seen.clear()
+
+    // Restoring a wall costs two REST round trips, and an unreachable one
+    // costs the client's full timeout twice over. Quitting must not wait on a
+    // device that has already gone: the panels of a wall we cannot reach are
+    // not ours to put back anyway.
+    await Promise.race([
+      Promise.all(streams.map((stream) => stream.stop())),
+      new Promise((resolve) =>
+        setTimeout(resolve, this.options.shutdownTimeoutMs ?? SHUTDOWN_TIMEOUT_MS),
+      ),
+    ])
   }
 
   private async stored(deviceId: string): Promise<StoredDevice> {

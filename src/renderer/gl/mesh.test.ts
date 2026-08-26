@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildHaloMesh, buildOutlineMesh, buildPanelMesh } from './mesh'
+import { buildHaloMesh, buildOutlineMesh, buildPanelMesh, MAX_PANELS } from './mesh'
 import { normalizeLayout } from '../../main/device/layout'
 import type { PanelLayout } from '../../shared/types'
 
@@ -110,5 +110,29 @@ describe('buildOutlineMesh', () => {
 
     // The final segment ends where the first one started.
     expect(at(mesh.vertexCount - 1)).toEqual(at(0))
+  })
+})
+
+describe('the panel ceiling', () => {
+  /**
+   * The vertex shader reads `uColors[aPanelIndex]`, an array of `MAX_PANELS`.
+   * A wall with more panels than that used to emit indices past its end,
+   * which GLSL leaves undefined.
+   */
+  it('emits no index the shader cannot address', () => {
+    const huge = normalizeLayout(
+      Array.from({ length: MAX_PANELS + 20 }, (_, index) => ({
+        panelId: index + 1,
+        x: (index % 20) * 100,
+        y: Math.floor(index / 20) * 100,
+        o: 0,
+        shapeType: 8,
+      })),
+      100,
+    )
+
+    for (const mesh of [buildPanelMesh(huge), buildHaloMesh(huge), buildOutlineMesh(huge)]) {
+      expect(Math.max(...mesh.panelIndices)).toBeLessThan(MAX_PANELS)
+    }
   })
 })

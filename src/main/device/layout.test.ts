@@ -11,7 +11,7 @@ const panel = (panelId: number, x: number, y: number, shapeType = 7): RawPanel =
 })
 
 describe('normalizeLayout', () => {
-  it('centre un panneau unique', () => {
+  it('centres a single panel', () => {
     const layout = normalizeLayout([panel(1, 120, 340)], 67)
     expect(layout.panels).toHaveLength(1)
     expect(layout.panels[0]!.nx).toBeCloseTo(0.5)
@@ -95,5 +95,20 @@ describe('normalizeLayout — normalised side length', () => {
   it('returns a zero side when no panel is lightable', () => {
     expect(normalizeLayout([{ panelId: 0, x: 0, y: 0, o: 0, shapeType: 12 }], 100).nSideLength)
       .toBe(0)
+  })
+})
+
+describe('normalizeLayout — degenerate walls', () => {
+  /**
+   * The aspect is claimed to be finite and strictly positive whatever the
+   * device reports. A single panel of zero side length made it 0/0, and a
+   * NaN aspect propagates through `rotateLayout` into every coordinate: the
+   * wall renders nothing and no click ever lands.
+   */
+  it('keeps the aspect finite when the device reports no side length', () => {
+    const layout = normalizeLayout([{ panelId: 1, x: 0, y: 0, o: 0, shapeType: 8 }], 0)
+
+    expect(Number.isFinite(layout.aspect)).toBe(true)
+    expect(layout.aspect).toBeGreaterThan(0)
   })
 })

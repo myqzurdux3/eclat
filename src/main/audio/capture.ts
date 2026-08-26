@@ -55,8 +55,17 @@ export class AudioCapture {
     const recorder = (this.options.spawnRecorder ?? defaultRecorder)(sourceId)
     this.recorder = recorder
 
-    recorder.stdout.on('data', (chunk: Buffer) => this.consume(chunk))
+    // Guarded on identity: `stop()` signals the process but the pipe can
+    // still hold a few hundred kilobytes written before it died. Folded into
+    // the next capture those bytes land after `pending` was cleared, and
+    // since a leftover chunk is not a whole number of frames every block
+    // after it is read across sample boundaries.
+    recorder.stdout.on('data', (chunk: Buffer) => {
+      if (this.recorder !== recorder) return
+      this.consume(chunk)
+    })
     recorder.stderr.on('data', (chunk: Buffer) => {
+      if (this.recorder !== recorder) return
       const message = chunk.toString('utf8').trim()
       if (message.length > 0) this.options.onError?.(message)
     })

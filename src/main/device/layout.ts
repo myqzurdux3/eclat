@@ -33,7 +33,12 @@ export function normalizeLayout(raw: RawPanel[], sideLength: number): PanelLayou
   const width = maxX - minX
   const height = maxY - minY
   const scale = Math.max(width, height)
-  const aspect = (width + sideLength) / (height + sideLength)
+
+  // A device reporting no side length would make this 0/0 on a single panel,
+  // and a NaN aspect propagates through the rotation into every coordinate:
+  // a wall that renders nothing and swallows every click.
+  const span = width + height + sideLength === 0 ? 1 : sideLength
+  const aspect = (width + span) / (height + span)
 
   if (scale === 0) {
     const panels: NormalizedPanel[] = usable.map((p) => ({ ...p, nx: 0.5, ny: 0.5 }))

@@ -279,6 +279,46 @@ describe('DeviceService — palettes', () => {
   })
 })
 
+describe('DeviceService — discovery', () => {
+  /**
+   * A wall that has left the network must stop being offered. Kept in the
+   * list, a click on Pair runs fifteen attempts against nothing and ends by
+   * telling the user to hold a power button that is not there.
+   */
+  it('forgets an unpaired wall that no longer announces itself', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nanoleaf-gone-'))
+    const announcement = {
+      name: 'Shapes Lounge',
+      host: 'shapes.local',
+      addresses: ['127.0.0.1'],
+      port: device.port,
+      txt: { md: 'NL42' },
+    }
+
+    let announcing = [announcement]
+    const service = new DeviceService({
+      store: new ConfigStore(join(dir, 'config.json')),
+      mdnsFactory: {
+        browse() {
+          return {
+            on(_event, listener) {
+              for (const entry of announcing) listener(entry)
+            },
+            stop() {},
+          }
+        },
+      },
+      discoverTimeoutMs: 0,
+      sleep: () => Promise.resolve(),
+    })
+
+    expect(await service.discover()).toHaveLength(1)
+
+    announcing = []
+    expect(await service.discover()).toEqual([])
+  })
+})
+
 describe('DeviceService — a device that is switched off', () => {
   let store: ConfigStore
 
